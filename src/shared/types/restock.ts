@@ -24,7 +24,7 @@ export interface RestockItem {
 export interface CreateRestockDTO {
   supplierName: string
   date: string
-  notes?: string
+  notes?: string | null
   items: CreateRestockItemDTO[]
 }
 
@@ -38,8 +38,7 @@ export interface CreateRestockItemDTO {
 export interface UpdateRestockDTO {
   supplierName?: string
   date?: string
-  status?: Restock['status']
-  notes?: string
+  notes?: string | null
   items?: CreateRestockItemDTO[]
 }
 

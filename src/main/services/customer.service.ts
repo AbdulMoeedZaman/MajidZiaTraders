@@ -137,7 +137,7 @@ export class CustomerService {
     return this.customerRepo.countActive()
   }
 
-  private validateContact(phone?: string, email?: string): void {
+  private validateContact(phone?: string | null, email?: string | null): void {
     if (email && !EMAIL_PATTERN.test(email.trim())) {
       throw new Error('Invalid email format')
     }

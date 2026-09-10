@@ -5,6 +5,7 @@ import type {
   CustomerLedgerQuery,
   CreateCustomerLedgerDTO,
 } from '@shared/types/customer-ledger'
+import { localDate } from '@shared/date'
 
 export interface LedgerTotals {
   totalDebit: number
@@ -78,6 +79,23 @@ export class CustomerLedgerRepository extends BaseRepository {
     return row.total
   }
 
+  getTotalsByCustomer(): Map<number, LedgerTotals> {
+    const rows = this.db
+      .prepare(
+        `SELECT customerId,
+                COALESCE(SUM(debit), 0) AS totalDebit,
+                COALESCE(SUM(credit), 0) AS totalCredit
+         FROM customer_ledger
+         GROUP BY customerId`
+      )
+      .all() as Array<{ customerId: number; totalDebit: number; totalCredit: number }>
+    const map = new Map<number, LedgerTotals>()
+    for (const row of rows) {
+      map.set(row.customerId, { totalDebit: row.totalDebit, totalCredit: row.totalCredit })
+    }
+    return map
+  }
+
   countByCustomer(customerId: number): number {
     const result = this.db
       .prepare('SELECT COUNT(*) AS count FROM customer_ledger WHERE customerId = ?')
@@ -99,7 +117,7 @@ export class CustomerLedgerRepository extends BaseRepository {
         data.debit ?? 0,
         data.credit ?? 0,
         data.description?.trim() || null,
-        data.transactionDate ?? new Date().toISOString().split('T')[0]
+        data.transactionDate ?? localDate()
       )
 
     return this.findById(result.lastInsertRowid as number)!

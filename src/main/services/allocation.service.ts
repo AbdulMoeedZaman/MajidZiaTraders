@@ -41,4 +41,11 @@ export class AllocationService {
     }
     this.invoiceRepo.assertConsistency(invoiceId)
   }
+
+  /** Uses every leftover payment (oldest first) on the customer's open invoices. */
+  applyCustomerCredit(customerId: number): void {
+    for (const credit of this.paymentRepo.findPaymentsWithUnallocated(customerId)) {
+      this.applyUnallocated(credit.id, customerId)
+    }
+  }
 }

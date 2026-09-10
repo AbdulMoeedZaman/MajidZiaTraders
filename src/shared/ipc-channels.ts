@@ -27,7 +27,6 @@ export const IPC_CHANNELS = {
 
   INVENTORY_LIST_MOVEMENTS: 'inventory:list-movements',
   INVENTORY_GET_BY_ID: 'inventory:get-by-id',
-  INVENTORY_RECORD_MOVEMENT: 'inventory:record-movement',
   INVENTORY_CURRENT_QUANTITY: 'inventory:current-quantity',
   INVENTORY_CURRENT_QUANTITIES: 'inventory:current-quantities',
   INVENTORY_STOCK_SUMMARY: 'inventory:stock-summary',

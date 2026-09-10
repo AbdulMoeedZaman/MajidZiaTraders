@@ -255,17 +255,17 @@ function ProfileForm({
     try {
       await api.businessProfile.update({
         name: state.name.trim(),
-        ownerName: state.ownerName.trim() || undefined,
-        phone: state.phone.trim() || undefined,
-        email: state.email.trim() || undefined,
-        address: state.address.trim() || undefined,
-        city: state.city.trim() || undefined,
-        country: state.country.trim() || undefined,
-        taxId: state.taxId.trim() || undefined,
+        ownerName: state.ownerName.trim() || null,
+        phone: state.phone.trim() || null,
+        email: state.email.trim() || null,
+        address: state.address.trim() || null,
+        city: state.city.trim() || null,
+        country: state.country.trim() || null,
+        taxId: state.taxId.trim() || null,
         taxRate: Math.min(100, Math.max(0, parseFloat(state.taxRate || '0') || 0)),
         currency: state.currency.trim() || 'USD',
         invoicePrefix: state.invoicePrefix.trim() || 'INV-',
-        invoiceFooter: state.invoiceFooter.trim() || undefined,
+        invoiceFooter: state.invoiceFooter.trim() || null,
       })
       setCurrency(state.currency.trim() || 'USD')
       await onSaved()

@@ -12,18 +12,18 @@ export interface Customer {
 
 export interface CreateCustomerDTO {
   name: string
-  phone?: string
-  email?: string
-  address?: string
-  notes?: string
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  notes?: string | null
 }
 
 export interface UpdateCustomerDTO {
   name?: string
-  phone?: string
-  email?: string
-  address?: string
-  notes?: string
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  notes?: string | null
   isActive?: number
 }
 

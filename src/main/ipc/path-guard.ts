@@ -23,8 +23,15 @@ export function assertUserFilePath(filePath: unknown, allowedExtensions: string[
     throw new Error(`${purpose}: only ${allowedExtensions.join(', ')} files are allowed`)
   }
   const userData = path.resolve(app.getPath('userData'))
-  if (resolved === userData || resolved.startsWith(userData + path.sep)) {
+  if (isInsideDirectory(resolved, userData)) {
     throw new Error(`${purpose}: choose a location outside the app's data folder`)
   }
   return resolved
+}
+
+function isInsideDirectory(target: string, directory: string): boolean {
+  const fold = process.platform === 'darwin' || process.platform === 'win32'
+  const left = fold ? target.toLowerCase() : target
+  const right = fold ? directory.toLowerCase() : directory
+  return left === right || left.startsWith(right + path.sep)
 }

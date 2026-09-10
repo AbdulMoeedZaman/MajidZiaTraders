@@ -1,6 +1,27 @@
 import type Database from 'better-sqlite3'
-import { localDate } from '@shared/date'
-import { computeInvoiceStatus, type InvoiceStatus } from '@shared/calc/invoice-totals'
+
+// Frozen copies of helpers that this migration used when it was written. Do not import
+// live shared code here — later edits would silently change what already-applied
+// databases did when they ran this file.
+
+function localDate(d: Date = new Date()): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+type InvoiceStatus = 'sent' | 'paid' | 'partial' | 'overdue' | 'cancelled'
+
+function computeInvoiceStatus(
+  invoice: { status: InvoiceStatus; dueDate: string | null; paid: number; outstanding: number },
+  today: string
+): InvoiceStatus {
+  if (invoice.status === 'cancelled') return 'cancelled'
+  if (invoice.outstanding <= 0) return 'paid'
+  if (invoice.dueDate && invoice.dueDate < today) return 'overdue'
+  return invoice.paid > 0 ? 'partial' : 'sent'
+}
 
 // Repairs data left inconsistent by migration 004 and older versions. Safe to run on any
 // database from version 3 onwards; running the steps again changes nothing.

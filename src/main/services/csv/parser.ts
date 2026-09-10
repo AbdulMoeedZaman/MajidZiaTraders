@@ -61,8 +61,12 @@ export function parseCSV(text: string, delimiter = ','): ParsedCSV {
 export function toCSV(columns: string[], rows: Array<Record<string, unknown>>): string {
   const escape = (value: unknown): string => {
     if (value === null || value === undefined) return ''
-    const str = String(value)
-    if (/[",\r\n]/.test(str)) {
+    let str = String(value)
+    const numeric = str !== '' && Number.isFinite(Number(str))
+    if (/^[=+\t\r@]/.test(str) || (/^-/.test(str) && !numeric)) {
+      str = `'${str}`
+    }
+    if (/[",\r\n]/.test(str) || str.startsWith("'")) {
       return `"${str.replace(/"/g, '""')}"`
     }
     return str

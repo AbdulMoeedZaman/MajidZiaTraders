@@ -18,6 +18,7 @@ import type {
   PaymentReportItem,
 } from '@shared/types/report'
 import { PAYMENT_METHOD_LABELS } from '@shared/types/customer-payment'
+import { assertIsoDate } from '@shared/date'
 
 export class ReportService {
   private invoiceRepo = new InvoiceRepository()
@@ -116,8 +117,10 @@ export class ReportService {
     const allPaymentTotals = new Map<number, number>()
     for (const row of this.paymentRepo.sumByCustomer()) allPaymentTotals.set(row.customerId, row.total)
 
+    const ledgerTotals = this.ledgerRepo.getTotalsByCustomer()
+
     const items = customers.map((c) => {
-      const totals = this.ledgerRepo.getTotals(c.id)
+      const totals = ledgerTotals.get(c.id) ?? { totalDebit: 0, totalCredit: 0 }
       const balance = totals.totalDebit - totals.totalCredit
       return {
         customerId: c.id,
@@ -206,8 +209,8 @@ export class ReportService {
   }
 
   private assertPeriod(from: string, to: string): void {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new Error('From date must be in YYYY-MM-DD format')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(to)) throw new Error('To date must be in YYYY-MM-DD format')
+    assertIsoDate(from, 'From date')
+    assertIsoDate(to, 'To date')
     if (from > to) throw new Error('From date cannot be after to date')
   }
 }

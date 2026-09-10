@@ -33,23 +33,43 @@ export function closeDatabase(): void {
     db.close()
     db = null
   }
-  if (dbPath) {
-    for (const suffix of ['-wal', '-shm']) {
-      const candidate = dbPath + suffix
-      if (fs.existsSync(candidate)) {
-        try {
-          fs.unlinkSync(candidate)
-        } catch {
-          // best effort cleanup
-        }
+}
+
+function removeWalSidecars(filePath: string): void {
+  for (const suffix of ['-wal', '-shm']) {
+    const candidate = filePath + suffix
+    if (fs.existsSync(candidate)) {
+      try {
+        fs.unlinkSync(candidate)
+      } catch {
+        // best effort; a leftover sidecar would be applied to the wrong database
       }
     }
   }
 }
 
-export function replaceDatabaseFromFile(sourcePath: string): void {
+/**
+ * Replaces the live database with `sourcePath`. If opening/migrating the new file fails
+ * and `fallbackPath` is set, the fallback is copied back so the previous data stays live.
+ */
+export function replaceDatabaseFromFile(sourcePath: string, fallbackPath?: string): void {
   closeDatabase()
   if (!dbPath) dbPath = path.join(app.getPath('userData'), 'inventory.db')
+  removeWalSidecars(dbPath)
   fs.copyFileSync(sourcePath, dbPath)
-  getDatabase()
+  try {
+    getDatabase()
+  } catch (error) {
+    closeDatabase()
+    if (fallbackPath && fs.existsSync(fallbackPath)) {
+      try {
+        removeWalSidecars(dbPath)
+        fs.copyFileSync(fallbackPath, dbPath)
+        getDatabase()
+      } catch {
+        // Keep the original restore error if rolling back also fails.
+      }
+    }
+    throw error
+  }
 }

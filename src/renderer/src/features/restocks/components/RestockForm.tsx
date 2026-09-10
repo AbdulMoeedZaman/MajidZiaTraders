@@ -75,7 +75,7 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
     const payload: CreateRestockDTO = {
       supplierName: state.supplierName.trim(),
       date: state.date,
-      notes: state.notes.trim() || undefined,
+      notes: state.notes.trim() || null,
       items: state.items.map((item) => ({
         productId: parseInt(item.productId, 10),
         unit: item.unit.trim() || 'piece',

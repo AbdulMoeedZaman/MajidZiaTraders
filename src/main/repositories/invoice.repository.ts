@@ -38,6 +38,7 @@ export class InvoiceRepository extends BaseRepository {
     to?: string
     status?: string
     customerId?: number
+    limit?: number
   }): InvoiceWithCustomer[] {
     let sql = `
       SELECT i.*, c.name AS customerName
@@ -62,6 +63,10 @@ export class InvoiceRepository extends BaseRepository {
       params.push(opts.customerId)
     }
     sql += ' ORDER BY i.date DESC, i.id DESC'
+    if (opts?.limit !== undefined) {
+      sql += ' LIMIT ?'
+      params.push(opts.limit)
+    }
     return this.db.prepare(sql).all(...params) as InvoiceWithCustomer[]
   }
 

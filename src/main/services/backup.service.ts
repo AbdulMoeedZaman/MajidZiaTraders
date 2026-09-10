@@ -26,6 +26,10 @@ const CORE_TABLES = [
 
 const SAFETY_COPIES_TO_KEEP = 10
 
+function withBackupExtension(destinationPath: string): string {
+  return /\.(db|sqlite3?)$/i.test(destinationPath) ? destinationPath : `${destinationPath}.db`
+}
+
 function tableNames(connection: Database.Database): string[] {
   const rows = connection
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
@@ -48,13 +52,19 @@ export class BackupService {
     if (!destinationPath?.trim()) {
       throw new Error('Backup destination is required')
     }
-    const dest = destinationPath.endsWith('.db') ? destinationPath : `${destinationPath}.db`
-    if (fs.existsSync(dest)) {
-      fs.unlinkSync(dest)
+    const dest = withBackupExtension(destinationPath)
+    const tmp = `${dest}.${process.pid}.tmp`
+    try {
+      // db.backup() includes changes still in the WAL file, unlike a plain file copy.
+      await getDatabase().backup(tmp)
+      fs.copyFileSync(tmp, dest)
+    } finally {
+      try {
+        if (fs.existsSync(tmp)) fs.unlinkSync(tmp)
+      } catch {
+        // ignore leftover temp
+      }
     }
-
-    // db.backup() includes changes still in the WAL file, unlike a plain file copy.
-    await getDatabase().backup(dest)
 
     return this.inspect(dest, null)
   }
@@ -77,6 +87,7 @@ export class BackupService {
       const tables = tableNames(connection)
       const missing = CORE_TABLES.filter((t) => !tables.includes(t))
       const version = migrationVersion(connection, tables)
+      const missingHistory = version === null
       const tooNew = version !== null && version > LATEST_MIGRATION_VERSION
 
       let message: string
@@ -84,6 +95,8 @@ export class BackupService {
         message = 'Database integrity check failed'
       } else if (missing.length > 0) {
         message = `Incompatible backup: missing tables (${missing.join(', ')})`
+      } else if (missingHistory) {
+        message = 'Incompatible backup: missing migration history'
       } else if (tooNew) {
         message = `This backup was made by a newer version of the app (database version ${version}). Update the app to restore it.`
       } else if (version !== null && version < LATEST_MIGRATION_VERSION) {
@@ -93,7 +106,7 @@ export class BackupService {
       }
 
       return {
-        valid: integrity && missing.length === 0 && !tooNew,
+        valid: integrity && missing.length === 0 && !missingHistory && !tooNew,
         message,
         integrity,
         tables,
@@ -115,8 +128,14 @@ export class BackupService {
 
     const safetyCopyPath = await this.createSafetyCopy()
 
-    // Reopening the database runs migrations, which upgrades backups from older versions.
-    replaceDatabaseFromFile(filePath)
+    try {
+      // Reopening the database runs migrations, which upgrades backups from older versions.
+      replaceDatabaseFromFile(filePath, safetyCopyPath)
+    } catch (error) {
+      throw new Error(
+        `Restore failed and the previous database was put back: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
 
     const check = this.validateBackup(getDatabasePath())
     return {

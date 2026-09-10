@@ -106,7 +106,7 @@ export class RestockRepository extends BaseRepository {
       .all(restockId) as RestockItemWithProduct[]
   }
 
-  update(id: number, data: UpdateRestockDTO): Restock {
+  update(id: number, data: UpdateRestockDTO & { status?: Restock['status'] }): Restock {
     const fields: string[] = []
     const values: unknown[] = []
 

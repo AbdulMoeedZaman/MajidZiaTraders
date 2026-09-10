@@ -17,7 +17,7 @@ import type { CreateProductDTO } from '@shared/types/product'
 import type { CreateCustomerDTO } from '@shared/types/customer'
 import type { CreateRestockDTO, CreateRestockItemDTO } from '@shared/types/restock'
 import type { CSVExportEntityType } from '@shared/types/csv'
-import { localDate } from '@shared/date'
+import { localDate, isValidIsoDate } from '@shared/date'
 
 function today(): string {
   return localDate()
@@ -65,7 +65,11 @@ export class CSVService {
         : Array.from({ length: columnCount }, (_, i) => `column_${i + 1}`)
 
     const dataStart = config.hasHeader && header.length > 0 ? 1 : 0
-    const dataRows = rows.slice(dataStart).filter((r) => r.some((c) => c.trim() !== ''))
+    const indexedRows = rows
+      .slice(dataStart)
+      .map((row, offset) => ({ row, sourceIndex: dataStart + offset }))
+      .filter(({ row }) => row.some((c) => c.trim() !== ''))
+    const dataRows = indexedRows.map((r) => r.row)
 
     const result: CSVImportResult = {
       totalRows: dataRows.length,
@@ -76,7 +80,7 @@ export class CSVService {
     }
 
     const recordError = (index: number, message: string): void => {
-      const displayRow = index + (config.hasHeader ? 2 : 1)
+      const displayRow = indexedRows[index].sourceIndex + 1
       result.errors.push({ row: displayRow, message })
       result.skipped += 1
     }
@@ -147,7 +151,7 @@ export class CSVService {
         break
       }
       case 'invoices': {
-        const invoices = from && to ? this.invoiceRepo.findAllWithCustomer({ from, to }) : this.invoiceRepo.findAllWithCustomer()
+        const invoices = this.invoiceRepo.findAllWithCustomer({ from, to })
         const status = typeof filter.status === 'string' ? filter.status : undefined
         rows = invoices
           .filter((i) => (status ? i.status === status : true))
@@ -213,8 +217,14 @@ export class CSVService {
   })
 
   const csv = toCSV(config.columns, rows)
+    const body =
+      config.includeHeaders === false
+        ? csv.includes('\r\n')
+          ? csv.slice(csv.indexOf('\r\n') + 2)
+          : ''
+        : csv
     const enc = (config.encoding || 'utf8') as BufferEncoding
-    fs.writeFileSync(config.filePath, config.includeHeaders === false ? csv.substring(csv.indexOf('\r\n') + 2) : csv, {
+    fs.writeFileSync(config.filePath, body, {
       encoding: enc,
     })
     return config.filePath
@@ -393,7 +403,7 @@ export class CSVService {
       }
 
       const date = values.date || today()
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      if (!isValidIsoDate(date)) {
         recordError(i, 'Date must be in YYYY-MM-DD format')
         continue
       }

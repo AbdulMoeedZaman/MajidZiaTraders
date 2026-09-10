@@ -24,10 +24,10 @@ export function toCustomerFormState(customer: Customer | null): CustomerFormStat
 export function fromCustomerFormState(state: CustomerFormState): CreateCustomerDTO {
   return {
     name: state.name.trim(),
-    phone: state.phone.trim() || undefined,
-    email: state.email.trim() || undefined,
-    address: state.address.trim() || undefined,
-    notes: state.notes.trim() || undefined,
+    phone: state.phone.trim() || null,
+    email: state.email.trim() || null,
+    address: state.address.trim() || null,
+    notes: state.notes.trim() || null,
   }
 }
 

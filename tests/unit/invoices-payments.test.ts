@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { PaymentService } from '../../src/main/services/payment.service'
 import { CustomerService } from '../../src/main/services/customer.service'
+import { BusinessProfileService } from '../../src/main/services/business-profile.service'
 import { InvoiceRepository } from '../../src/main/repositories/invoice.repository'
 import { getDatabase } from '../../src/main/database/connection'
 import { localDate } from '../../src/shared/date'
@@ -57,6 +58,19 @@ describe('invoices', () => {
       .get(invoice.id) as { debit: number }
     expect(invoice.total).toBe(15400)
     expect(debit.debit).toBe(invoice.total)
+  })
+
+  it('numbers the first invoice INV-000001', () => {
+    const { product, customerId } = seedBasics()
+    const invoice = new InvoiceService().create({ customerId, date: TODAY, items: [line(product, 1)] })
+    expect(invoice.invoiceNumber).toBe('INV-000001')
+  })
+
+  it('rejects an impossible calendar date', () => {
+    const { product, customerId } = seedBasics()
+    expect(() =>
+      new InvoiceService().create({ customerId, date: '2026-02-31', items: [line(product, 1)] })
+    ).toThrow(/not a valid date/)
   })
 })
 
@@ -124,5 +138,42 @@ describe('payments and customer credit', () => {
     expect(new InvoiceRepository().findById(invoice.id)?.status).toBe('paid')
     payments.delete(payment.id)
     expect(new InvoiceRepository().findById(invoice.id)).toMatchObject({ paid: 0, outstanding: 1000, status: 'sent' })
+  })
+
+  it("reapplies the customer's leftover credit when a payment is deleted", () => {
+    const { product, customerId } = seedBasics()
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+    const invoice = invoices.create({ customerId, date: TODAY, items: [line(product, 1)] })
+    const covering = payments.create({
+      customerId,
+      invoiceId: invoice.id,
+      amount: 1000,
+      method: 'cash',
+      paymentDate: TODAY,
+    })
+    payments.create({ customerId, amount: 400, method: 'cash', paymentDate: TODAY })
+
+    payments.delete(covering.id)
+
+    expect(new InvoiceRepository().findById(invoice.id)).toMatchObject({ paid: 400, outstanding: 600, status: 'partial' })
+    expect(new CustomerService().getWithBalance(customerId)!.balance).toBe(600)
+  })
+})
+
+describe('customers and profile', () => {
+  it('clears optional fields when they are sent as null', () => {
+    const customers = new CustomerService()
+    const created = customers.create({ name: 'Pat', phone: '5551234567', email: 'pat@example.com' })
+    const updated = customers.update(created.id, { phone: null, email: null })
+    expect(updated.phone).toBeNull()
+    expect(updated.email).toBeNull()
+  })
+
+  it('rejects a NaN tax rate and a non-integer next invoice number', () => {
+    const profiles = new BusinessProfileService()
+    expect(() => profiles.update({ name: 'Shop', taxRate: Number.NaN })).toThrow(/Tax rate/)
+    profiles.update({ name: 'Shop', taxRate: 5, invoiceNextNumber: 1 })
+    expect(() => profiles.update({ invoiceNextNumber: 1.5 })).toThrow(/Invoice next number/)
   })
 })

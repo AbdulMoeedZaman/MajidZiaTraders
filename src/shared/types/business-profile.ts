@@ -20,17 +20,17 @@ export interface BusinessProfile {
 
 export interface UpdateBusinessProfileDTO {
   name?: string
-  ownerName?: string
-  phone?: string
-  email?: string
-  address?: string
-  city?: string
-  country?: string
-  taxId?: string
+  ownerName?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  taxId?: string | null
   taxRate?: number
-  logoPath?: string
+  logoPath?: string | null
   currency?: string
-  invoiceFooter?: string
+  invoiceFooter?: string | null
   invoicePrefix?: string
   invoiceNextNumber?: number
 }

@@ -61,8 +61,8 @@ export class DashboardService {
         productsLowStock,
         productsOutOfStock,
       },
-      recentInvoices: this.invoiceRepo.findAllWithCustomer().slice(0, 5),
-      recentPayments: this.paymentRepo.findAllWithDetails().slice(0, 5),
+      recentInvoices: this.invoiceRepo.findAllWithCustomer({ limit: 5 }),
+      recentPayments: this.paymentRepo.findAllWithDetails(undefined, undefined, 5),
       lowStockItems,
     }
   }

@@ -27,7 +27,7 @@ export class PaymentRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM customer_payments ORDER BY createdAt DESC').all() as CustomerPayment[]
   }
 
-  findAllWithDetails(from?: string, to?: string): CustomerPaymentWithCustomer[] {
+  findAllWithDetails(from?: string, to?: string, limit?: number): CustomerPaymentWithCustomer[] {
     let sql = DETAIL_SELECT + ' WHERE 1 = 1'
     const params: unknown[] = []
     if (from) {
@@ -39,6 +39,10 @@ export class PaymentRepository extends BaseRepository {
       params.push(to)
     }
     sql += ' ORDER BY p.paymentDate DESC, p.id DESC'
+    if (limit !== undefined) {
+      sql += ' LIMIT ?'
+      params.push(limit)
+    }
     return this.db.prepare(sql).all(...params) as CustomerPaymentWithCustomer[]
   }
 

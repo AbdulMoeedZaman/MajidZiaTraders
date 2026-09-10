@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { InventoryService } from '../services/inventory.service'
-import type { RecordMovementDTO, SetOpeningStockDTO } from '@shared/types/inventory'
+import type { SetOpeningStockDTO } from '@shared/types/inventory'
 
 const inventoryService = new InventoryService()
 
@@ -11,10 +11,6 @@ export function registerInventoryIpc(): void {
 
   ipcMain.handle('inventory:get-by-id', (_, id: number) => {
     return inventoryService.getById(id)
-  })
-
-  ipcMain.handle('inventory:record-movement', (_, data: RecordMovementDTO) => {
-    return inventoryService.recordMovement(data)
   })
 
   ipcMain.handle('inventory:current-quantity', (_, productId: number) => {

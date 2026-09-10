@@ -7,9 +7,7 @@ import type {
   CreateCustomerLedgerDTO,
 } from '@shared/types/customer-ledger'
 import { LEDGER_ENTRY_TYPES } from '@shared/types/customer-ledger'
-import { localDate } from '@shared/date'
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+import { localDate, assertIsoDate } from '@shared/date'
 
 export class CustomerLedgerService {
   private ledgerRepo = new CustomerLedgerRepository()
@@ -114,17 +112,7 @@ export class CustomerLedgerService {
 
   private validateDate(date: string | undefined, label: string): void {
     if (date === undefined) return
-    if (typeof date !== 'string' || !DATE_PATTERN.test(date)) {
-      throw new Error(`${label} must be a valid date in YYYY-MM-DD format`)
-    }
-    const parsed = new Date(`${date}T00:00:00Z`)
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`${label} is not a valid date`)
-    }
-    const [year, month, day] = date.split('-').map(Number)
-    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== day) {
-      throw new Error(`${label} is not a valid date`)
-    }
+    assertIsoDate(date, label)
   }
 
   private validateAmount(amount: number, label: string): void {

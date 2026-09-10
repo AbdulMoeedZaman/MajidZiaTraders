@@ -7,8 +7,8 @@ import { InventoryRepository } from '../repositories/inventory.repository'
 import { PaymentRepository } from '../repositories/payment.repository'
 import { AllocationService } from './allocation.service'
 import type { Invoice, InvoiceWithCustomer, InvoiceWithItems, CreateInvoiceDTO, CreateInvoiceItemDTO, UpdateInvoiceDTO } from '@shared/types/invoice'
+import { assertIsoDate } from '@shared/date'
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const UPDATABLE_FIELDS = ['notes', 'dueDate'] as const
 
 export class InvoiceService {
@@ -310,12 +310,6 @@ export class InvoiceService {
   }
 
   private validateDate(date: string, label: string): void {
-    if (!DATE_PATTERN.test(date)) {
-      throw new Error(`${label} must be a valid date in YYYY-MM-DD format`)
-    }
-    const parsed = new Date(`${date}T00:00:00Z`)
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`${label} is not a valid date`)
-    }
+    assertIsoDate(date, label)
   }
 }

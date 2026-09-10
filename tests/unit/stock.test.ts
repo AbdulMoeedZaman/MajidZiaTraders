@@ -74,4 +74,17 @@ describe('restock numbers', () => {
     expect(third.referenceNumber).not.toBe(second.referenceNumber)
     expect(third.referenceNumber).toBe('RS-000003')
   })
+
+  it('refuses to mark a restock received through update()', () => {
+    const { product } = seedBasics()
+    const restocks = new RestockService()
+    const order = restocks.create({
+      supplierName: 'Acme',
+      date: localDate(),
+      items: [{ productId: product.id, quantity: 1, unitCost: 100 }],
+    })
+    expect(() => restocks.update(order.id, { status: 'received' } as never)).toThrow(/Mark as received/)
+    expect(restocks.getById(order.id)?.status).toBe('pending')
+    expect(new InventoryService().getCurrentQuantity(product.id)).toBe(100)
+  })
 })

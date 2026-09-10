@@ -8,7 +8,9 @@ function isSameAppOrigin(target: string, current: string): boolean {
   try {
     const a = new URL(target)
     const b = new URL(current)
-    if (a.protocol === 'file:' && b.protocol === 'file:') return true
+    if (a.protocol === 'file:' && b.protocol === 'file:') {
+      return decodeURIComponent(a.pathname) === decodeURIComponent(b.pathname)
+    }
     return a.origin === b.origin
   } catch {
     return false
@@ -43,19 +45,32 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  getDatabase()
-  new InvoiceRepository().markOverdue()
-  registerAllIpc()
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
   })
-})
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.whenReady().then(() => {
+    getDatabase()
+    new InvoiceRepository().markOverdue()
+    registerAllIpc()
+    createWindow()
 
-app.on('before-quit', () => closeDatabase())
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+
+  app.on('before-quit', () => closeDatabase())
+}

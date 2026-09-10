@@ -5,9 +5,7 @@ import { InvoiceRepository } from '../repositories/invoice.repository'
 import { AllocationService } from './allocation.service'
 import type { CustomerPayment, CustomerPaymentWithCustomer, CreateCustomerPaymentDTO } from '@shared/types/customer-payment'
 import { PAYMENT_METHODS } from '@shared/types/customer-payment'
-import { localDate } from '@shared/date'
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+import { localDate, assertIsoDate } from '@shared/date'
 
 export class PaymentService {
   private paymentRepo = new PaymentRepository()
@@ -117,17 +115,13 @@ export class PaymentService {
         this.invoiceRepo.recomputePaymentState(invoiceId)
         this.invoiceRepo.assertConsistency(invoiceId)
       }
+
+      this.allocationService.applyCustomerCredit(existing.customerId)
     })
   }
 
   private validateDate(date: string, label: string): void {
-    if (!DATE_PATTERN.test(date)) {
-      throw new Error(`${label} must be a valid date in YYYY-MM-DD format`)
-    }
-    const parsed = new Date(`${date}T00:00:00Z`)
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`${label} is not a valid date`)
-    }
+    assertIsoDate(date, label)
   }
 
   count(): number {

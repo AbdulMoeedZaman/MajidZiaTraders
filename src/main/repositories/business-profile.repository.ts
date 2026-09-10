@@ -69,8 +69,18 @@ export class BusinessProfileRepository extends BaseRepository {
     const profile = this.get()
     if (!profile) throw new Error('Business profile not found')
 
-    const nextNumber = profile.invoiceNextNumber + 1
-    this.db.prepare("UPDATE business_profile SET invoiceNextNumber = ?, updatedAt = datetime('now') WHERE id = ?").run(nextNumber, profile.id)
+    let nextNumber = Number.isInteger(profile.invoiceNextNumber) && profile.invoiceNextNumber >= 1
+      ? profile.invoiceNextNumber
+      : 1
+    const prefix = profile.invoicePrefix || 'INV-'
+    const taken = this.db.prepare('SELECT 1 AS ok FROM invoices WHERE invoiceNumber = ?')
+    while (taken.get(`${prefix}${String(nextNumber).padStart(6, '0')}`)) {
+      nextNumber += 1
+    }
+
+    this.db
+      .prepare("UPDATE business_profile SET invoiceNextNumber = ?, updatedAt = datetime('now') WHERE id = ?")
+      .run(nextNumber + 1, profile.id)
     return nextNumber
   }
 }

@@ -8,8 +8,7 @@ import type {
   CreateRestockDTO,
   UpdateRestockDTO,
 } from '@shared/types/restock'
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+import { assertIsoDate } from '@shared/date'
 
 export class RestockService {
   private restockRepo = new RestockRepository()
@@ -62,6 +61,9 @@ export class RestockService {
     }
     if (existing.status !== 'pending') {
       throw new Error('Only pending restocks can be edited')
+    }
+    if ((data as { status?: unknown }).status !== undefined) {
+      throw new Error('Restock status cannot be changed here. Mark as received or cancel instead.')
     }
     if (data.supplierName !== undefined && !data.supplierName.trim()) {
       throw new Error('Supplier name is required')
@@ -121,12 +123,6 @@ export class RestockService {
     return this.restockRepo.update(id, { status: 'cancelled' })
   }
 
-  setStatus(id: number, status: Restock['status']): Restock {
-    if (status === 'received') return this.markReceived(id)
-    if (status === 'cancelled') return this.cancel(id)
-    return this.restockRepo.update(id, { status })
-  }
-
   delete(id: number): void {
     const existing = this.restockRepo.findById(id)
     if (!existing) {
@@ -174,13 +170,7 @@ export class RestockService {
   }
 
   private validateDate(date: string, label: string): void {
-    if (!DATE_PATTERN.test(date)) {
-      throw new Error(`${label} must be a valid date in YYYY-MM-DD format`)
-    }
-    const parsed = new Date(`${date}T00:00:00Z`)
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error(`${label} is not a valid date`)
-    }
+    assertIsoDate(date, label)
   }
 
   count(): number {

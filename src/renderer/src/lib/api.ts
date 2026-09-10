@@ -2,7 +2,6 @@ import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/
 import type { Category, CreateCategoryDTO, UpdateCategoryDTO } from '@shared/types/category'
 import type {
   StockMovement,
-  RecordMovementDTO,
   SetOpeningStockDTO,
   ProductWithStock,
   StockSummary,
@@ -93,8 +92,6 @@ export const api = {
     listMovements: (productId: number) =>
       ipc<StockMovement[]>('inventory:list-movements', productId),
     getById: (id: number) => ipc<StockMovement | null>('inventory:get-by-id', id),
-    recordMovement: (data: RecordMovementDTO) =>
-      ipc<StockMovement>('inventory:record-movement', data),
     currentQuantity: (productId: number) =>
       ipc<number>('inventory:current-quantity', productId),
     currentQuantities: (productIds: number[]) =>

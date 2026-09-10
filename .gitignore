@@ -38,6 +38,7 @@ coverage/
 
 # Caches
 .cache/
+.npm-cache/
 .vite/
 .vitest/
 *.tsbuildinfo
