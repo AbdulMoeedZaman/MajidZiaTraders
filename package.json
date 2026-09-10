@@ -3,6 +3,7 @@
   "productName": "MajidZiaTraders",
   "version": "0.1.0",
   "private": true,
+  "author": "MajidZiaTraders",
   "description": "MajidZiaTraders — desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
   "main": "./out/main/index.js",
   "scripts": {
@@ -15,7 +16,8 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win",
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "dist:win:portable": "npm run build && electron-builder --win --x64 --config.win.target=portable",
     "dist:mac": "npm run build && electron-builder --mac"
   },
   "build": {
