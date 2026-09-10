@@ -1,8 +1,9 @@
 {
-  "name": "inventory-manager",
+  "name": "MajidZiaTraders",
+  "productName": "MajidZiaTraders",
   "version": "0.1.0",
   "private": true,
-  "description": "Desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
+  "description": "MajidZiaTraders — desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

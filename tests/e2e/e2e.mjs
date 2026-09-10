@@ -1,4 +1,4 @@
-// End-to-end test of Inventory Manager through the real renderer -> preload -> IPC -> SQLite path.
+// End-to-end test of MajidZiaTraders through the real renderer -> preload -> IPC -> SQLite path.
 // Runs against an ISOLATED user-data dir; aborts if the test DB is not there.
 //
 // Usage (never point --user-data-dir at your real data):

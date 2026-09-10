@@ -55,7 +55,7 @@ export function SettingsPage() {
     setActionError(null)
     setActionSuccess(null)
     const result = await api.dialogs.saveFile({
-      defaultPath: `pos-backup-${localDate()}.db`,
+      defaultPath: `MajidZiaTraders-backup-${localDate()}.db`,
       filters: [{ name: 'SQLite database', extensions: ['db'] }],
     })
     if (result.canceled || !result.filePath) return

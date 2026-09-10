@@ -1,4 +1,4 @@
-# Fix Prompt — Inventory Manager
+# Fix Prompt — MajidZiaTraders
 
 **What this is:** the result of a deep test of the app on 2026-09-10, written as a ready-to-use prompt for an AI coding assistant (such as Claude Code) or a developer.
 
@@ -15,9 +15,9 @@
 
 <!-- ======================= COPY FROM HERE ======================= -->
 
-# Task: fix every issue found in the Inventory Manager deep test
+# Task: fix every issue found in the MajidZiaTraders deep test
 
-You're working on **Inventory Manager**, an offline desktop app for inventory, invoicing and customer accounts. Fix **all** issues listed below, verify each fix, and report back.
+You're working on **MajidZiaTraders**, an offline desktop app for inventory, invoicing and customer accounts. Fix **all** issues listed below, verify each fix, and report back.
 
 ## Project facts
 - Stack: **Electron 44 + electron-vite 5 + Vite 7 + React 19 + TypeScript + better-sqlite3 (SQLite)**.
@@ -53,7 +53,7 @@ You're working on **Inventory Manager**, an offline desktop app for inventory, i
 ### C2. Invoices can't be created on a fresh install, and Settings can't create the business profile
 - **Test result (UI-1, I-0):** a fresh database has **no `business_profile` row**. Creating an invoice fails with *"Business profile not configured"*. In Settings, **Edit doesn't open the form**: `SettingsPage.tsx:172` renders it only when `formOpen && profile`. The owner's real database has 0 profile rows today.
 - **Fix:**
-  - Migration 004 inserts a default profile row if none exists (name `My Business`, currency `USD`, prefix `INV-`, next number 1, tax 0).
+  - Migration 004 inserts a default profile row if none exists (name `MajidZiaTraders`, currency `USD`, prefix `INV-`, next number 1, tax 0).
   - Also make `SettingsPage` open the form with empty defaults when `profile` is null.
   - Optional: prompt for the business name on first run.
 - **Accept:** UI-1 and I-0 pass. On a brand-new install the user can open Settings → Edit → Save, then create an invoice.

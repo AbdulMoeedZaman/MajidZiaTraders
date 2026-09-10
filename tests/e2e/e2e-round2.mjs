@@ -1,4 +1,4 @@
-// Round-2 retest checks (X-1 … X-9) for Inventory Manager, through the real renderer -> preload -> IPC -> SQLite path.
+// Round-2 retest checks (X-1 … X-9) for MajidZiaTraders, through the real renderer -> preload -> IPC -> SQLite path.
 // Runs against an ISOLATED user-data dir; aborts if the test DB is not there.
 //
 // Usage (never point --user-data-dir at your real data). Requires the `sqlite3` CLI (built into macOS):

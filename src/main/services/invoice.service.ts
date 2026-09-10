@@ -99,7 +99,7 @@ export class InvoiceService {
     let profile = this.profileRepo.get()
     if (!profile) {
       profile = this.profileRepo.create({
-        name: 'My Business',
+        name: 'MajidZiaTraders',
         currency: 'USD',
         invoicePrefix: 'INV-',
         invoiceNextNumber: 1,
