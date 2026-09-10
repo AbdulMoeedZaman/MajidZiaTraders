@@ -1,0 +1,435 @@
+{
+  "results": [
+    {
+      "id": "UI-1",
+      "name": "Settings → Edit opens the business-profile form on a fresh install",
+      "pass": false,
+      "detail": {
+        "noProfileMessageShown": true,
+        "formOpened": false
+      }
+    },
+    {
+      "id": "V-1",
+      "name": "Duplicate category name rejected",
+      "pass": true,
+      "detail": "A category with this name already exists"
+    },
+    {
+      "id": "V-2",
+      "name": "Product validation (sell<min, negative cost, duplicate SKU, carton 0) all rejected",
+      "pass": true,
+      "detail": [
+        "Selling price cannot be lower than the minimum selling price",
+        "Base cost price cannot be negative",
+        "A product with this SKU already exists",
+        "Pieces per carton must be at least 1"
+      ]
+    },
+    {
+      "id": "V-3",
+      "name": "Non-whole-cent prices rejected by backend",
+      "pass": false,
+      "detail": "accepted, stored sellingPrice=1234.5"
+    },
+    {
+      "id": "V-4",
+      "name": "Customer validation (dup name, dup phone, bad email, short phone) all rejected",
+      "pass": true,
+      "detail": [
+        "A customer with this name already exists",
+        "A customer with this phone number already exists",
+        "Invalid email format",
+        "Invalid phone number"
+      ]
+    },
+    {
+      "id": "S-1",
+      "name": "Stock after opening 100, −10, −5 in quick succession = 85",
+      "pass": false,
+      "detail": {
+        "currentQuantity": 100,
+        "listWithStock": 95,
+        "movements": [
+          "opening_stock +100 (0→100) @2026-09-10 10:19:29",
+          "adjustment -10 (100→90) @2026-09-10 10:19:29",
+          "adjustment -5 (100→95) @2026-09-10 10:19:29"
+        ]
+      }
+    },
+    {
+      "id": "S-2",
+      "name": "Adjustment below zero rejected",
+      "pass": true,
+      "detail": "Adjustment would result in negative stock. Available: 100, adjustment: -100000"
+    },
+    {
+      "id": "I-0",
+      "name": "Invoice can be created on a fresh install (before any business profile exists)",
+      "pass": false,
+      "detail": "Business profile not configured"
+    },
+    {
+      "id": "I-1",
+      "name": "Saved tax & total equal what the New-invoice form displayed (form taxes subtotal − discount)",
+      "pass": false,
+      "detail": {
+        "formShowed": {
+          "tax": 1400,
+          "total": 15400
+        },
+        "saved": {
+          "subtotal": 15000,
+          "discount": 1000,
+          "tax": 1500,
+          "total": 15500
+        }
+      }
+    },
+    {
+      "id": "I-2",
+      "name": "Invoice profit = (subtotal − discount) − cost, i.e. excludes tax",
+      "pass": false,
+      "detail": {
+        "expected": 4000,
+        "saved": 5500
+      }
+    },
+    {
+      "id": "S-3",
+      "name": "Invoice reduces stock (expect 75)",
+      "pass": false,
+      "detail": {
+        "single": 100,
+        "list": 90
+      }
+    },
+    {
+      "id": "S-4",
+      "name": "Same product on two invoice lines deducts both (expect 70)",
+      "pass": false,
+      "detail": {
+        "single": 100,
+        "list": 98
+      }
+    },
+    {
+      "id": "I-3",
+      "name": "Invoice guards: oversell, below-min price, tax 150%, inactive product, inactive customer all rejected",
+      "pass": true,
+      "detail": [
+        "Insufficient stock for \"Widget\". Available: 100, requested: 100000",
+        "Cannot sell \"Widget\" below its minimum selling price (1200 cents)",
+        "Tax rate must be between 0 and 100",
+        "Cannot sell inactive product \"Gadget\"",
+        "Cannot create an invoice for inactive customer \"Bob\""
+      ]
+    },
+    {
+      "id": "P-1",
+      "name": "Partial payment → status \"partial\", outstanding reduced",
+      "pass": true,
+      "detail": {
+        "status": "partial",
+        "outstanding": 10500
+      }
+    },
+    {
+      "id": "P-2",
+      "name": "Overpayment on an invoice rejected",
+      "pass": true,
+      "detail": "Payment amount (15500 cents) exceeds the invoice outstanding (10500 cents)"
+    },
+    {
+      "id": "P-3",
+      "name": "Paying the rest → status \"paid\", outstanding 0",
+      "pass": true,
+      "detail": {
+        "status": "paid",
+        "outstanding": 0
+      }
+    },
+    {
+      "id": "P-4",
+      "name": "Deleting a payment recomputes invoice (back to partial)",
+      "pass": true,
+      "detail": {
+        "status": "partial",
+        "paid": 5000
+      }
+    },
+    {
+      "id": "P-5",
+      "name": "A payment without an invoice is applied to the customer's open invoices",
+      "pass": false,
+      "detail": {
+        "customerOutstandingBefore": 10500,
+        "customerOutstandingAfter": 9500,
+        "invoiceOutstandingAfter": 10500,
+        "note": "balance drops but the invoice stays unpaid"
+      }
+    },
+    {
+      "id": "C-1",
+      "name": "Cancelling an invoice that has payments is rejected",
+      "pass": true,
+      "detail": "Cannot cancel an invoice that has payments"
+    },
+    {
+      "id": "C-2",
+      "name": "Cancel restores stock (expect 75) and removes the customer charge",
+      "pass": false,
+      "detail": {
+        "stock": {
+          "single": 100,
+          "list": 102
+        },
+        "bobBalance": 0
+      }
+    },
+    {
+      "id": "C-3",
+      "name": "Payment on a cancelled invoice rejected",
+      "pass": true,
+      "detail": "Cannot record a payment against a cancelled invoice"
+    },
+    {
+      "id": "O-1",
+      "name": "Unpaid invoice past its due date becomes \"overdue\"",
+      "pass": true,
+      "detail": "overdue"
+    },
+    {
+      "id": "R-1",
+      "name": "Same product twice in one restock rejected",
+      "pass": true,
+      "detail": "A product cannot appear more than once in a restock"
+    },
+    {
+      "id": "R-2",
+      "name": "Editing a pending restock updates its total cost",
+      "pass": true,
+      "detail": 22500
+    },
+    {
+      "id": "R-3",
+      "name": "Mark received adds stock (expect 100)",
+      "pass": false,
+      "detail": {
+        "single": 100,
+        "list": 125
+      }
+    },
+    {
+      "id": "R-4",
+      "name": "Received restock cannot be deleted or cancelled",
+      "pass": true,
+      "detail": [
+        "Cannot delete a received restock",
+        "Only pending restocks can be cancelled"
+      ]
+    },
+    {
+      "id": "R-5",
+      "name": "Receiving a restock at a new unit cost updates the product cost price",
+      "pass": false,
+      "detail": {
+        "unitCostReceived": 900,
+        "productBaseCostPrice": 1000
+      }
+    },
+    {
+      "id": "D-1",
+      "name": "Deleting a sold product is blocked, or at least keeps its past invoice lines",
+      "pass": false,
+      "detail": {
+        "deleteAllowed": true,
+        "invoiceLinesBefore": 1,
+        "invoiceLinesAfter": 0,
+        "invoiceTotalStillCharged": 400
+      }
+    },
+    {
+      "id": "D-2",
+      "name": "Customer with history and category with products cannot be deleted",
+      "pass": true,
+      "detail": [
+        "Customer has account history (ledger, payments, or invoices). Deactivate them instead of deleting.",
+        "Cannot delete category: 1 product(s) still belong to it. Reassign or remove them first."
+      ]
+    },
+    {
+      "id": "RP-1",
+      "name": "Sales report: product rows add up to the summary cards",
+      "pass": false,
+      "detail": {
+        "summary": {
+          "revenue": 16700,
+          "profit": 6000
+        },
+        "sumOfRows": {
+          "revenue": 15800,
+          "profit": 5300
+        }
+      }
+    },
+    {
+      "id": "RP-2",
+      "name": "Inventory report: card \"Stock value (cost)\" really is valued at cost",
+      "pass": false,
+      "detail": {
+        "cardValue": 226700,
+        "sumAtCost": 149500
+      }
+    },
+    {
+      "id": "RP-3",
+      "name": "Stock-movements report: \"Outbound units\" is a positive count",
+      "pass": false,
+      "detail": {
+        "inbound": 180,
+        "outbound": -31
+      }
+    },
+    {
+      "id": "RP-4",
+      "name": "Profit & Loss: gross profit excludes tax collected",
+      "pass": false,
+      "detail": {
+        "revenue": 16700,
+        "cogs": 10700,
+        "gross": 6000,
+        "expenses": 0,
+        "net": 6000
+      }
+    },
+    {
+      "id": "CSV-1",
+      "name": "CSV import: a row with an invalid price is skipped (not imported)",
+      "pass": false,
+      "detail": {
+        "totalRows": 3,
+        "imported": 2,
+        "skipped": 2,
+        "duplicates": 1,
+        "badRowProductCreated": true,
+        "badRowPrices": {
+          "cost": 0,
+          "sell": 200
+        },
+        "errors": [
+          {
+            "row": 3,
+            "message": "Base cost price must be a number"
+          },
+          {
+            "row": 4,
+            "message": "Duplicate SKU \"CSV-1\" within the file"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CSV-2",
+      "name": "CSV export writes prices in the same units the import expects (e.g. 2.00, not 200)",
+      "pass": false,
+      "detail": {
+        "importedSellingPriceCents": 200,
+        "exportHeader": "sku,name,category,unit,baseCostPrice,minSellingPrice,sellingPrice,reorderLevel,currentStock,isActive",
+        "exportRow": "CSV-1,Csv Good,Imported Cat,piece,100,150,200,5,0,1"
+      }
+    },
+    {
+      "id": "UI-2",
+      "name": "New invoice form pre-fills the business profile default tax rate (10%)",
+      "pass": false,
+      "detail": {
+        "taxRateFieldValue": "0"
+      }
+    },
+    {
+      "id": "UI-3",
+      "name": "Money uses the business profile currency (PKR), not \"$\"",
+      "pass": false,
+      "detail": {
+        "dollarSignShown": true
+      }
+    },
+    {
+      "id": "UI-4",
+      "name": "Product details panel refreshes after Deactivate",
+      "pass": false,
+      "detail": {
+        "savedIsActive": 0,
+        "panelShowsButton": "Deactivate",
+        "panelShowsStatus": "Active"
+      }
+    },
+    {
+      "id": "UI-5",
+      "name": "Stock history shows local time (movement just created ≈ now)",
+      "pass": false,
+      "detail": {
+        "shown": "10 Sept 2026, 10:19",
+        "localTimeNow": "03:19 PM"
+      }
+    },
+    {
+      "id": "UI-6",
+      "name": "Reports default \"From\" date is the 1st of this month (2026-09-01)",
+      "pass": false,
+      "detail": {
+        "from": "2026-08-31",
+        "to": "2026-09-10"
+      }
+    },
+    {
+      "id": "UI-7",
+      "name": "Deleting a payment on the Invoice details page works without crashing the screen",
+      "pass": false,
+      "detail": {
+        "newExceptions": [
+          "Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bsuccess%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+        ],
+        "screenHtmlLength": 0,
+        "paymentsLeftOnInvoice": 0
+      }
+    },
+    {
+      "id": "BK-1",
+      "name": "Create backup",
+      "pass": true,
+      "detail": {
+        "fileName": "e2e-backup.db",
+        "size": 208896
+      }
+    },
+    {
+      "id": "BK-2",
+      "name": "Backup validation returns the fields the Settings screen reads (ok, errors)",
+      "pass": false,
+      "detail": {
+        "returnedKeys": [
+          "valid",
+          "message",
+          "integrity",
+          "tables",
+          "metadata"
+        ],
+        "valid": true
+      }
+    },
+    {
+      "id": "BK-3",
+      "name": "App keeps working after restoring a backup (no restart needed)",
+      "pass": false,
+      "detail": {
+        "restore": "Backup is valid and compatible",
+        "productsListAfter": "TypeError: The database connection is not open"
+      }
+    }
+  ],
+  "exceptions": [
+    "Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Bsuccess%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+  ]
+}

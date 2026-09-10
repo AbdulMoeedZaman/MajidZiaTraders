@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# electron-vite build output
+out/
+
+# Packaged app (electron-builder / similar)
+dist/
+release/
+*.exe
+*.dmg
+*.AppImage
+*.blockmap
+*.zip
+
+# Native addon build artifacts (better-sqlite3)
+build/Release/
+
+# Local SQLite databases and WAL files — keep committed test fixtures
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+!tests/e2e/fixtures/*.db
+
+# Logs and debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test / coverage output
+coverage/
+.nyc_output/
+*.lcov
+
+# Caches
+.cache/
+.vite/
+.vitest/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.idea/
+*.swp
+*.swo
+*~
