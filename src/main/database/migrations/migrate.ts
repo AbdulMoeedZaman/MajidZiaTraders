@@ -4,6 +4,7 @@ import { up as businessModules } from './002_business_modules'
 import { up as completeBusinessSchema } from './003_complete_business_schema'
 import { up as invoiceDiscountsAndIntegrity } from './004_invoice_discounts_payment_allocations_and_integrity'
 import { up as ledgerSyncAndReversals } from './005_ledger_sync_allocation_repair_and_reversals'
+import { up as productPurchaseStructure } from './006_product_purchase_structure'
 
 interface Migration {
   version: number
@@ -27,6 +28,7 @@ const migrations: Migration[] = [
   { version: 3, name: '003_complete_business_schema', up: completeBusinessSchema },
   { version: 4, name: '004_invoice_discounts_payment_allocations_and_integrity', up: invoiceDiscountsAndIntegrity },
   { version: 5, name: '005_ledger_sync_allocation_repair_and_reversals', up: ledgerSyncAndReversals },
+  { version: 6, name: '006_product_purchase_structure', up: productPurchaseStructure },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

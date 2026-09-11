@@ -7,6 +7,10 @@ import { RestockForm } from './RestockForm'
 import { RESTOCK_STATUS_LABELS } from '../types/restock-form'
 import { formatDate, formatMoney } from '../../../lib/format'
 
+function toDollars(paisa: number): string {
+  return (paisa / 100).toFixed(2)
+}
+
 interface RestockDetailPageProps {
   restockId: number
   onBack: () => void
@@ -81,9 +85,13 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
 
   const initialItems = restock.items.map((item) => ({
     productId: String(item.productId),
-    unit: item.unit,
-    quantity: String(item.quantity),
-    unitCost: String(item.unitCost / 100),
+    qtyCartons: String(item.qtyCartons),
+    piecesPerCarton: String(item.piecesPerCarton),
+    mrpPerPiece: item.mrpPerPiece != null ? toDollars(item.mrpPerPiece) : '',
+    netSalesValueExcl: toDollars(item.netSalesValueExcl),
+    tradeDiscountValue: toDollars(item.tradeDiscountValue),
+    salesTaxRate: String(item.salesTaxRate),
+    advanceTaxRate: String(item.advanceTaxRate),
   }))
 
   return (
@@ -93,9 +101,7 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
       <div className="detail">
         <div className="detail-header">
           <div>
-            <h3>
-              Restock {restock.referenceNumber}
-            </h3>
+            <h3>Restock {restock.referenceNumber}</h3>
             <span className="muted">
               {restock.supplierName} · {formatDate(restock.date)}
             </span>
@@ -108,6 +114,16 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
             {RESTOCK_STATUS_LABELS[restock.status]}
           </span>
         </div>
+
+        <div className="restock-header-fields">
+          {restock.supplierInvoiceNo && <span><strong>Invoice:</strong> {restock.supplierInvoiceNo}</span>}
+          {restock.supplierRegistrationNo && <span><strong>Supplier reg.:</strong> {restock.supplierRegistrationNo}</span>}
+          {restock.buyerNtn && <span><strong>Buyer NTN:</strong> {restock.buyerNtn}</span>}
+          {restock.buyerCnic && <span><strong>Buyer CNIC:</strong> {restock.buyerCnic}</span>}
+          {restock.dispatchNoteNo && <span><strong>Dispatch note:</strong> {restock.dispatchNoteNo}</span>}
+          {restock.salesOrderNo && <span><strong>Sales order:</strong> {restock.salesOrderNo}</span>}
+        </div>
+
         {restock.notes && <p className="fine-text muted">{restock.notes}</p>}
       </div>
 
@@ -116,10 +132,12 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
           <thead>
             <tr>
               <th>Product</th>
-              <th>SKU</th>
-              <th>Unit</th>
-              <th className="num">Quantity</th>
-              <th className="num">Unit cost</th>
+              <th className="num">Ctns</th>
+              <th className="num">Pcs/ctn</th>
+              <th className="num">Net excl.</th>
+              <th className="num">Sales tax</th>
+              <th className="num">Adv. tax</th>
+              <th className="num">Discount</th>
               <th className="num">Line total</th>
             </tr>
           </thead>
@@ -127,11 +145,13 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
             {restock.items.map((item) => (
               <tr key={item.id}>
                 <td>{item.productName}</td>
-                <td className="mono">{item.productSku}</td>
-                <td>{item.unit}</td>
-                <td className="num">{item.quantity}</td>
-                <td className="num">{formatMoney(item.unitCost)}</td>
-                <td className="num">{formatMoney(item.totalCost)}</td>
+                <td className="num">{item.qtyCartons}</td>
+                <td className="num">{item.piecesPerCarton}</td>
+                <td className="num">{formatMoney(item.netSalesValueExcl)}</td>
+                <td className="num">{formatMoney(item.salesTaxAmount)}</td>
+                <td className="num">{formatMoney(item.advanceTax)}</td>
+                <td className="num">{formatMoney(item.tradeDiscountValue)}</td>
+                <td className="num">{formatMoney(item.discountedValueInclusive)}</td>
               </tr>
             ))}
           </tbody>
@@ -139,7 +159,7 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
       </div>
 
       <div className="totals-row">
-        <strong>Total cost</strong>
+        <strong>Total payable</strong>
         <strong>{formatMoney(restock.totalCost)}</strong>
       </div>
 
@@ -152,7 +172,7 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
             <button
               className="btn primary"
               onClick={() => {
-                if (window.confirm('Mark this restock as received? The stock will be added and this cannot be undone.')) {
+                if (window.confirm('Mark this restock as received? Stock will be added (cartons × pieces) and this cannot be undone.')) {
                   void run(() => markReceived(restockId, { updateCost }))
                 }
               }}
@@ -165,7 +185,7 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
                 checked={updateCost}
                 onChange={(e) => setUpdateCost(e.target.checked)}
               />
-              Update product cost to item unit cost
+              Update product cost to inclusive per-piece cost
             </label>
             <button
               className="btn"
@@ -213,7 +233,18 @@ export function RestockDetailPage({ restockId, onBack }: RestockDetailPageProps)
         <Modal title={`Edit ${restock.referenceNumber}`} onClose={() => setEditing(false)}>
           <RestockForm
             products={products}
-            initial={{ supplierName: restock.supplierName, date: restock.date, notes: restock.notes ?? '', items: initialItems }}
+            initial={{
+              supplierName: restock.supplierName,
+              date: restock.date,
+              notes: restock.notes ?? '',
+              supplierInvoiceNo: restock.supplierInvoiceNo ?? '',
+              supplierRegistrationNo: restock.supplierRegistrationNo ?? '',
+              buyerNtn: restock.buyerNtn ?? '',
+              buyerCnic: restock.buyerCnic ?? '',
+              dispatchNoteNo: restock.dispatchNoteNo ?? '',
+              salesOrderNo: restock.salesOrderNo ?? '',
+              items: initialItems,
+            }}
             onSubmit={handleSubmit}
             onCancel={() => setEditing(false)}
           />

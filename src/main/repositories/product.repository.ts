@@ -43,8 +43,8 @@ export class ProductRepository extends BaseRepository {
   create(data: CreateProductDTO): Product {
     const result = this.db
       .prepare(
-        `INSERT INTO products (sku, name, description, categoryId, unit, piecesPerCarton, baseCostPrice, minSellingPrice, sellingPrice, reorderLevel)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO products (sku, name, description, categoryId, unit, piecesPerCarton, packSize, packConfig, mrp, purchaseUnit, baseCostPrice, minSellingPrice, sellingPrice, reorderLevel)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         data.sku,
@@ -53,6 +53,10 @@ export class ProductRepository extends BaseRepository {
         data.categoryId ?? null,
         data.unit ?? 'piece',
         data.piecesPerCarton ?? 1,
+        data.packSize ?? null,
+        data.packConfig ?? null,
+        data.mrp ?? null,
+        data.purchaseUnit ?? 'carton',
         data.baseCostPrice ?? 0,
         data.minSellingPrice ?? 0,
         data.sellingPrice ?? 0,
@@ -72,6 +76,10 @@ export class ProductRepository extends BaseRepository {
     if (data.categoryId !== undefined) { fields.push('categoryId = ?'); values.push(data.categoryId) }
     if (data.unit !== undefined) { fields.push('unit = ?'); values.push(data.unit) }
     if (data.piecesPerCarton !== undefined) { fields.push('piecesPerCarton = ?'); values.push(data.piecesPerCarton) }
+    if (data.packSize !== undefined) { fields.push('packSize = ?'); values.push(data.packSize) }
+    if (data.packConfig !== undefined) { fields.push('packConfig = ?'); values.push(data.packConfig) }
+    if (data.mrp !== undefined) { fields.push('mrp = ?'); values.push(data.mrp) }
+    if (data.purchaseUnit !== undefined) { fields.push('purchaseUnit = ?'); values.push(data.purchaseUnit) }
     if (data.baseCostPrice !== undefined) { fields.push('baseCostPrice = ?'); values.push(data.baseCostPrice) }
     if (data.minSellingPrice !== undefined) { fields.push('minSellingPrice = ?'); values.push(data.minSellingPrice) }
     if (data.sellingPrice !== undefined) { fields.push('sellingPrice = ?'); values.push(data.sellingPrice) }

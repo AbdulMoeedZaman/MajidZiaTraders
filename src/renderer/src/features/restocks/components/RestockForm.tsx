@@ -5,7 +5,28 @@ import {
   RestockFormState,
   RestockItemInput,
   defaultRestockFormState,
+  defaultRestockItemInput,
 } from '../types/restock-form'
+import { computeRestockLineTotals, aggregateRestockLines } from '@shared/calc/restock-totals'
+
+function parseDollars(raw: string): number {
+  const v = parseFloat(raw)
+  return Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : 0
+}
+
+function parseBps(raw: string): number {
+  const v = parseInt(raw, 10)
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+
+function parseCount(raw: string): number {
+  const v = parseInt(raw, 10)
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+
+function toDollars(paisa: number): string {
+  return (paisa / 100).toFixed(2)
+}
 
 interface RestockFormProps {
   products: ProductWithStock[]
@@ -24,20 +45,39 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
   const [serverError, setServerError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const totalCost = useMemo(
-    () =>
-      state.items.reduce((sum, item) => {
-        const qty = parseInt(item.quantity || '0', 10)
-        const cost = parseFloat(item.unitCost || '0')
-        return sum + Math.max(0, qty) * Math.max(0, cost)
-      }, 0),
-    [state.items]
-  )
+  const liveTotals = useMemo(() => {
+    const lines = state.items.map((item) => {
+      const product = products.find((p) => p.id === parseInt(item.productId, 10))
+      return {
+qtyCartons: parseCount(item.qtyCartons) || 1,
+            piecesPerCarton: parseCount(item.piecesPerCarton) || product?.piecesPerCarton || 1,
+            mrpPerPiece: item.mrpPerPiece ? parseDollars(item.mrpPerPiece) : product?.mrp ?? null,
+        salesTaxRate: item.salesTaxRate ? parseDollars(item.salesTaxRate) : 1800,
+        advanceTaxRate: item.advanceTaxRate ? parseDollars(item.advanceTaxRate) : 10,
+        netSalesValueExcl: parseDollars(item.netSalesValueExcl),
+        tradeDiscountValue: parseDollars(item.tradeDiscountValue),
+      }
+    })
+    const lineTotals = aggregateRestockLines(lines.map((l) => {
+      const t = computeRestockLineTotals(l)
+      return {
+        qtyCartons: l.qtyCartons,
+        piecesPerCarton: l.piecesPerCarton,
+        totalRetailValueExcl: t.totalRetailValueExcl,
+        salesTaxAmount: t.salesTaxAmount,
+        advanceTax: t.advanceTax,
+        tradeDiscountValue: l.tradeDiscountValue,
+        netSalesValueExcl: l.netSalesValueExcl,
+        discountedValueInclusive: t.discountedValueInclusive,
+      }
+    }))
+    return lineTotals
+  }, [state.items, products])
 
   const addItem = () => {
     setState((s) => ({
       ...s,
-      items: [...s.items, { productId: '', unit: 'piece', quantity: '1', unitCost: '' }],
+      items: [...s.items, defaultRestockItemInput()],
     }))
   }
 
@@ -58,10 +98,11 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
     if (state.items.length === 0) next.items = 'Add at least one item'
     state.items.forEach((item, i) => {
       if (!item.productId) next[`item-${i}`] = 'Choose a product'
-      const qty = parseInt(item.quantity || '0', 10)
-      if (!Number.isInteger(qty) || qty <= 0) next[`item-${i}`] = 'Quantity must be a positive whole number'
-      const cost = parseFloat(item.unitCost || '')
-      if (Number.isNaN(cost) || cost < 0) next[`item-${i}`] = 'Unit cost must be 0 or more'
+      const qty = parseInt(item.qtyCartons || '0', 10)
+      if (!Number.isInteger(qty) || qty <= 0) next[`item-${i}`] = 'Qty cartons must be a positive whole number'
+      const pieces = parseInt(item.piecesPerCarton || '0', 10)
+      if (!Number.isInteger(pieces) || pieces < 1) next[`item-${i}`] = 'Pieces per carton must be at least 1'
+      if (!item.netSalesValueExcl || parseFloat(item.netSalesValueExcl) < 0) next[`item-${i}`] = 'Net sales value (excl.) is required'
     })
     setErrors(next)
     return Object.keys(next).length === 0
@@ -76,11 +117,21 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
       supplierName: state.supplierName.trim(),
       date: state.date,
       notes: state.notes.trim() || null,
+      supplierInvoiceNo: state.supplierInvoiceNo.trim() || null,
+      supplierRegistrationNo: state.supplierRegistrationNo.trim() || null,
+      buyerNtn: state.buyerNtn.trim() || null,
+      buyerCnic: state.buyerCnic.trim() || null,
+      dispatchNoteNo: state.dispatchNoteNo.trim() || null,
+      salesOrderNo: state.salesOrderNo.trim() || null,
       items: state.items.map((item) => ({
         productId: parseInt(item.productId, 10),
-        unit: item.unit.trim() || 'piece',
-        quantity: parseInt(item.quantity, 10),
-        unitCost: Math.round(parseFloat(item.unitCost || '0') * 100),
+        qtyCartons: parseInt(item.qtyCartons, 10),
+        piecesPerCarton: parseInt(item.piecesPerCarton, 10),
+        mrpPerPiece: item.mrpPerPiece ? parseDollars(item.mrpPerPiece) : null,
+        netSalesValueExcl: parseDollars(item.netSalesValueExcl),
+        tradeDiscountValue: parseDollars(item.tradeDiscountValue) || 0,
+        salesTaxRate: item.salesTaxRate ? parseBps(item.salesTaxRate) : 1800,
+        advanceTaxRate: item.advanceTaxRate ? parseBps(item.advanceTaxRate) : 10,
       })),
     }
 
@@ -92,8 +143,6 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
       setSaving(false)
     }
   }
-
-  const availableProducts = products
 
   return (
     <form className="product-form" onSubmit={handleSubmit} noValidate>
@@ -117,6 +166,30 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
           />
         </label>
 
+        <label className="field">
+          <span>Supplier invoice no.</span>
+          <input value={state.supplierInvoiceNo} onChange={(e) => setState((s) => ({ ...s, supplierInvoiceNo: e.target.value }))} />
+        </label>
+        <label className="field">
+          <span>Supplier registration no.</span>
+          <input value={state.supplierRegistrationNo} onChange={(e) => setState((s) => ({ ...s, supplierRegistrationNo: e.target.value }))} />
+        </label>
+        <label className="field">
+          <span>Buyer NTN</span>
+          <input value={state.buyerNtn} onChange={(e) => setState((s) => ({ ...s, buyerNtn: e.target.value }))} />
+        </label>
+        <label className="field">
+          <span>Buyer CNIC</span>
+          <input value={state.buyerCnic} onChange={(e) => setState((s) => ({ ...s, buyerCnic: e.target.value }))} />
+        </label>
+        <label className="field">
+          <span>Dispatch note no.</span>
+          <input value={state.dispatchNoteNo} onChange={(e) => setState((s) => ({ ...s, dispatchNoteNo: e.target.value }))} />
+        </label>
+        <label className="field">
+          <span>Sales order no.</span>
+          <input value={state.salesOrderNo} onChange={(e) => setState((s) => ({ ...s, salesOrderNo: e.target.value }))} />
+        </label>
         <label className="field field-span-2">
           <span>Notes</span>
           <textarea
@@ -134,55 +207,45 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
 
       <div className="item-lines">
         {state.items.map((item, i) => {
-          const available = availableProducts.find((p) => p.id === parseInt(item.productId, 10))
-          const qty = parseInt(item.quantity || '0', 10)
-          const cost = parseFloat(item.unitCost || '0')
+          const product = products.find((p) => p.id === parseInt(item.productId, 10))
+          const line = computeRestockLineTotals({
+qtyCartons: parseCount(item.qtyCartons) || 1,
+        piecesPerCarton: parseCount(item.piecesPerCarton) || product?.piecesPerCarton || 1,
+        mrpPerPiece: item.mrpPerPiece ? parseDollars(item.mrpPerPiece) : product?.mrp ?? null,
+        salesTaxRate: item.salesTaxRate ? parseBps(item.salesTaxRate) : 1800,
+        advanceTaxRate: item.advanceTaxRate ? parseBps(item.advanceTaxRate) : 10,
+            netSalesValueExcl: parseDollars(item.netSalesValueExcl),
+            tradeDiscountValue: parseDollars(item.tradeDiscountValue),
+          })
+
           return (
-            <div key={i} className="item-line">
+            <div key={i} className="item-line restock-line">
               <select
                 value={item.productId}
                 onChange={(e) => {
-                  const product = availableProducts.find(
-                    (p) => p.id === parseInt(e.target.value, 10)
-                  )
+                  const p = products.find((pp) => pp.id === parseInt(e.target.value, 10))
                   updateItem(i, {
                     productId: e.target.value,
-                    unit: product?.unit ?? 'piece',
+                    piecesPerCarton: p ? String(p.piecesPerCarton) : item.piecesPerCarton,
+                    mrpPerPiece: p?.mrp != null ? toDollars(p.mrp) : item.mrpPerPiece,
                   })
                 }}
               >
                 <option value="">Select product…</option>
-                {availableProducts.map((p) => (
+                {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.sku}) — {p.currentStock} in stock
                   </option>
                 ))}
               </select>
-              <input
-                className="qty-input"
-                type="number"
-                min={1}
-                value={item.quantity}
-                onChange={(e) => updateItem(i, { quantity: e.target.value })}
-                aria-label="Quantity"
-              />
-              <input
-                className="line-input"
-                value={item.unit}
-                onChange={(e) => updateItem(i, { unit: e.target.value })}
-                aria-label="Unit"
-              />
-              <input
-                className="line-input money"
-                type="number"
-                step="0.01"
-                min={0}
-                value={item.unitCost}
-                onChange={(e) => updateItem(i, { unitCost: e.target.value })}
-                aria-label="Unit cost"
-                placeholder="Unit cost"
-              />
-              <span className="line-total">${(qty * cost).toFixed(2)}</span>
+              <input className="qty-input" type="number" min={1} value={item.qtyCartons} onChange={(e) => updateItem(i, { qtyCartons: e.target.value })} aria-label="Qty cartons" placeholder="Cartons" />
+              <input className="qty-input" type="number" min={1} value={item.piecesPerCarton} onChange={(e) => updateItem(i, { piecesPerCarton: e.target.value })} aria-label="Pieces / carton" placeholder="Pcs/ctn" />
+              <input className="line-input money" type="number" step="0.01" min={0} value={item.mrpPerPiece} onChange={(e) => updateItem(i, { mrpPerPiece: e.target.value })} aria-label="MRP per piece" placeholder="MRP" />
+              <input className="line-input money" type="number" step="0.01" min={0} value={item.netSalesValueExcl} onChange={(e) => updateItem(i, { netSalesValueExcl: e.target.value })} aria-label="Net value (excl.)" placeholder="Net excl." />
+              <input className="line-input money" type="number" step="0.01" min={0} value={item.tradeDiscountValue} onChange={(e) => updateItem(i, { tradeDiscountValue: e.target.value })} aria-label="Trade discount" placeholder="Disc." />
+              <input className="qty-input" type="number" min={0} value={item.salesTaxRate} onChange={(e) => updateItem(i, { salesTaxRate: e.target.value })} aria-label="Sales tax rate (bps)" placeholder="Tax bps" title="Sales tax rate in basis points (1800 = 18%); blank = business default" />
+              <input className="qty-input" type="number" min={0} value={item.advanceTaxRate} onChange={(e) => updateItem(i, { advanceTaxRate: e.target.value })} aria-label="Advance tax rate (bps)" placeholder="Adv bps" title="Advance tax rate in basis points (10 = 0.1%); blank = business default" />
+              <span className="line-total">${toDollars(line.discountedValueInclusive)}</span>
               <button type="button" className="btn ghost icon" onClick={() => removeItem(i)} title="Remove item">
                 ✕
               </button>
@@ -192,15 +255,15 @@ export function RestockForm({ products, initial, onSubmit, onCancel }: RestockFo
         })}
       </div>
 
-      {availableProducts.length > 0 && (
+      {products.length > 0 && (
         <button type="button" className="btn small ghost" onClick={addItem}>
           + Add item
         </button>
       )}
 
       <div className="totals-row">
-        <strong>Total cost</strong>
-        <strong>${totalCost.toFixed(2)}</strong>
+        <strong>Total cost (payable)</strong>
+        <strong>${toDollars(liveTotals.totalCost)}</strong>
       </div>
 
       {serverError && <div className="form-error">{serverError}</div>}

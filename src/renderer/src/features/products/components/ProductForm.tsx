@@ -105,6 +105,26 @@ export function ProductForm({ mode, product, categories, onSubmit, onCancel }: P
         </label>
 
         <label className="field">
+          <span>Pack size</span>
+          <input value={state.packSize} onChange={set('packSize')} placeholder="e.g. 33g" />
+        </label>
+
+        <label className="field">
+          <span>Pack config</span>
+          <input value={state.packConfig} onChange={set('packConfig')} placeholder="e.g. 6x24" />
+        </label>
+
+        <label className="field">
+          <span>MRP per piece</span>
+          <input type="number" step="0.01" min={0} value={state.mrp} onChange={set('mrp')} placeholder="e.g. 25.00" />
+        </label>
+
+        <label className="field">
+          <span>Purchase unit</span>
+          <input value={state.purchaseUnit} onChange={set('purchaseUnit')} placeholder="carton" />
+        </label>
+
+        <label className="field">
           <span>Reorder level</span>
           <input type="number" min={0} value={state.reorderLevel} onChange={set('reorderLevel')} />
         </label>

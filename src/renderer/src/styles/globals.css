@@ -855,6 +855,31 @@ body {
   margin-top: -4px;
 }
 
+/* Restock (purchase) line: carton-based tax/discount columns */
+.item-line.restock-line {
+  grid-template-columns:
+    minmax(180px, 1fr) 70px 70px 90px 100px 80px 70px 70px 90px 28px;
+}
+
+.item-line.restock-line .line-total {
+  min-width: 90px;
+}
+
+.restock-header-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 8px 0;
+}
+
+.restock-header-fields span {
+  font-size: 13px;
+}
+
+.restock-header-fields strong {
+  font-weight: 600;
+}
+
 /* Confirm actions */
 .confirm-bar {
   display: flex;

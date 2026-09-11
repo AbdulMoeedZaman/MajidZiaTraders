@@ -69,6 +69,9 @@ export class ProductService {
     if (data.piecesPerCarton !== undefined && (!Number.isInteger(data.piecesPerCarton) || data.piecesPerCarton < 1)) {
       throw new Error('Pieces per carton must be a whole number of at least 1')
     }
+    if (data.mrp !== undefined && data.mrp !== null && (!Number.isInteger(data.mrp) || data.mrp < 0)) {
+      throw new Error('MRP must be a non-negative whole number of cents')
+    }
     if (data.reorderLevel !== undefined && (!Number.isInteger(data.reorderLevel) || data.reorderLevel < 0)) {
       throw new Error('Reorder level must be a whole number of at least 0')
     }
@@ -110,6 +113,9 @@ export class ProductService {
     this.assertMoneyFields(data)
     if (data.piecesPerCarton !== undefined && (!Number.isInteger(data.piecesPerCarton) || data.piecesPerCarton < 1)) {
       throw new Error('Pieces per carton must be a whole number of at least 1')
+    }
+    if (data.mrp !== undefined && data.mrp !== null && (!Number.isInteger(data.mrp) || data.mrp < 0)) {
+      throw new Error('MRP must be a non-negative whole number of cents')
     }
     if (data.reorderLevel !== undefined && (!Number.isInteger(data.reorderLevel) || data.reorderLevel < 0)) {
       throw new Error('Reorder level must be a whole number of at least 0')

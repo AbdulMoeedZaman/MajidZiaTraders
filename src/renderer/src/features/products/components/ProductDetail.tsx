@@ -68,6 +68,28 @@ export function ProductDetail({
           <dt>Pieces per carton</dt>
           <dd>{product.piecesPerCarton}</dd>
         </div>
+        {product.packSize && (
+          <div>
+            <dt>Pack size</dt>
+            <dd>{product.packSize}</dd>
+          </div>
+        )}
+        {product.packConfig && (
+          <div>
+            <dt>Pack config</dt>
+            <dd>{product.packConfig}</dd>
+          </div>
+        )}
+        {product.mrp != null && (
+          <div>
+            <dt>MRP per piece</dt>
+            <dd>{formatMoney(product.mrp)}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Purchase unit</dt>
+          <dd>{product.purchaseUnit || 'carton'}</dd>
+        </div>
         <div>
           <dt>Base cost price</dt>
           <dd>{formatMoney(product.baseCostPrice)}</dd>

@@ -181,12 +181,14 @@ try {
   check('O-1', 'Unpaid invoice past its due date becomes "overdue"', i3.status === 'overdue', i3.status)
 
   // =============== Restocks ===============
-  const R1 = must(await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [{ productId: P1.id, unit: 'piece', quantity: 20, unitCost: 900 }] }), 'R1')
-  const rdup = await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [{ productId: P1.id, quantity: 1, unitCost: 1 }, { productId: P1.id, quantity: 1, unitCost: 1 }] })
+  // 1 carton of 24 pieces @ 900/piece = 21600 net (taxes zeroed so totals stay flat).
+  const ritem = (cartons) => ({ productId: P1.id, qtyCartons: cartons, piecesPerCarton: 24, netSalesValueExcl: cartons * 24 * 900, salesTaxRate: 0, advanceTaxRate: 0 })
+  const R1 = must(await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [ritem(1)] }), 'R1')
+  const rdup = await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [ritem(1), ritem(1)] })
   check('R-1', 'Same product twice in one restock rejected', !rdup.ok, rdup.e ?? 'accepted')
-  const R1u = must(await inv('restocks:update', R1.id, { items: [{ productId: P1.id, unit: 'piece', quantity: 25, unitCost: 900 }] }), 'R1 update')
-  check('R-2', 'Editing a pending restock updates its total cost', R1u.totalCost === 25 * 900, R1u.totalCost)
-  must(await inv('restocks:mark-received', R1.id), 'receive'); expectP1 += 25
+  const R1u = must(await inv('restocks:update', R1.id, { items: [ritem(25)] }), 'R1 update')
+  check('R-2', 'Editing a pending restock updates its total cost', R1u.totalCost === 25 * 21600, R1u.totalCost)
+  must(await inv('restocks:mark-received', R1.id), 'receive'); expectP1 += 25 * 24
   q = await qty(P1.id)
   check('R-3', `Mark received adds stock (expect ${expectP1})`, q.single === expectP1 && q.list === expectP1, q)
   const rdel = await inv('restocks:delete', R1.id), rcan = await inv('restocks:cancel', R1.id)

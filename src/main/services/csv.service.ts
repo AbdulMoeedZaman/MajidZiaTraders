@@ -200,7 +200,7 @@ export class CSVService {
 
     const MONEY_FIELD_KEYS: Partial<Record<CSVExportEntityType, string[]>> = {
     products: ['baseCostPrice', 'minSellingPrice', 'sellingPrice'],
-    restocks: ['totalCost'],
+    restocks: ['totalRetailValueExcl', 'totalSalesTax', 'totalAdvanceTax', 'totalTradeDiscount', 'totalNetValueExcl', 'totalCost'],
     invoices: ['subtotal', 'discount', 'taxAmount', 'total', 'totalCost', 'totalProfit', 'paid', 'outstanding'],
     sales_report: ['revenue', 'cost', 'profit'],
     customer_payments: ['amount'],
@@ -373,7 +373,20 @@ export class CSVService {
     result: CSVImportResult,
     recordError: (index: number, message: string) => void
   ): void {
-    const groups = new Map<string, { supplierName: string; date: string; notes: string; items: CreateRestockItemDTO[]; rows: number[] }>()
+    interface Group {
+      supplierName: string
+      date: string
+      notes: string
+      supplierInvoiceNo: string
+      supplierRegistrationNo: string
+      buyerNtn: string
+      buyerCnic: string
+      dispatchNoteNo: string
+      salesOrderNo: string
+      items: CreateRestockItemDTO[]
+      rows: number[]
+    }
+    const groups = new Map<string, Group>()
 
     for (let i = 0; i < rows.length; i++) {
       const values = rowValues(i)
@@ -391,14 +404,19 @@ export class CSVService {
         recordError(i, `Unknown product SKU "${sku}"`)
         continue
       }
-      const quantity = parseIntCell(values.quantity || '', 'Quantity')
-      if (quantity.error || quantity.value <= 0) {
-        recordError(i, quantity.error ?? 'Quantity must be a positive whole number')
+      const qtyCartons = parseIntCell(values.qtyCartons || '', 'Qty cartons')
+      if (qtyCartons.error || qtyCartons.value <= 0) {
+        recordError(i, qtyCartons.error ?? 'Qty cartons must be a positive whole number')
         continue
       }
-      const unitCost = parseMoneyCell(values.unitCost || '', 'Unit cost')
-      if (unitCost.error) {
-        recordError(i, unitCost.error)
+      const piecesPerCarton = parseIntCell(values.piecesPerCarton || '', 'Pieces per carton')
+      if (piecesPerCarton.error || piecesPerCarton.value < 1) {
+        recordError(i, piecesPerCarton.error ?? 'Pieces per carton must be at least 1')
+        continue
+      }
+      const netSalesValueExcl = parseMoneyCell(values.netSalesValueExcl || '', 'Net sales value (excl.)')
+      if (netSalesValueExcl.error) {
+        recordError(i, netSalesValueExcl.error)
         continue
       }
 
@@ -415,13 +433,34 @@ export class CSVService {
           supplierName: values.supplierName.trim(),
           date,
           notes: values.notes || '',
+          supplierInvoiceNo: values.supplierInvoiceNo || '',
+          supplierRegistrationNo: values.supplierRegistrationNo || '',
+          buyerNtn: values.buyerNtn || '',
+          buyerCnic: values.buyerCnic || '',
+          dispatchNoteNo: values.dispatchNoteNo || '',
+          salesOrderNo: values.salesOrderNo || '',
           items: [],
           rows: [],
         }
         groups.set(groupKey, group)
       }
       group.rows.push(i)
-      group.items.push({ productId: product.id, unit: values.unit || product.unit, quantity: quantity.value, unitCost: unitCost.value })
+
+      const item: CreateRestockItemDTO = {
+        productId: product.id,
+        qtyCartons: qtyCartons.value,
+        piecesPerCarton: piecesPerCarton.value,
+        netSalesValueExcl: netSalesValueExcl.value,
+      }
+      if (values.tradeDiscountValue) {
+        const td = parseMoneyCell(values.tradeDiscountValue, 'Trade discount')
+        if (td.error) {
+          recordError(i, td.error)
+          continue
+        }
+        item.tradeDiscountValue = td.value
+      }
+      group.items.push(item)
     }
 
     for (const group of groups.values()) {
@@ -429,6 +468,12 @@ export class CSVService {
         supplierName: group.supplierName,
         date: group.date,
         notes: group.notes || undefined,
+        supplierInvoiceNo: group.supplierInvoiceNo || undefined,
+        supplierRegistrationNo: group.supplierRegistrationNo || undefined,
+        buyerNtn: group.buyerNtn || undefined,
+        buyerCnic: group.buyerCnic || undefined,
+        dispatchNoteNo: group.dispatchNoteNo || undefined,
+        salesOrderNo: group.salesOrderNo || undefined,
         items: group.items,
       }
       try {

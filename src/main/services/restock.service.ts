@@ -1,19 +1,31 @@
 import { RestockRepository } from '../repositories/restock.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import { InventoryRepository } from '../repositories/inventory.repository'
+import { SettingsRepository } from '../repositories/settings.repository'
 import type {
   Restock,
   RestockListItem,
   RestockWithItems,
   CreateRestockDTO,
+  CreateRestockItemDTO,
   UpdateRestockDTO,
 } from '@shared/types/restock'
+import {
+  computeRestockLineTotals,
+  restockLineUnitCost,
+  DEFAULT_SALES_TAX_RATE_BPS,
+  DEFAULT_ADVANCE_TAX_RATE_BPS,
+  PURCHASE_SALES_TAX_SETTING,
+  PURCHASE_ADVANCE_TAX_SETTING,
+  type RestockLineInput,
+} from '@shared/calc/restock-totals'
 import { assertIsoDate } from '@shared/date'
 
 export class RestockService {
   private restockRepo = new RestockRepository()
   private productRepo = new ProductRepository()
   private inventoryRepo = new InventoryRepository()
+  private settingsRepo = new SettingsRepository()
 
   list(): Restock[] {
     return this.restockRepo.findAll()
@@ -45,12 +57,12 @@ export class RestockService {
     if (!data.supplierName?.trim()) {
       throw new Error('Supplier name is required')
     }
-    this.validateItems(data.items, [])
     this.validateDate(data.date, 'Date')
+    const items = this.resolveItems(data.items, [])
 
     return this.restockRepo.runInTransaction(() => {
       const referenceNumber = this.restockRepo.generateReferenceNumber()
-      return this.restockRepo.create({ ...data, supplierName: data.supplierName.trim() }, referenceNumber)
+      return this.restockRepo.create({ ...data, supplierName: data.supplierName.trim(), items }, referenceNumber)
     })
   }
 
@@ -72,10 +84,10 @@ export class RestockService {
       this.validateDate(data.date, 'Date')
     }
     if (data.items !== undefined) {
-      this.validateItems(data.items, [])
       if (data.items.length === 0) {
         throw new Error('Restock must have at least one item')
       }
+      data.items = this.resolveItems(data.items, [])
     }
 
     return this.restockRepo.update(id, data)
@@ -93,18 +105,19 @@ export class RestockService {
     return this.restockRepo.runInTransaction(() => {
       const items = this.restockRepo.getItems(id)
       for (const item of items) {
+        const pieces = item.qtyCartons * item.piecesPerCarton
         this.inventoryRepo.create({
           productId: item.productId,
           type: 'restock',
-          quantity: item.quantity,
+          quantity: pieces,
           referenceType: 'restock',
           referenceId: id,
           reason: `Restock ${existing.referenceNumber}`,
-          cost: item.unitCost,
+          cost: restockLineUnitCost(item),
         })
 
         if (options?.updateCost !== false) {
-          this.productRepo.update(item.productId, { baseCostPrice: item.unitCost })
+          this.productRepo.update(item.productId, { baseCostPrice: restockLineUnitCost(item) })
         }
       }
       return this.restockRepo.update(id, { status: 'received' })
@@ -134,16 +147,31 @@ export class RestockService {
     this.restockRepo.delete(id)
   }
 
-  private validateItems(
-    items: CreateRestockDTO['items'],
+  count(): number {
+    return this.restockRepo.count()
+  }
+
+  private getDefaultTaxRate(key: string, fallback: number): number {
+    const raw = this.settingsRepo.getValue(key)
+    if (raw == null) return fallback
+    const parsed = parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
+  }
+
+  private resolveItems(
+    incoming: CreateRestockItemDTO[],
     existingIds: number[]
-  ): void {
-    if (!items || items.length === 0) {
+  ): CreateRestockItemDTO[] {
+    if (!incoming || incoming.length === 0) {
       throw new Error('Restock must have at least one item')
     }
 
+    const defaultTaxRate = this.getDefaultTaxRate(PURCHASE_SALES_TAX_SETTING, DEFAULT_SALES_TAX_RATE_BPS)
+    const defaultAdvanceRate = this.getDefaultTaxRate(PURCHASE_ADVANCE_TAX_SETTING, DEFAULT_ADVANCE_TAX_RATE_BPS)
     const seen = new Set<number>(existingIds)
-    for (const item of items) {
+    const resolved: CreateRestockItemDTO[] = []
+
+    for (const item of incoming) {
       if (!Number.isInteger(item.productId) || item.productId < 1) {
         throw new Error('Each restock item requires a valid product')
       }
@@ -152,11 +180,20 @@ export class RestockService {
       }
       seen.add(item.productId)
 
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new Error('Restock quantity must be a positive whole number')
+      if (!Number.isInteger(item.qtyCartons) || item.qtyCartons <= 0) {
+        throw new Error('Restock quantity (cartons) must be a positive whole number')
       }
-      if (!Number.isInteger(item.unitCost) || item.unitCost < 0) {
-        throw new Error('Unit cost must be a non-negative whole number of cents')
+      if (!Number.isInteger(item.piecesPerCarton) || item.piecesPerCarton < 1) {
+        throw new Error('Pieces per carton must be at least 1')
+      }
+      if (!Number.isInteger(item.netSalesValueExcl) || item.netSalesValueExcl < 0) {
+        throw new Error('Net sales value (excl.) must be a non-negative whole number')
+      }
+      if (item.tradeDiscountValue !== undefined && (!Number.isInteger(item.tradeDiscountValue) || item.tradeDiscountValue < 0)) {
+        throw new Error('Trade discount must be a non-negative whole number')
+      }
+      if (item.mrpPerPiece !== undefined && item.mrpPerPiece !== null && (!Number.isInteger(item.mrpPerPiece) || item.mrpPerPiece < 0)) {
+        throw new Error('MRP must be a non-negative whole number')
       }
 
       const product = this.productRepo.findById(item.productId)
@@ -166,14 +203,50 @@ export class RestockService {
       if (product.isActive !== 1) {
         throw new Error(`Cannot restock inactive product "${product.name}"`)
       }
+
+      const resolvedItem = {
+        productId: item.productId,
+        qtyCartons: item.qtyCartons,
+        piecesPerCarton: item.piecesPerCarton,
+        mrpPerPiece: (item.mrpPerPiece ?? product.mrp ?? null) as number | null,
+        salesTaxRate: item.salesTaxRate ?? defaultTaxRate,
+        advanceTaxRate: item.advanceTaxRate ?? defaultAdvanceRate,
+        netSalesValueExcl: item.netSalesValueExcl,
+        tradeDiscountValue: item.tradeDiscountValue ?? 0,
+      } satisfies CreateRestockItemDTO
+
+      const lineInput: RestockLineInput = {
+        qtyCartons: resolvedItem.qtyCartons,
+        piecesPerCarton: resolvedItem.piecesPerCarton,
+        mrpPerPiece: resolvedItem.mrpPerPiece ?? null,
+        salesTaxRate: resolvedItem.salesTaxRate,
+        advanceTaxRate: resolvedItem.advanceTaxRate,
+        netSalesValueExcl: resolvedItem.netSalesValueExcl,
+        tradeDiscountValue: resolvedItem.tradeDiscountValue ?? 0,
+      }
+
+      const totals = computeRestockLineTotals(lineInput, {
+        retailPricePerCarton: item.retailPricePerCarton,
+        salesTaxAmount: item.salesTaxAmount,
+        advanceTax: item.advanceTax,
+      })
+
+      if (totals.discountedValueInclusive < 0) {
+        throw new Error('Line total cannot be negative (discount exceeds net + tax)')
+      }
+
+      resolved.push({
+        ...resolvedItem,
+        retailPricePerCarton: totals.retailPricePerCarton,
+        salesTaxAmount: totals.salesTaxAmount,
+        advanceTax: totals.advanceTax,
+      })
     }
+
+    return resolved
   }
 
   private validateDate(date: string, label: string): void {
     assertIsoDate(date, label)
-  }
-
-  count(): number {
-    return this.restockRepo.count()
   }
 }

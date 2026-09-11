@@ -66,7 +66,11 @@ describe('restock numbers', () => {
     const { product } = seedBasics()
     const restocks = new RestockService()
     const order = () =>
-      restocks.create({ supplierName: 'Acme', date: localDate(), items: [{ productId: product.id, quantity: 1, unitCost: 100 }] })
+      restocks.create({
+        supplierName: 'Acme',
+        date: localDate(),
+        items: [{ productId: product.id, qtyCartons: 1, piecesPerCarton: 1, netSalesValueExcl: 100 }],
+      })
     order()
     const second = order()
     restocks.delete(second.id)
@@ -81,10 +85,58 @@ describe('restock numbers', () => {
     const order = restocks.create({
       supplierName: 'Acme',
       date: localDate(),
-      items: [{ productId: product.id, quantity: 1, unitCost: 100 }],
+      items: [{ productId: product.id, qtyCartons: 1, piecesPerCarton: 1, netSalesValueExcl: 100 }],
     })
     expect(() => restocks.update(order.id, { status: 'received' } as never)).toThrow(/Mark as received/)
     expect(restocks.getById(order.id)?.status).toBe('pending')
     expect(new InventoryService().getCurrentQuantity(product.id)).toBe(100)
+  })
+
+  it('converts cartons to pieces on receipt and prices stock from inclusive cost', () => {
+    const { product } = seedBasics()
+    const restocks = new RestockService()
+    const order = restocks.create({
+      supplierName: 'Acme',
+      date: localDate(),
+      items: [
+        {
+          productId: product.id,
+          qtyCartons: 3,
+          piecesPerCarton: 24,
+          mrpPerPiece: 1500,
+          netSalesValueExcl: 86400,
+          tradeDiscountValue: 200,
+          salesTaxRate: 1800,
+          advanceTaxRate: 10,
+        },
+      ],
+    })
+
+    // 1 carton of 1500 mrp @ 18% -> statutory unit is 1271.19 -> round to 1271.
+    // retail per carton = 24 * 1500 * 10000 / 11800 = 30508. Round to 30508.
+    const item = restocks.getItems(order.id)[0]
+    expect(item.qtyCartons).toBe(3)
+    expect(item.retailPricePerCarton).toBe(30508)
+    expect(item.totalRetailValueExcl).toBe(3 * 30508)
+    expect(item.salesTaxAmount).toBe(Math.round((3 * 30508 * 1800) / 10000))
+    expect(item.advanceTax).toBe(Math.round((86400 * 10) / 10000))
+    // discountedValueInclusive = 86400 + salesTax + advanceTax - 200
+    expect(item.discountedValueInclusive).toBe(item.netSalesValueExcl + item.salesTaxAmount + item.advanceTax - item.tradeDiscountValue)
+    // Header aggregates match the sum of its lines.
+    const withItems = restocks.getWithItems(order.id)!
+    expect(withItems.totalCost).toBe(item.discountedValueInclusive)
+    expect(withItems.totalNetValueExcl).toBe(item.netSalesValueExcl)
+    expect(withItems.items).toHaveLength(1)
+
+    restocks.markReceived(order.id)
+
+    // 3 cartons x 24 pieces = 72 pieces added; per-piece cost is inclusive total / pieces.
+    expect(new InventoryService().getCurrentQuantity(product.id)).toBe(172)
+    const updatedProduct = new ProductService().getById(product.id)!
+    expect(updatedProduct.baseCostPrice).toBe(Math.round(item.discountedValueInclusive / 72))
+    const lastMovement = new InventoryService().listMovements(product.id)[0]!
+    expect(lastMovement.referenceType).toBe('restock')
+    expect(lastMovement.quantity).toBe(72)
+    expect(lastMovement.cost).toBe(updatedProduct.baseCostPrice)
   })
 })

@@ -8,6 +8,23 @@ import type {
   CreateRestockItemDTO,
   UpdateRestockDTO,
 } from '@shared/types/restock'
+import { aggregateRestockLines, type RestockHeaderTotalsItem } from '@shared/calc/restock-totals'
+
+function toHeaderTotalsItem(item: CreateRestockItemDTO): RestockHeaderTotalsItem {
+  const qtyCartons = item.qtyCartons ?? 0
+  const piecesPerCarton = item.piecesPerCarton ?? 1
+  const totalRetailValueExcl = item.retailPricePerCarton != null ? qtyCartons * item.retailPricePerCarton : 0
+  const salesTaxAmount = item.salesTaxAmount ?? 0
+  const advanceTax = item.advanceTax ?? 0
+  const tradeDiscountValue = item.tradeDiscountValue ?? 0
+  const netSalesValueExcl = item.netSalesValueExcl ?? 0
+  const discountedValueInclusive = netSalesValueExcl + salesTaxAmount + advanceTax - tradeDiscountValue
+  return { qtyCartons, piecesPerCarton, totalRetailValueExcl, salesTaxAmount, advanceTax, tradeDiscountValue, netSalesValueExcl, discountedValueInclusive }
+}
+
+function totalsFromItems(items: CreateRestockItemDTO[]) {
+  return aggregateRestockLines(items.map(toHeaderTotalsItem))
+}
 
 export class RestockRepository extends BaseRepository {
   findAll(): Restock[] {
@@ -35,10 +52,6 @@ export class RestockRepository extends BaseRepository {
       .all(status) as Restock[]
   }
 
-  /**
-   * Next restock number from a stored counter, so numbers are never reused after a delete.
-   * Call inside the same transaction as create().
-   */
   generateReferenceNumber(): string {
     const maxExisting = (
       this.db
@@ -61,11 +74,33 @@ export class RestockRepository extends BaseRepository {
   }
 
   create(data: CreateRestockDTO, referenceNumber: string): Restock {
-    const totalCost = data.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+    const totals = totalsFromItems(data.items)
 
     const result = this.db.prepare(
-      'INSERT INTO restocks (referenceNumber, supplierName, date, totalCost, status, notes) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(referenceNumber, data.supplierName, data.date, totalCost, 'pending', data.notes ?? null)
+      `INSERT INTO restocks
+        (referenceNumber, supplierName, date, status, notes,
+         supplierInvoiceNo, supplierRegistrationNo, buyerNtn, buyerCnic, dispatchNoteNo, salesOrderNo,
+         totalRetailValueExcl, totalSalesTax, totalAdvanceTax, totalTradeDiscount, totalNetValueExcl, totalCost)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      referenceNumber,
+      data.supplierName,
+      data.date,
+      'pending',
+      data.notes ?? null,
+      data.supplierInvoiceNo ?? null,
+      data.supplierRegistrationNo ?? null,
+      data.buyerNtn ?? null,
+      data.buyerCnic ?? null,
+      data.dispatchNoteNo ?? null,
+      data.salesOrderNo ?? null,
+      totals.totalRetailValueExcl,
+      totals.totalSalesTax,
+      totals.totalAdvanceTax,
+      totals.totalTradeDiscount,
+      totals.totalNetValueExcl,
+      totals.totalCost
+    )
 
     const restockId = result.lastInsertRowid as number
 
@@ -77,13 +112,30 @@ export class RestockRepository extends BaseRepository {
   }
 
   createItem(restockId: number, item: CreateRestockItemDTO): RestockItem {
-    const totalCost = item.quantity * item.unitCost
+    const totals = toHeaderTotalsItem(item)
 
     const result = this.db
       .prepare(
-        'INSERT INTO restock_items (restockId, productId, unit, quantity, unitCost, totalCost) VALUES (?, ?, ?, ?, ?, ?)'
+        `INSERT INTO restock_items
+          (restockId, productId, qtyCartons, piecesPerCarton, mrpPerPiece, salesTaxRate, retailPricePerCarton, totalRetailValueExcl, salesTaxAmount, advanceTaxRate, advanceTax, netSalesValueExcl, tradeDiscountValue, discountedValueInclusive)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(restockId, item.productId, item.unit ?? 'piece', item.quantity, item.unitCost, totalCost)
+      .run(
+        restockId,
+        item.productId,
+        item.qtyCartons,
+        item.piecesPerCarton,
+        item.mrpPerPiece ?? null,
+        item.salesTaxRate,
+        item.retailPricePerCarton ?? 0,
+        totals.totalRetailValueExcl,
+        item.salesTaxAmount ?? totals.salesTaxAmount,
+        item.advanceTaxRate,
+        item.advanceTax ?? totals.advanceTax,
+        item.netSalesValueExcl,
+        item.tradeDiscountValue ?? 0,
+        totals.discountedValueInclusive
+      )
 
     return this.db.prepare('SELECT * FROM restock_items WHERE id = ?').get(result.lastInsertRowid) as RestockItem
   }
@@ -114,21 +166,27 @@ export class RestockRepository extends BaseRepository {
     if (data.date !== undefined) { fields.push('date = ?'); values.push(data.date) }
     if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status) }
     if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes) }
-
-    if (fields.length > 0) {
-      fields.push("updatedAt = datetime('now')")
-      values.push(id)
-      this.db.prepare(`UPDATE restocks SET ${fields.join(', ')} WHERE id = ?`).run(...values)
-    }
+    if (data.supplierInvoiceNo !== undefined) { fields.push('supplierInvoiceNo = ?'); values.push(data.supplierInvoiceNo) }
+    if (data.supplierRegistrationNo !== undefined) { fields.push('supplierRegistrationNo = ?'); values.push(data.supplierRegistrationNo) }
+    if (data.buyerNtn !== undefined) { fields.push('buyerNtn = ?'); values.push(data.buyerNtn) }
+    if (data.buyerCnic !== undefined) { fields.push('buyerCnic = ?'); values.push(data.buyerCnic) }
+    if (data.dispatchNoteNo !== undefined) { fields.push('dispatchNoteNo = ?'); values.push(data.dispatchNoteNo) }
+    if (data.salesOrderNo !== undefined) { fields.push('salesOrderNo = ?'); values.push(data.salesOrderNo) }
 
     if (data.items) {
       this.db.prepare('DELETE FROM restock_items WHERE restockId = ?').run(id)
       for (const item of data.items) {
         this.createItem(id, item)
       }
+      const totals = totalsFromItems(data.items)
+      fields.push('totalRetailValueExcl = ?', 'totalSalesTax = ?', 'totalAdvanceTax = ?', 'totalTradeDiscount = ?', 'totalNetValueExcl = ?', 'totalCost = ?')
+      values.push(totals.totalRetailValueExcl, totals.totalSalesTax, totals.totalAdvanceTax, totals.totalTradeDiscount, totals.totalNetValueExcl, totals.totalCost)
+    }
 
-      const newTotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
-      this.db.prepare("UPDATE restocks SET totalCost = ?, updatedAt = datetime('now') WHERE id = ?").run(newTotal, id)
+    if (fields.length > 0) {
+      fields.push("updatedAt = datetime('now')")
+      values.push(id)
+      this.db.prepare(`UPDATE restocks SET ${fields.join(', ')} WHERE id = ?`).run(...values)
     }
 
     return this.findById(id)!
