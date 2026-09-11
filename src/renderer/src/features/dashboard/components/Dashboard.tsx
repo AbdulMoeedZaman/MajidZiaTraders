@@ -2,6 +2,7 @@ import { useDashboard } from '../hooks/useDashboard'
 import { formatDate, formatMoney } from '../../../lib/format'
 import { INVOICE_STATUS_LABELS } from '../../invoices/types/invoice-form'
 import { statusBadgeTone } from '../../invoices/components/InvoiceList'
+import { ReportsSection } from './ReportsSection'
 
 interface DashboardProps {
   onOpenInvoice: (id: number) => void
@@ -180,6 +181,8 @@ export function Dashboard({ onOpenInvoice, onOpenPayments }: DashboardProps) {
           View all payments
         </button>
       </div>
+
+      <ReportsSection />
     </div>
   )
 }

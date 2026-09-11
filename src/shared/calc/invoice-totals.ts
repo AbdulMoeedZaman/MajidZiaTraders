@@ -21,11 +21,9 @@ export interface InvoiceTotals {
   subtotal: number
   /** Discount actually applied (never more than the subtotal). */
   discount: number
-  taxRate: number
-  taxAmount: number
   total: number
   totalCost: number
-  /** Net revenue (subtotal − discount) minus cost. Tax is not profit. */
+  /** Net revenue (subtotal − discount) minus cost. */
   profit: number
   lines: InvoiceLineTotals[]
 }
@@ -57,26 +55,21 @@ export function allocateDiscount(lineTotals: number[], discount: number): number
   return result
 }
 
-export function calculateInvoiceTotals(lines: InvoiceLineInput[], discount = 0, taxRate = 0): InvoiceTotals {
+export function calculateInvoiceTotals(lines: InvoiceLineInput[], discount = 0): InvoiceTotals {
   const lineSubtotals = lines.map((l) => safeQuantity(l.quantity) * safeMoney(l.unitPrice))
   const lineCosts = lines.map((l) => safeQuantity(l.quantity) * safeMoney(l.unitCost))
   const subtotal = lineSubtotals.reduce((sum, v) => sum + v, 0)
   const totalCost = lineCosts.reduce((sum, v) => sum + v, 0)
 
   const appliedDiscount = Math.min(Math.max(0, safeMoney(discount)), subtotal)
-  const rate = Math.min(100, Math.max(0, safeMoney(taxRate)))
-  const taxBase = subtotal - appliedDiscount
-  const taxAmount = Math.round((taxBase * rate) / 100)
   const lineDiscounts = allocateDiscount(lineSubtotals, appliedDiscount)
 
   return {
     subtotal,
     discount: appliedDiscount,
-    taxRate: rate,
-    taxAmount,
-    total: taxBase + taxAmount,
+    total: subtotal - appliedDiscount,
     totalCost,
-    profit: taxBase - totalCost,
+    profit: subtotal - appliedDiscount - totalCost,
     lines: lineSubtotals.map((lineSubtotal, i) => ({
       lineSubtotal,
       lineDiscount: lineDiscounts[i],

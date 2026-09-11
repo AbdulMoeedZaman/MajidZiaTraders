@@ -1,8 +1,6 @@
 import path from 'path'
 import { app } from 'electron'
 
-export const CSV_READ_EXTENSIONS = ['.csv', '.txt', '.tsv']
-export const CSV_WRITE_EXTENSIONS = ['.csv', '.txt']
 export const BACKUP_EXTENSIONS = ['.db', '.sqlite', '.sqlite3']
 
 /**

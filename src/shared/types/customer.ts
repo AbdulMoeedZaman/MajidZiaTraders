@@ -1,19 +1,19 @@
 export interface Customer {
   id: number
   name: string
-  phone: string | null
+  address: string | null
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateCustomerDTO {
   name: string
-  phone?: string | null
+  address?: string | null
 }
 
 export interface UpdateCustomerDTO {
   name?: string
-  phone?: string | null
+  address?: string | null
 }
 
 export interface CustomerLedgerTotals {

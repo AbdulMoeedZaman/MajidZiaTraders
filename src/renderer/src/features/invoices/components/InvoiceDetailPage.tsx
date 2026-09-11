@@ -124,7 +124,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: InvoiceDetailPageProps)
           <h2>{profile.name}</h2>
           {address && <div>{address}</div>}
           {contact && <div>{contact}</div>}
-          {profile.taxId && <div>Tax ID: {profile.taxId}</div>}
         </div>
       )}
 
@@ -181,10 +180,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: InvoiceDetailPageProps)
               <span>−{formatMoney(invoice.discount)}</span>
             </div>
           )}
-          <div className="totals-row">
-            <span>Tax ({(invoice.taxRate ?? 0)}%)</span>
-            <span>{formatMoney(invoice.taxAmount)}</span>
-          </div>
           <div className="totals-row strong">
             <span>Total</span>
             <span>{formatMoney(invoice.total)}</span>

@@ -4,7 +4,6 @@ import type { BackupMetadata } from '@shared/types/backup'
 import { api } from '../../../lib/api'
 import { formatDateTime, localDate } from '../../../lib/format'
 import { setCurrency } from '../../../lib/format'
-import { PURCHASE_SALES_TAX_SETTING, PURCHASE_ADVANCE_TAX_SETTING } from '@shared/calc/restock-totals'
 
 const EMPTY_PROFILE: BusinessProfile = {
   id: 0,
@@ -15,8 +14,6 @@ const EMPTY_PROFILE: BusinessProfile = {
   address: null,
   city: null,
   country: null,
-  taxId: null,
-  taxRate: 0,
   logoPath: null,
   currency: 'USD',
   invoiceFooter: null,
@@ -33,8 +30,6 @@ export function SettingsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [backupInfo, setBackupInfo] = useState<BackupMetadata | null>(null)
   const [restoreBusy, setRestoreBusy] = useState(false)
-  const [restockTaxSales, setRestockTaxSales] = useState('18')
-  const [restockTaxAdvance, setRestockTaxAdvance] = useState('0.1')
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
@@ -43,12 +38,6 @@ export function SettingsPage() {
     setError(null)
     try {
       setProfile(await api.businessProfile.get())
-      const [sales, advance] = await Promise.all([
-        api.settings.getValue(PURCHASE_SALES_TAX_SETTING),
-        api.settings.getValue(PURCHASE_ADVANCE_TAX_SETTING),
-      ])
-      if (sales != null) setRestockTaxSales(String((parseFloat(sales) / 100).toFixed(2)))
-      if (advance != null) setRestockTaxAdvance(String((parseFloat(advance) / 100).toFixed(2)))
     } catch (e) {
       setError(String(e))
     } finally {
@@ -59,28 +48,6 @@ export function SettingsPage() {
   useEffect(() => {
     load()
   }, [load])
-
-  const handleRestockTaxSave = async () => {
-    setActionError(null)
-    setActionSuccess(null)
-    const sales = parseFloat(restockTaxSales)
-    const advance = parseFloat(restockTaxAdvance)
-    if (Number.isNaN(sales) || sales < 0 || Number.isNaN(advance) || advance < 0) {
-      setActionError('Tax rates must be 0 or more')
-      return
-    }
-    try {
-      await api.settings.bulkUpdate({
-        settings: [
-          { key: PURCHASE_SALES_TAX_SETTING, value: String(Math.round(sales * 100)) },
-          { key: PURCHASE_ADVANCE_TAX_SETTING, value: String(Math.round(advance * 100)) },
-        ],
-      })
-      setActionSuccess('Purchase tax defaults saved')
-    } catch (e) {
-      setActionError(String(e))
-    }
-  }
 
   const handleBackup = async () => {
     setActionError(null)
@@ -177,14 +144,6 @@ export function SettingsPage() {
               <strong>{[profile.address, profile.city, profile.country].filter(Boolean).join(', ') || '—'}</strong>
             </div>
             <div className="kv">
-              <span className="muted">Tax ID</span>
-              <strong>{profile.taxId ?? '—'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Default tax rate</span>
-              <strong>{profile.taxRate}%</strong>
-            </div>
-            <div className="kv">
               <span className="muted">Currency</span>
               <strong>{profile.currency}</strong>
             </div>
@@ -202,41 +161,6 @@ export function SettingsPage() {
             No business profile configured. Click <button className="btn small" onClick={() => setFormOpen(true)}>Create</button> to set it up.
           </div>
         )}
-      </section>
-
-      <section className="settings-section">
-        <div className="settings-header">
-          <h4 className="section-title">Purchase (restock) tax defaults</h4>
-        </div>
-        <p className="muted fine-text">
-          Sales tax is charged on statutory retail value; advance tax (Pakistan) is a low flat rate.
-          New restock lines default to these rates but each line can override them.
-        </p>
-        <div className="settings-actions">
-          <label className="field">
-            <span>Sales tax (%)</span>
-            <input
-              type="number"
-              step="0.01"
-              min={0}
-              value={restockTaxSales}
-              onChange={(e) => setRestockTaxSales(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Advance tax (%)</span>
-            <input
-              type="number"
-              step="0.01"
-              min={0}
-              value={restockTaxAdvance}
-              onChange={(e) => setRestockTaxAdvance(e.target.value)}
-            />
-          </label>
-          <button className="btn primary" onClick={() => void handleRestockTaxSave()}>
-            Save
-          </button>
-        </div>
       </section>
 
       <section className="settings-section">
@@ -301,8 +225,6 @@ function ProfileForm({
     address: initial.address ?? '',
     city: initial.city ?? '',
     country: initial.country ?? '',
-    taxId: initial.taxId ?? '',
-    taxRate: String(initial.taxRate),
     currency: initial.currency || 'USD',
     invoicePrefix: initial.invoicePrefix || 'INV-',
     invoiceFooter: initial.invoiceFooter ?? '',
@@ -327,8 +249,6 @@ function ProfileForm({
         address: state.address.trim() || null,
         city: state.city.trim() || null,
         country: state.country.trim() || null,
-        taxId: state.taxId.trim() || null,
-        taxRate: Math.min(100, Math.max(0, parseFloat(state.taxRate || '0') || 0)),
         currency: state.currency.trim() || 'USD',
         invoicePrefix: state.invoicePrefix.trim() || 'INV-',
         invoiceFooter: state.invoiceFooter.trim() || null,
@@ -350,8 +270,6 @@ function ProfileForm({
     { key: 'address', label: 'Address', span: true },
     { key: 'city', label: 'City' },
     { key: 'country', label: 'Country' },
-    { key: 'taxId', label: 'Tax ID' },
-    { key: 'taxRate', label: 'Default tax rate (%)' },
     { key: 'currency', label: 'Currency (ISO code)' },
     { key: 'invoicePrefix', label: 'Invoice prefix' },
     { key: 'invoiceFooter', label: 'Invoice footer', span: true },

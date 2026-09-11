@@ -6,8 +6,6 @@ export interface Invoice {
   dueDate: string | null
   subtotal: number
   discount: number
-  taxRate: number
-  taxAmount: number
   total: number
   totalCost: number
   totalProfit: number
@@ -41,7 +39,6 @@ export interface CreateInvoiceDTO {
   customerId: number
   date: string
   dueDate?: string
-  taxRate?: number
   discount?: number
   status?: Invoice['status']
   notes?: string
@@ -64,7 +61,6 @@ export interface UpdateInvoiceDTO {
   customerId?: number
   date?: string
   dueDate?: string
-  taxRate?: number
   discount?: number
   status?: Invoice['status']
   notes?: string

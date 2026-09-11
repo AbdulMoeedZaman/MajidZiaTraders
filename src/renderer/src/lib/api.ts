@@ -29,14 +29,6 @@ import type {
   RestocksReport,
   StockMovementsReport,
 } from '@shared/types/report'
-import type {
-  CSVImportConfig,
-  CSVImportResult,
-  CSVExportConfig,
-  CSVPreviewRow,
-  CSVImportEntityType,
-  CSVExportEntityType,
-} from '@shared/types/csv'
 import type { DashboardOverview } from '@shared/types/dashboard'
 import type { BackupValidation, BackupMetadata, BackupRestoreResult } from '@shared/types/backup'
 
@@ -229,13 +221,6 @@ export const api = {
     create: (data: CreateStockAdjustmentDTO) =>
       ipc<StockAdjustment>('stock-adjustments:create', data),
     delete: (id: number) => ipc<{ success: boolean }>('stock-adjustments:delete', id),
-  },
-
-  csv: {
-    preview: (config: { filePath: string; delimiter: string; hasHeader: boolean; maxRows?: number }) =>
-      ipc<CSVPreviewRow>('csv:preview', config),
-    import: (config: CSVImportConfig) => ipc<CSVImportResult>('csv:import', config),
-    export: (config: CSVExportConfig) => ipc<string>('csv:export', config),
   },
 
   dashboard: {

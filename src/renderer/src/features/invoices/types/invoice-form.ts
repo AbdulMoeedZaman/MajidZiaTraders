@@ -13,7 +13,6 @@ export interface InvoiceFormState {
   customerId: string
   date: string
   dueDate: string
-  taxRate: string
   discount: string
   notes: string
   items: InvoiceItemInput[]
@@ -36,12 +35,11 @@ export const INVOICE_STATUS_FILTERS: InvoiceStatusFilter[] = [
   'cancelled',
 ]
 
-export function defaultInvoiceFormState(defaultTaxRate?: number): InvoiceFormState {
+export function defaultInvoiceFormState(): InvoiceFormState {
   return {
     customerId: '',
     date: localDate(),
     dueDate: '',
-    taxRate: String(defaultTaxRate ?? 0),
     discount: '0',
     notes: '',
     items: [],

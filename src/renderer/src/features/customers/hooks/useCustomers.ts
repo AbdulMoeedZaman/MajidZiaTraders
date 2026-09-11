@@ -31,7 +31,7 @@ export function useCustomers() {
     const q = query.trim().toLowerCase()
     if (q) {
       list = list.filter(
-        (c) => c.name.toLowerCase().includes(q) || (c.phone ?? '').toLowerCase().includes(q)
+        (c) => c.name.toLowerCase().includes(q) || (c.address ?? '').toLowerCase().includes(q)
       )
     }
     return list

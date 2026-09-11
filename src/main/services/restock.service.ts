@@ -1,7 +1,6 @@
 import { RestockRepository } from '../repositories/restock.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import { InventoryRepository } from '../repositories/inventory.repository'
-import { SettingsRepository } from '../repositories/settings.repository'
 import type {
   Restock,
   RestockListItem,
@@ -14,10 +13,6 @@ import type {
 import {
   computeRestockLineTotals,
   restockLineUnitCost,
-  DEFAULT_SALES_TAX_RATE_BPS,
-  DEFAULT_ADVANCE_TAX_RATE_BPS,
-  PURCHASE_SALES_TAX_SETTING,
-  PURCHASE_ADVANCE_TAX_SETTING,
   type RestockLineInput,
 } from '@shared/calc/restock-totals'
 import { assertIsoDate, localDate } from '@shared/date'
@@ -26,7 +21,6 @@ export class RestockService {
   private restockRepo = new RestockRepository()
   private productRepo = new ProductRepository()
   private inventoryRepo = new InventoryRepository()
-  private settingsRepo = new SettingsRepository()
 
   list(): Restock[] {
     return this.restockRepo.findAll()
@@ -99,8 +93,6 @@ export class RestockService {
               qtyCartons: data.quantity,
               piecesPerCarton: 1,
               mrpPerPiece: product.mrp,
-              salesTaxRate: 0,
-              advanceTaxRate: 0,
               netSalesValueExcl: unitCost * data.quantity,
               tradeDiscountValue: 0,
             },
@@ -215,13 +207,6 @@ export class RestockService {
     return this.restockRepo.count()
   }
 
-  private getDefaultTaxRate(key: string, fallback: number): number {
-    const raw = this.settingsRepo.getValue(key)
-    if (raw == null) return fallback
-    const parsed = parseInt(raw, 10)
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
-  }
-
   private resolveItems(
     incoming: CreateRestockItemDTO[],
     existingIds: number[]
@@ -230,8 +215,6 @@ export class RestockService {
       throw new Error('Restock must have at least one item')
     }
 
-    const defaultTaxRate = this.getDefaultTaxRate(PURCHASE_SALES_TAX_SETTING, DEFAULT_SALES_TAX_RATE_BPS)
-    const defaultAdvanceRate = this.getDefaultTaxRate(PURCHASE_ADVANCE_TAX_SETTING, DEFAULT_ADVANCE_TAX_RATE_BPS)
     const seen = new Set<number>(existingIds)
     const resolved: CreateRestockItemDTO[] = []
 
@@ -251,7 +234,7 @@ export class RestockService {
         throw new Error('Pieces per carton must be at least 1')
       }
       if (!Number.isInteger(item.netSalesValueExcl) || item.netSalesValueExcl < 0) {
-        throw new Error('Net sales value (excl.) must be a non-negative whole number')
+        throw new Error('Net sales value must be a non-negative whole number')
       }
       if (item.tradeDiscountValue !== undefined && (!Number.isInteger(item.tradeDiscountValue) || item.tradeDiscountValue < 0)) {
         throw new Error('Trade discount must be a non-negative whole number')
@@ -273,8 +256,6 @@ export class RestockService {
         qtyCartons: item.qtyCartons,
         piecesPerCarton: item.piecesPerCarton,
         mrpPerPiece: (item.mrpPerPiece ?? product.mrp ?? null) as number | null,
-        salesTaxRate: item.salesTaxRate ?? defaultTaxRate,
-        advanceTaxRate: item.advanceTaxRate ?? defaultAdvanceRate,
         netSalesValueExcl: item.netSalesValueExcl,
         tradeDiscountValue: item.tradeDiscountValue ?? 0,
       } satisfies CreateRestockItemDTO
@@ -282,29 +263,17 @@ export class RestockService {
       const lineInput: RestockLineInput = {
         qtyCartons: resolvedItem.qtyCartons,
         piecesPerCarton: resolvedItem.piecesPerCarton,
-        mrpPerPiece: resolvedItem.mrpPerPiece ?? null,
-        salesTaxRate: resolvedItem.salesTaxRate,
-        advanceTaxRate: resolvedItem.advanceTaxRate,
         netSalesValueExcl: resolvedItem.netSalesValueExcl,
         tradeDiscountValue: resolvedItem.tradeDiscountValue ?? 0,
       }
 
-      const totals = computeRestockLineTotals(lineInput, {
-        retailPricePerCarton: item.retailPricePerCarton,
-        salesTaxAmount: item.salesTaxAmount,
-        advanceTax: item.advanceTax,
-      })
+      const totals = computeRestockLineTotals(lineInput)
 
       if (totals.discountedValueInclusive < 0) {
-        throw new Error('Line total cannot be negative (discount exceeds net + tax)')
+        throw new Error('Line total cannot be negative (discount exceeds net value)')
       }
 
-      resolved.push({
-        ...resolvedItem,
-        retailPricePerCarton: totals.retailPricePerCarton,
-        salesTaxAmount: totals.salesTaxAmount,
-        advanceTax: totals.advanceTax,
-      })
+      resolved.push(resolvedItem)
     }
 
     return resolved

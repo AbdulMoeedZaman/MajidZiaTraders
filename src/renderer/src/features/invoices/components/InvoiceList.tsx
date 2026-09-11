@@ -4,7 +4,6 @@ import type { CustomerWithBalance } from '@shared/types/customer'
 import type { InvoiceWithCustomer, CreateInvoiceDTO } from '@shared/types/invoice'
 import { api } from '../../../lib/api'
 import { useInvoices } from '../hooks/useInvoices'
-import { createCsvExport } from '../../../lib/csv'
 import { InvoiceForm } from './InvoiceForm'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_FILTERS } from '../types/invoice-form'
 import { formatDate, formatMoney } from '../../../lib/format'
@@ -19,21 +18,18 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
 
   const [customers, setCustomers] = useState<CustomerWithBalance[]>([])
   const [products, setProducts] = useState<ProductWithStock[]>([])
-  const [defaultTaxRate, setDefaultTaxRate] = useState<number>(0)
   const [formOpen, setFormOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  // Customers, stock levels and the default tax rate are reloaded every time the form opens,
-  // so a new invoice never works from stale stock numbers.
+  // Customers and stock levels are reloaded every time the form opens, so a new invoice
+  // never works from stale stock numbers.
   const loadFormData = useCallback(async () => {
-    const [c, p, profile] = await Promise.all([
+    const [c, p] = await Promise.all([
       api.customers.listWithBalance().catch(() => [] as CustomerWithBalance[]),
       api.products.listActiveWithStock().catch(() => [] as ProductWithStock[]),
-      api.businessProfile.get().catch(() => null),
     ])
     setCustomers(c)
     setProducts(p)
-    setDefaultTaxRate(profile?.taxRate ?? 0)
   }, [])
 
   const openForm = useCallback(async () => {
@@ -57,27 +53,6 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
     [createInvoice, loadFormData]
   )
 
-  const handleExport = async (status: string) => {
-    const result = await api.dialogs.saveFile({ defaultPath: 'invoices.csv' })
-    if (result.canceled || !result.filePath) return
-    try {
-      const filters: Record<string, unknown> = {}
-      if (status !== 'all') filters.status = status
-      await createCsvExport({
-        entityType: 'invoices',
-        filePath: result.filePath,
-        columns: [
-          'invoiceNumber', 'customerName', 'date', 'dueDate', 'subtotal', 'taxAmount',
-          'total', 'totalCost', 'totalProfit', 'discount', 'paid', 'outstanding', 'status',
-        ],
-        filters,
-      })
-      setActionError(null)
-    } catch (e) {
-      setActionError(String(e))
-    }
-  }
-
   return (
     <div className="feature">
       <div className="toolbar">
@@ -90,9 +65,6 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
           ))}
         </div>
         <div className="spacer" />
-        <button className="btn" onClick={() => void handleExport(filter)} disabled={visible.length === 0}>
-          Export CSV
-        </button>
         <button className="btn primary" onClick={() => void openForm()}>
           + New invoice
         </button>
@@ -159,7 +131,6 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
           <InvoiceForm
             customers={customers}
             products={products}
-            defaultTaxRate={defaultTaxRate}
             onSubmit={handleFormSubmit}
             onCancel={() => setFormOpen(false)}
           />

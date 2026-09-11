@@ -5,22 +5,13 @@ export interface Restock {
   date: string
   status: 'pending' | 'received' | 'cancelled'
   notes: string | null
-  /** Supplier's own sales-tax invoice number. */
+  /** Supplier's own invoice number. */
   supplierInvoiceNo: string | null
-  /** Supplier's sales tax registration number (STRN). */
-  supplierRegistrationNo: string | null
-  /** Our NTN as recorded by the supplier. */
-  buyerNtn: string | null
-  /** Our CNIC/NTN as printed. */
-  buyerCnic: string | null
   dispatchNoteNo: string | null
   salesOrderNo: string | null
-  totalRetailValueExcl: number
-  totalSalesTax: number
-  totalAdvanceTax: number
   totalTradeDiscount: number
   totalNetValueExcl: number
-  /** Grand total payable (net + sales tax + advance tax − discount). */
+  /** Grand total payable (net value − discount). */
   totalCost: number
   createdAt: string
   updatedAt: string
@@ -33,14 +24,6 @@ export interface RestockItem {
   qtyCartons: number
   piecesPerCarton: number
   mrpPerPiece: number | null
-  /** Sales tax rate, basis points (18.00% = 1800). */
-  salesTaxRate: number
-  retailPricePerCarton: number
-  totalRetailValueExcl: number
-  salesTaxAmount: number
-  /** Advance tax rate, basis points (0.10% = 10). */
-  advanceTaxRate: number
-  advanceTax: number
   /** The authoritative trade value, from the supplier's invoice. */
   netSalesValueExcl: number
   tradeDiscountValue: number
@@ -54,9 +37,6 @@ export interface CreateRestockDTO {
   date: string
   notes?: string | null
   supplierInvoiceNo?: string | null
-  supplierRegistrationNo?: string | null
-  buyerNtn?: string | null
-  buyerCnic?: string | null
   dispatchNoteNo?: string | null
   salesOrderNo?: string | null
   items: CreateRestockItemDTO[]
@@ -77,16 +57,8 @@ export interface CreateRestockItemDTO {
   qtyCartons: number
   piecesPerCarton: number
   mrpPerPiece?: number | null
-  /** Basis points; defaults to the business-wide purchase sales tax rate. */
-  salesTaxRate?: number
-  /** Basis points; defaults to the business-wide purchase advance tax rate. */
-  advanceTaxRate?: number
   netSalesValueExcl: number
   tradeDiscountValue?: number
-  /** Optional overrides so a line can be made to match the physical invoice exactly. */
-  retailPricePerCarton?: number | null
-  salesTaxAmount?: number | null
-  advanceTax?: number | null
 }
 
 export interface UpdateRestockDTO {
@@ -94,9 +66,6 @@ export interface UpdateRestockDTO {
   date?: string
   notes?: string | null
   supplierInvoiceNo?: string | null
-  supplierRegistrationNo?: string | null
-  buyerNtn?: string | null
-  buyerCnic?: string | null
   dispatchNoteNo?: string | null
   salesOrderNo?: string | null
   items?: CreateRestockItemDTO[]

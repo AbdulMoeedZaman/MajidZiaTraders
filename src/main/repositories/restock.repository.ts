@@ -13,13 +13,10 @@ import { aggregateRestockLines, type RestockHeaderTotalsItem } from '@shared/cal
 function toHeaderTotalsItem(item: CreateRestockItemDTO): RestockHeaderTotalsItem {
   const qtyCartons = item.qtyCartons ?? 0
   const piecesPerCarton = item.piecesPerCarton ?? 1
-  const totalRetailValueExcl = item.retailPricePerCarton != null ? qtyCartons * item.retailPricePerCarton : 0
-  const salesTaxAmount = item.salesTaxAmount ?? 0
-  const advanceTax = item.advanceTax ?? 0
   const tradeDiscountValue = item.tradeDiscountValue ?? 0
   const netSalesValueExcl = item.netSalesValueExcl ?? 0
-  const discountedValueInclusive = netSalesValueExcl + salesTaxAmount + advanceTax - tradeDiscountValue
-  return { qtyCartons, piecesPerCarton, totalRetailValueExcl, salesTaxAmount, advanceTax, tradeDiscountValue, netSalesValueExcl, discountedValueInclusive }
+  const discountedValueInclusive = Math.max(0, netSalesValueExcl - tradeDiscountValue)
+  return { qtyCartons, piecesPerCarton, tradeDiscountValue, netSalesValueExcl, discountedValueInclusive }
 }
 
 function totalsFromItems(items: CreateRestockItemDTO[]) {
@@ -89,14 +86,14 @@ export class RestockRepository extends BaseRepository {
       'pending',
       data.notes ?? null,
       data.supplierInvoiceNo ?? null,
-      data.supplierRegistrationNo ?? null,
-      data.buyerNtn ?? null,
-      data.buyerCnic ?? null,
+      null,
+      null,
+      null,
       data.dispatchNoteNo ?? null,
       data.salesOrderNo ?? null,
-      totals.totalRetailValueExcl,
-      totals.totalSalesTax,
-      totals.totalAdvanceTax,
+      0,
+      0,
+      0,
       totals.totalTradeDiscount,
       totals.totalNetValueExcl,
       totals.totalCost
@@ -126,12 +123,12 @@ export class RestockRepository extends BaseRepository {
         item.qtyCartons,
         item.piecesPerCarton,
         item.mrpPerPiece ?? null,
-        item.salesTaxRate,
-        item.retailPricePerCarton ?? 0,
-        totals.totalRetailValueExcl,
-        item.salesTaxAmount ?? totals.salesTaxAmount,
-        item.advanceTaxRate,
-        item.advanceTax ?? totals.advanceTax,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         item.netSalesValueExcl,
         item.tradeDiscountValue ?? 0,
         totals.discountedValueInclusive
@@ -167,9 +164,6 @@ export class RestockRepository extends BaseRepository {
     if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status) }
     if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes) }
     if (data.supplierInvoiceNo !== undefined) { fields.push('supplierInvoiceNo = ?'); values.push(data.supplierInvoiceNo) }
-    if (data.supplierRegistrationNo !== undefined) { fields.push('supplierRegistrationNo = ?'); values.push(data.supplierRegistrationNo) }
-    if (data.buyerNtn !== undefined) { fields.push('buyerNtn = ?'); values.push(data.buyerNtn) }
-    if (data.buyerCnic !== undefined) { fields.push('buyerCnic = ?'); values.push(data.buyerCnic) }
     if (data.dispatchNoteNo !== undefined) { fields.push('dispatchNoteNo = ?'); values.push(data.dispatchNoteNo) }
     if (data.salesOrderNo !== undefined) { fields.push('salesOrderNo = ?'); values.push(data.salesOrderNo) }
 
@@ -180,7 +174,7 @@ export class RestockRepository extends BaseRepository {
       }
       const totals = totalsFromItems(data.items)
       fields.push('totalRetailValueExcl = ?', 'totalSalesTax = ?', 'totalAdvanceTax = ?', 'totalTradeDiscount = ?', 'totalNetValueExcl = ?', 'totalCost = ?')
-      values.push(totals.totalRetailValueExcl, totals.totalSalesTax, totals.totalAdvanceTax, totals.totalTradeDiscount, totals.totalNetValueExcl, totals.totalCost)
+      values.push(0, 0, 0, totals.totalTradeDiscount, totals.totalNetValueExcl, totals.totalCost)
     }
 
     if (fields.length > 0) {

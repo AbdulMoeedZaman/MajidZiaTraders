@@ -49,14 +49,13 @@ describe('invoices', () => {
     const invoice = new InvoiceService().create({
       customerId,
       date: TODAY,
-      taxRate: 10,
       discount: 1000,
       items: [line(product, 15)],
     })
     const debit = getDatabase()
       .prepare("SELECT debit FROM customer_ledger WHERE referenceType = 'invoice' AND referenceId = ?")
       .get(invoice.id) as { debit: number }
-    expect(invoice.total).toBe(15400)
+    expect(invoice.total).toBe(14000)
     expect(debit.debit).toBe(invoice.total)
   })
 
@@ -162,17 +161,16 @@ describe('payments and customer credit', () => {
 })
 
 describe('customers and profile', () => {
-  it('clears optional fields when they are sent as null', () => {
+  it('clears the address when it is sent as null', () => {
     const customers = new CustomerService()
-    const created = customers.create({ name: 'Pat', phone: '5551234567' })
-    const updated = customers.update(created.id, { phone: null })
-    expect(updated.phone).toBeNull()
+    const created = customers.create({ name: 'Pat', address: '12 Main St' })
+    const updated = customers.update(created.id, { address: null })
+    expect(created.address).toBe('12 Main St')
+    expect(updated.address).toBeNull()
   })
 
-  it('rejects a NaN tax rate and a non-integer next invoice number', () => {
+  it('rejects a non-integer next invoice number', () => {
     const profiles = new BusinessProfileService()
-    expect(() => profiles.update({ name: 'Shop', taxRate: Number.NaN })).toThrow(/Tax rate/)
-    profiles.update({ name: 'Shop', taxRate: 5, invoiceNextNumber: 1 })
     expect(() => profiles.update({ invoiceNextNumber: 1.5 })).toThrow(/Invoice next number/)
   })
 })

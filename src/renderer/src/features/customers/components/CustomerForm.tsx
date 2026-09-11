@@ -23,13 +23,6 @@ export function CustomerForm({ mode, customer, onSubmit, onCancel }: CustomerFor
   const validate = (): boolean => {
     const next: Record<string, string> = {}
     if (!state.name.trim()) next.name = 'Name is required'
-
-    const phone = state.phone.trim()
-    if (phone) {
-      const digits = phone.replace(/\D/g, '')
-      if (digits.length < 7 || digits.length > 15) next.phone = 'Invalid phone number'
-    }
-
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -59,9 +52,8 @@ export function CustomerForm({ mode, customer, onSubmit, onCancel }: CustomerFor
         </label>
 
         <label className="field">
-          <span>Phone</span>
-          <input value={state.phone} onChange={set('phone')} placeholder="e.g. +1 555 123 4567" />
-          {errors.phone && <em className="field-error">{errors.phone}</em>}
+          <span>Address</span>
+          <input value={state.address} onChange={set('address')} placeholder="Street, city, area…" />
         </label>
       </div>
 

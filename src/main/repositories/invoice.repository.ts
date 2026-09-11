@@ -146,8 +146,7 @@ export class InvoiceRepository extends BaseRepository {
         unitPrice: item.actualSellingPrice,
         unitCost: item.costPriceAtSale,
       })),
-      data.discount ?? 0,
-      data.taxRate ?? 0
+      data.discount ?? 0
     )
     const status = data.status ?? 'sent'
 
@@ -161,8 +160,8 @@ export class InvoiceRepository extends BaseRepository {
       data.dueDate ?? null,
       totals.subtotal,
       totals.discount,
-      totals.taxRate,
-      totals.taxAmount,
+      0,
+      0,
       totals.total,
       totals.totalCost,
       totals.profit,
@@ -223,7 +222,6 @@ export class InvoiceRepository extends BaseRepository {
     if (data.customerId !== undefined) { fields.push('customerId = ?'); values.push(data.customerId) }
     if (data.date !== undefined) { fields.push('date = ?'); values.push(data.date) }
     if (data.dueDate !== undefined) { fields.push('dueDate = ?'); values.push(data.dueDate || null) }
-    if (data.taxRate !== undefined) { fields.push('taxRate = ?'); values.push(data.taxRate) }
     if (data.discount !== undefined) { fields.push('discount = ?'); values.push(data.discount) }
     if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status) }
     if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes) }

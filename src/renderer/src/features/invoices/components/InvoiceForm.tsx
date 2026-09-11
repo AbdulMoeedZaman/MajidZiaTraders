@@ -9,14 +9,13 @@ import { formatMoney } from '../../../lib/format'
 interface InvoiceFormProps {
   customers: CustomerWithBalance[]
   products: ProductWithStock[]
-  defaultTaxRate?: number
   onCustomerChange?: (customer: CustomerWithBalance | undefined) => void
   onSubmit: (payload: CreateInvoiceDTO) => Promise<string | null>
   onCancel: () => void
 }
 
-export function InvoiceForm({ customers, products, defaultTaxRate, onCustomerChange, onSubmit, onCancel }: InvoiceFormProps) {
-  const [state, setState] = useState<InvoiceFormState>(defaultInvoiceFormState(defaultTaxRate))
+export function InvoiceForm({ customers, products, onCustomerChange, onSubmit, onCancel }: InvoiceFormProps) {
+  const [state, setState] = useState<InvoiceFormState>(defaultInvoiceFormState())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -32,19 +31,17 @@ export function InvoiceForm({ customers, products, defaultTaxRate, onCustomerCha
       const price = moneyToCents(item.sellingPrice)
       return { product, qty, price }
     })
-    const taxRate = Math.min(100, Math.max(0, parseFloat(state.taxRate || '0') || 0))
     const requestedDiscount = moneyToCents(state.discount)
     const totals = calculateInvoiceTotals(
       lines.map((l) => ({ quantity: l.qty, unitPrice: l.price, unitCost: l.product?.baseCostPrice ?? 0 })),
-      requestedDiscount,
-      taxRate
+      requestedDiscount
     )
     return {
       ...totals,
       requestedDiscount,
       lines: lines.map((l, i) => ({ ...l, ...totals.lines[i] })),
     }
-  }, [state.items, state.taxRate, state.discount, products])
+  }, [state.items, state.discount, products])
 
   const hasStockWarning = computed.lines.some(
     (l) => l.product != null && l.qty > l.product.currentStock
@@ -125,7 +122,6 @@ export function InvoiceForm({ customers, products, defaultTaxRate, onCustomerCha
       customerId: parseInt(state.customerId, 10),
       date: state.date,
       dueDate: state.dueDate || undefined,
-      taxRate: Math.min(100, Math.max(0, parseFloat(state.taxRate || '0') || 0)),
       discount: moneyToCents(state.discount),
       notes: state.notes.trim() || undefined,
       items: state.items.map((item) => {
@@ -193,18 +189,6 @@ export function InvoiceForm({ customers, products, defaultTaxRate, onCustomerCha
             type="date"
             value={state.dueDate}
             onChange={(e) => setState((s) => ({ ...s, dueDate: e.target.value }))}
-          />
-        </label>
-
-        <label className="field">
-          <span>Tax rate (%)</span>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step="0.01"
-            value={state.taxRate}
-            onChange={(e) => setState((s) => ({ ...s, taxRate: e.target.value }))}
           />
         </label>
 
@@ -300,16 +284,12 @@ export function InvoiceForm({ customers, products, defaultTaxRate, onCustomerCha
           <span>Discount</span>
           <span>−{formatMoney(computed.discount)}</span>
         </div>
-        <div className="totals-row">
-          <span>Tax ({computed.taxRate}%)</span>
-          <span>{formatMoney(computed.taxAmount)}</span>
-        </div>
         <div className="totals-row strong">
           <span>Total</span>
           <span>{formatMoney(computed.total)}</span>
         </div>
         <div className="totals-row">
-          <span>Estimated profit (excl. tax)</span>
+          <span>Estimated profit</span>
           <span>{formatMoney(computed.profit)}</span>
         </div>
       </div>

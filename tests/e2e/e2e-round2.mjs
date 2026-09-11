@@ -107,15 +107,7 @@ try {
   check('X-6', 'An invoice created with a past due date shows "overdue" in the invoice list (without visiting the Dashboard)',
     listed?.status === 'overdue', { statusInList: listed?.status })
 
-  // X-7: invoice CSV export money columns
-  const expPath = path.join(S, 'x7-invoices.csv')
-  must(await inv('csv:export', { entityType: 'invoices', filePath: expPath, delimiter: ',', encoding: 'utf8', includeHeaders: true,
-    columns: ['invoiceNumber', 'customerName', 'date', 'dueDate', 'subtotal', 'taxAmount', 'total', 'totalCost', 'totalProfit', 'discount', 'paid', 'outstanding', 'status'], filters: {} }), 'export')
-  const lines = fs.readFileSync(expPath, 'utf8').split(/\r?\n/).filter(Boolean)
-  const hdr = lines[0].split(','), di = hdr.indexOf('discount')
-  const discountCells = lines.slice(1).map((l) => l.split(',')[di]).filter(Boolean)
-  check('X-7', 'Invoice CSV export writes the discount column as money (e.g. 10.00), like the other amounts',
-    discountCells.every((v) => /^\d+\.\d{2}$/.test(v)), { sampleDiscountCells: discountCells.slice(0, 5), sampleTotalCells: lines.slice(1, 4).map((l) => l.split(',')[hdr.indexOf('total')]) })
+  // X-7: removed with the CSV tool (no invoice CSV export anymore)
 
   // X-8: a backup made BEFORE migration 004 (schema v3) is still accepted
   const vv = must(await inv('backup:validate', FIXTURE_V3), 'validate v3')

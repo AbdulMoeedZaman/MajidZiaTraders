@@ -3,15 +3,11 @@ import path from 'path'
 import { AppDatabase, openReadonlyDatabase } from '../../src/main/database/sqlite'
 import { describe, expect, it } from 'vitest'
 import { BackupService } from '../../src/main/services/backup.service'
-import { CSVService } from '../../src/main/services/csv.service'
 import { ProductService } from '../../src/main/services/product.service'
-import { CustomerService } from '../../src/main/services/customer.service'
-import { InvoiceService } from '../../src/main/services/invoice.service'
 import { LATEST_MIGRATION_VERSION } from '../../src/main/database/migrations/migrate'
 import { getDatabase } from '../../src/main/database/connection'
 import { assertUserFilePath } from '../../src/main/ipc/path-guard'
-import { localDate } from '../../src/shared/date'
-import { FIXTURE_V3_BACKUP, line, seedBasics, useTestDatabase } from './helpers'
+import { FIXTURE_V3_BACKUP, useTestDatabase } from './helpers'
 
 const db = useTestDatabase()
 
@@ -79,120 +75,5 @@ describe('backups', () => {
   it('rejects a backup path inside the app data folder even when the casing differs', () => {
     const sneaky = path.join(db.dir().toUpperCase(), 'x.db')
     expect(() => assertUserFilePath(sneaky, ['.db'], 'Backup')).toThrow(/data folder/)
-  })
-})
-
-describe('CSV', () => {
-  it('exports product prices as money that imports back unchanged', () => {
-    const products = new ProductService()
-    products.create({ sku: 'CSV-1', name: 'Round trip', baseCostPrice: 150, minSellingPrice: 199, sellingPrice: 250 })
-    const file = path.join(db.dir(), 'products.csv')
-    const csv = new CSVService()
-    csv.export({
-      entityType: 'products',
-      filePath: file,
-      delimiter: ',',
-      encoding: 'utf8',
-      includeHeaders: true,
-      columns: ['sku', 'name', 'unit', 'baseCostPrice', 'minSellingPrice', 'sellingPrice', 'reorderLevel'],
-    })
-    expect(fs.readFileSync(file, 'utf8')).toContain('CSV-1,Round trip,piece,1.50,1.99,2.50,0')
-
-    products.delete(products.getBySku('CSV-1')!.id)
-    const preview = csv.preview(file, ',', true)
-    const result = csv.import({
-      entityType: 'products',
-      filePath: file,
-      delimiter: ',',
-      hasHeader: true,
-      encoding: 'utf8',
-      columnMappings: preview.columns.map((c) => ({ sourceColumn: c, targetField: c })),
-    })
-    expect(result).toMatchObject({ imported: 1, skipped: 0 })
-    expect(products.getBySku('CSV-1')).toMatchObject({ baseCostPrice: 150, minSellingPrice: 199, sellingPrice: 250 })
-  })
-
-  it('exports the invoice discount as money like the other amounts', () => {
-    const { product, customerId } = seedBasics()
-    new InvoiceService().create({ customerId, date: localDate(), discount: 500, items: [line(product, 2)] })
-    const file = path.join(db.dir(), 'invoices.csv')
-    new CSVService().export({
-      entityType: 'invoices',
-      filePath: file,
-      delimiter: ',',
-      encoding: 'utf8',
-      includeHeaders: true,
-      columns: ['invoiceNumber', 'subtotal', 'discount', 'total'],
-    })
-    const [, row] = fs.readFileSync(file, 'utf8').split(/\r?\n/)
-    expect(row.split(',').slice(1)).toEqual(['20.00', '5.00', '15.00'])
-  })
-
-  it('escapes formula-like cells so Excel will not run them', () => {
-    new ProductService().create({ name: '=cmd|calc', sku: 'FORMULA1', unit: '+1+1' })
-    const file = path.join(db.dir(), 'products.csv')
-    new CSVService().export({
-      entityType: 'products',
-      filePath: file,
-      delimiter: ',',
-      encoding: 'utf8',
-      includeHeaders: true,
-      columns: ['sku', 'name', 'unit'],
-    })
-    const body = fs.readFileSync(file, 'utf8')
-    expect(body).toContain("'=cmd|calc")
-    expect(body).toContain("'+1+1")
-    expect(body).not.toMatch(/(?:^|,)=cmd/m)
-  })
-
-  it('writes an empty file when headers are off and there are no rows', () => {
-    const file = path.join(db.dir(), 'empty.csv')
-    new CSVService().export({
-      entityType: 'products',
-      filePath: file,
-      delimiter: ',',
-      encoding: 'utf8',
-      includeHeaders: false,
-      columns: ['sku', 'name'],
-    })
-    expect(fs.readFileSync(file, 'utf8')).toBe('')
-  })
-
-  it('reports import errors using the original file line number, including blank lines', () => {
-    const file = path.join(db.dir(), 'blank-lines.csv')
-    fs.writeFileSync(file, 'name,phone\n\n,5551234567\n')
-    const result = new CSVService().import({
-      entityType: 'customers',
-      filePath: file,
-      delimiter: ',',
-      hasHeader: true,
-      encoding: 'utf8',
-      columnMappings: [
-        { sourceColumn: 'name', targetField: 'name' },
-        { sourceColumn: 'phone', targetField: 'phone' },
-      ],
-    })
-    expect(result.imported).toBe(0)
-    expect(result.errors).toEqual([{ row: 3, message: 'Name is required' }])
-  })
-
-  it('applies an invoice date filter when only the start date is set', () => {
-    const { product, customerId } = seedBasics()
-    const invoices = new InvoiceService()
-    invoices.create({ customerId, date: '2026-01-01', items: [line(product, 1)] })
-    invoices.create({ customerId, date: '2026-09-01', items: [line(product, 1)] })
-    const file = path.join(db.dir(), 'invoices-from.csv')
-    new CSVService().export({
-      entityType: 'invoices',
-      filePath: file,
-      delimiter: ',',
-      encoding: 'utf8',
-      includeHeaders: true,
-      columns: ['invoiceNumber', 'date'],
-      filters: { from: '2026-08-01' },
-    })
-    const text = fs.readFileSync(file, 'utf8')
-    expect(text).toContain('2026-09-01')
-    expect(text).not.toContain('2026-01-01')
   })
 })

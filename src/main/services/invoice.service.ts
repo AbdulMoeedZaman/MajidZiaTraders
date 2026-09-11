@@ -70,9 +70,6 @@ export class InvoiceService {
     if (data.dueDate !== undefined && data.dueDate !== null && data.dueDate !== '') {
       this.validateDate(data.dueDate, 'Due date')
     }
-    if (data.taxRate !== undefined && (!Number.isFinite(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) {
-      throw new Error('Tax rate must be between 0 and 100')
-    }
     const discount = data.discount ?? 0
     if (!Number.isInteger(discount) || discount < 0) {
       throw new Error('Discount must be a non-negative whole number of cents')
@@ -100,7 +97,6 @@ export class InvoiceService {
         currency: 'USD',
         invoicePrefix: 'INV-',
         invoiceNextNumber: 1,
-        taxRate: 0,
       })
     }
 

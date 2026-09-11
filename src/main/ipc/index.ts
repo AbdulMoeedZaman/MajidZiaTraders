@@ -9,7 +9,6 @@ import { registerRestockIpc } from './restock.ipc'
 import { registerBusinessProfileIpc } from './business-profile.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerReportIpc } from './report.ipc'
-import { registerCsvIpc } from './csv.ipc'
 import { registerDashboardIpc } from './dashboard.ipc'
 import { registerBackupIpc } from './backup.ipc'
 import { registerDialogIpc } from './dialog.ipc'
@@ -26,7 +25,6 @@ export function registerAllIpc(): void {
   registerBusinessProfileIpc()
   registerSettingsIpc()
   registerReportIpc()
-  registerCsvIpc()
   registerDashboardIpc()
   registerBackupIpc()
   registerDialogIpc()

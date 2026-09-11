@@ -2,13 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { allocateDiscount, calculateInvoiceTotals, computeInvoiceStatus } from '../../src/shared/calc/invoice-totals'
 
 describe('calculateInvoiceTotals', () => {
-  it('taxes the subtotal after the discount and keeps tax out of profit', () => {
-    const t = calculateInvoiceTotals([{ quantity: 10, unitPrice: 1500, unitCost: 1000 }], 1000, 10)
+  it('subtracts the discount from the subtotal and keeps tax out of the maths', () => {
+    const t = calculateInvoiceTotals([{ quantity: 10, unitPrice: 1500, unitCost: 1000 }], 1000)
     expect(t).toMatchObject({
       subtotal: 15000,
       discount: 1000,
-      taxAmount: 1400,
-      total: 15400,
+      total: 14000,
       totalCost: 10000,
       profit: 4000,
     })
@@ -21,21 +20,20 @@ describe('calculateInvoiceTotals', () => {
         { quantity: 1, unitPrice: 1001, unitCost: 500 },
         { quantity: 7, unitPrice: 13, unitCost: 5 },
       ],
-      457,
-      0
+      457
     )
     expect(t.lines.reduce((s, l) => s + l.lineDiscount, 0)).toBe(457)
     expect(t.lines.reduce((s, l) => s + l.lineProfit, 0)).toBe(t.profit)
   })
 
   it('never applies more discount than the subtotal', () => {
-    const t = calculateInvoiceTotals([{ quantity: 1, unitPrice: 1000, unitCost: 0 }], 999999, 0)
+    const t = calculateInvoiceTotals([{ quantity: 1, unitPrice: 1000, unitCost: 0 }], 999999)
     expect(t.discount).toBe(1000)
     expect(t.total).toBe(0)
   })
 
   it('treats unusable form input as zero instead of NaN', () => {
-    const t = calculateInvoiceTotals([{ quantity: Number.NaN, unitPrice: 500, unitCost: 100 }], 0, 0)
+    const t = calculateInvoiceTotals([{ quantity: Number.NaN, unitPrice: 500, unitCost: 100 }], 0)
     expect(t.total).toBe(0)
   })
 })

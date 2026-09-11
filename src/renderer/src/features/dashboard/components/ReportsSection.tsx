@@ -1,7 +1,5 @@
 import { useEffect } from 'react'
-import { api } from '../../../lib/api'
-import { useReports, ReportTab } from '../hooks/useReports'
-import { createCsvExport, defaultExportColumns } from '../../../lib/csv'
+import { useReports, ReportTab } from '../../reports/hooks/useReports'
 import { STOCK_MOVEMENT_LABELS } from '../../products/types/product-form'
 import { PAYMENT_METHOD_LABELS } from '../../payments/types/payment-form'
 import { formatDate, formatMoney } from '../../../lib/format'
@@ -16,16 +14,7 @@ const TABS: Array<{ id: ReportTab; label: string }> = [
   { id: 'stockMovements', label: 'Stock movements' },
 ]
 
-const EXPORT_ENTITY: Partial<Record<ReportTab, string>> = {
-  sales: 'sales_report',
-  inventory: 'products',
-  customers: 'customers',
-  payments: 'customer_payments',
-  restocks: 'restocks',
-  stockMovements: 'stock_movements',
-}
-
-export function ReportsPage() {
+export function ReportsSection() {
   const report = useReports()
 
   useEffect(() => {
@@ -39,29 +28,12 @@ export function ReportsPage() {
     void report.load(next)
   }
 
-  const handleExport = async () => {
-    const entity = EXPORT_ENTITY[report.tab]
-    if (!entity) return
-    const result = await api.dialogs.saveFile({ defaultPath: `${report.tab}.csv` })
-    if (result.canceled || !result.filePath) return
-    try {
-      await createCsvExport({
-        entityType: entity as Parameters<typeof defaultExportColumns>[0],
-        filePath: result.filePath,
-        columns: defaultExportColumns(entity as Parameters<typeof defaultExportColumns>[0]),
-        filters: { from: report.range.from, to: report.range.to },
-      })
-    } catch (e) {
-      report.setError(String(e))
-    }
-  }
-
   const data = report.data
 
   return (
-    <div className="feature">
-      <div className="toolbar">
-        <h3 className="toolbar-title">Reports</h3>
+    <div className="dash-section">
+      <div className="reports-header">
+        <h4 className="section-title">Reports</h4>
         <div className="segmented">
           {TABS.map((t) => (
             <button
@@ -90,9 +62,6 @@ export function ReportsPage() {
             onChange={(e) => handleRangeChange({ to: e.target.value })}
           />
         </label>
-        <button className="btn" onClick={() => void handleExport()}>
-          Export CSV
-        </button>
       </div>
 
       {report.error && <div className="form-error">{report.error}</div>}
@@ -193,7 +162,7 @@ function ProfitLossTab({ data }: { data: NonNullable<ReturnType<typeof useReport
         ]}
       />
       <div className="muted">
-        Revenue is invoice sales after discounts, excluding tax. Running costs such as rent or wages
+        Revenue is invoice sales after discounts. Running costs such as rent or wages
         are not tracked in this app yet, so expenses show 0 and net profit equals gross profit.
       </div>
     </>

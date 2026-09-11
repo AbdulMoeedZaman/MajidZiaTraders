@@ -53,19 +53,11 @@ export class CustomerRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM customers WHERE name = ? AND id != ?').get(name, excludeId) as Customer | null
   }
 
-  findByPhone(phone: string): Customer | null {
-    return this.db.prepare('SELECT * FROM customers WHERE phone = ?').get(phone) as Customer | null
-  }
-
-  findByPhoneExcludingId(phone: string, excludeId: number): Customer | null {
-    return this.db.prepare('SELECT * FROM customers WHERE phone = ? AND id != ?').get(phone, excludeId) as Customer | null
-  }
-
   search(query: string): Customer[] {
     return this.db
       .prepare(
         `SELECT * FROM customers
-         WHERE name LIKE ? OR phone LIKE ?
+         WHERE name LIKE ? OR COALESCE(address, '') LIKE ?
          ORDER BY name`
       )
       .all(`%${query}%`, `%${query}%`) as Customer[]
@@ -74,11 +66,11 @@ export class CustomerRepository extends BaseRepository {
   create(data: CreateCustomerDTO): Customer {
     const result = this.db
       .prepare(
-        'INSERT INTO customers (name, phone) VALUES (?, ?)'
+        'INSERT INTO customers (name, address) VALUES (?, ?)'
       )
       .run(
         data.name.trim(),
-        data.phone?.trim() || null
+        data.address?.trim() || null
       )
 
     return this.findById(result.lastInsertRowid as number)!
@@ -89,7 +81,7 @@ export class CustomerRepository extends BaseRepository {
     const values: unknown[] = []
 
     if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name.trim()) }
-    if (data.phone !== undefined) { fields.push('phone = ?'); values.push(data.phone?.trim() || null) }
+    if (data.address !== undefined) { fields.push('address = ?'); values.push(data.address?.trim() || null) }
 
     if (fields.length === 0) return this.findById(id)!
 

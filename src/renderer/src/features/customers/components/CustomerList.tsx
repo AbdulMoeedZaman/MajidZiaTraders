@@ -42,7 +42,7 @@ export function CustomerList({ onSelect }: CustomerListProps) {
       <div className="toolbar">
         <input
           className="search-input"
-          placeholder="Search by name or phone…"
+          placeholder="Search by name or address…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -69,7 +69,7 @@ export function CustomerList({ onSelect }: CustomerListProps) {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Phone</th>
+                <th>Address</th>
                 <th className="num">Balance</th>
                 <th className="num">Outstanding</th>
                 <th className="actions-col">Actions</th>
@@ -88,7 +88,7 @@ export function CustomerList({ onSelect }: CustomerListProps) {
                   <td>
                     <strong>{c.name}</strong>
                   </td>
-                  <td>{c.phone ?? '—'}</td>
+                  <td>{c.address ?? '—'}</td>
                   <td
                     className={`num ${
                       c.balance > 0 ? 'text-warn' : c.balance < 0 ? 'text-ok' : ''

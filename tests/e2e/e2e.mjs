@@ -93,13 +93,12 @@ try {
   check('V-3', 'Non-whole-cent prices rejected by backend', !v6.ok, v6.ok ? `accepted, stored sellingPrice=${v6.v.sellingPrice}` : v6.e)
   if (v6.ok) await inv('products:delete', v6.v.id)
 
-  const C1 = must(await inv('customers:create', { name: 'Alice', phone: '+92 300 1234567' }), 'C1')
+  const C1 = must(await inv('customers:create', { name: 'Alice', address: '12 Main St' }), 'C1')
   const C2 = must(await inv('customers:create', { name: 'Bob' }), 'C2')
   const c3 = await inv('customers:create', { name: 'Alice' })
-  const c4 = await inv('customers:create', { name: 'Carl', phone: '+92 300 1234567' })
+  const c4 = await inv('customers:create', { name: 'Carl', address: 'Same address as Alice' })
   const c5 = await inv('customers:create', { name: '' })
-  const c6 = await inv('customers:create', { name: 'Eve', phone: '123' })
-  check('V-4', 'Customer validation (dup name, dup phone, empty name, short phone) all rejected', !c3.ok && !c4.ok && !c5.ok && !c6.ok, [c3.e, c4.e, c5.e, c6.e])
+  check('V-4', 'Customer validation (dup name and empty name rejected; a shared address is allowed)', !c3.ok && !c5.ok && c4.ok, [c3.e, c4.e, c5.e])
 
   // =============== Stock integrity ===============
   let expectP1 = 100
@@ -119,14 +118,13 @@ try {
   const noProf = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P2, 1, 800)] })
   check('I-0', 'Invoice can be created on a fresh install (before any business profile exists)', noProf.ok, noProf.e ?? 'ok')
   if (noProf.ok) await inv('invoices:delete', noProf.v.id)
-  must(await inv('business-profile:update', { name: 'Test Biz', taxRate: 10, invoicePrefix: 'INV-', currency: 'PKR' }), 'profile')
+  must(await inv('business-profile:update', { name: 'Test Biz', invoicePrefix: 'INV-', currency: 'PKR' }), 'profile')
 
-  const I1 = must(await inv('invoices:create', { customerId: C1.id, date: TODAY, taxRate: 10, discount: 1000, items: [item(P1, 10, 1500)] }), 'I1'); expectP1 -= 10
-  const formTax = Math.round((15000 - 1000) * 0.10), formTotal = 15000 - 1000 + formTax
-  check('I-1', 'Saved tax & total equal what the New-invoice form displayed (form taxes subtotal − discount)', I1.taxAmount === formTax && I1.total === formTotal,
-    { formShowed: { tax: formTax, total: formTotal }, saved: { subtotal: I1.subtotal, discount: I1.discount, tax: I1.taxAmount, total: I1.total } })
+  const I1 = must(await inv('invoices:create', { customerId: C1.id, date: TODAY, discount: 1000, items: [item(P1, 10, 1500)] }), 'I1'); expectP1 -= 10
+  check('I-1', 'Saved total equals the New-invoice form total (subtotal − discount)', I1.total === 14000,
+    { saved: { subtotal: I1.subtotal, discount: I1.discount, total: I1.total } })
   const trueProfit = 15000 - 1000 - 10000
-  check('I-2', 'Invoice profit = (subtotal − discount) − cost, i.e. excludes tax', I1.totalProfit === trueProfit, { expected: trueProfit, saved: I1.totalProfit })
+  check('I-2', 'Invoice profit = (subtotal − discount) − cost', I1.totalProfit === trueProfit, { expected: trueProfit, saved: I1.totalProfit })
   q = await qty(P1.id)
   check('S-3', `Invoice reduces stock (expect ${expectP1})`, q.single === expectP1 && q.list === expectP1, q)
 
@@ -136,11 +134,10 @@ try {
 
   const g1 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P1, 100000, 1500)] })
   const g2 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P1, 1, 1100)] })
-  const g3 = await inv('invoices:create', { customerId: C1.id, date: TODAY, taxRate: 150, items: [item(P1, 1, 1500)] })
   must(await inv('products:set-active', P2.id, false), 'deact P2')
   const g4 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P2, 1, 800)] })
   must(await inv('products:set-active', P2.id, true), 'react P2')
-  check('I-3', 'Invoice guards: oversell, below-min price, tax 150%, inactive product all rejected', [g1, g2, g3, g4].every((r) => !r.ok), [g1, g2, g3, g4].map((r) => r.e ?? 'ACCEPTED'))
+  check('I-3', 'Invoice guards: oversell, below-min price, inactive product all rejected', [g1, g2, g4].every((r) => !r.ok), [g1, g2, g4].map((r) => r.e ?? 'ACCEPTED'))
 
   // =============== Payments ===============
   const pay1 = must(await inv('payments:create', { customerId: C1.id, invoiceId: I1.id, amount: 5000, method: 'cash', paymentDate: TODAY }), 'pay1')
@@ -178,8 +175,8 @@ try {
   check('O-1', 'Unpaid invoice past its due date becomes "overdue"', i3.status === 'overdue', i3.status)
 
   // =============== Restocks ===============
-  // 1 carton of 24 pieces @ 900/piece = 21600 net (taxes zeroed so totals stay flat).
-  const ritem = (cartons) => ({ productId: P1.id, qtyCartons: cartons, piecesPerCarton: 24, netSalesValueExcl: cartons * 24 * 900, salesTaxRate: 0, advanceTaxRate: 0 })
+  // 1 carton of 24 pieces @ 900/piece = 21600 net (payable = net − trade discount, no taxes).
+  const ritem = (cartons) => ({ productId: P1.id, qtyCartons: cartons, piecesPerCarton: 24, netSalesValueExcl: cartons * 24 * 900 })
   const R1 = must(await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [ritem(1)] }), 'R1')
   const rdup = await inv('restocks:create', { supplierName: 'Acme', date: TODAY, items: [ritem(1), ritem(1)] })
   check('R-1', 'Same product twice in one restock rejected', !rdup.ok, rdup.e ?? 'accepted')
@@ -221,38 +218,16 @@ try {
   const pl = must(await inv('reports:profit-loss', '2026-08-01', TODAY), 'pl')
   const periodInvoices = must(await inv('invoices:list-between', '2026-08-01', TODAY), 'invoices in period').filter((i) => i.status !== 'cancelled')
   const netRevenue = periodInvoices.reduce((s, i) => s + i.subtotal - i.discount, 0)
-  check('RP-4', 'Profit & Loss: revenue excludes tax (subtotal − discount) and gross profit = revenue − cost of goods',
+  check('RP-4', 'Profit & Loss: revenue is sales after discounts and gross profit = revenue − cost of goods',
     pl.totalRevenue === netRevenue && pl.grossProfit === pl.totalRevenue - pl.totalCostOfGoods,
     { expectedNetRevenue: netRevenue, revenue: pl.totalRevenue, cogs: pl.totalCostOfGoods, gross: pl.grossProfit, expenses: pl.expenses, net: pl.netProfit })
 
-  // =============== CSV ===============
-  const csvPath = path.join(S, 'e2e-products.csv')
-  fs.writeFileSync(csvPath, [
-    'sku,name,category,unit,piecesPerCarton,baseCostPrice,minSellingPrice,sellingPrice,reorderLevel',
-    'CSV-1,Csv Good,Imported Cat,piece,10,1.00,1.50,2.00,5',
-    'CSV-2,Csv BadPrice,Imported Cat,piece,10,abc,1.50,2.00,5',
-    'CSV-1,Csv Dup,Imported Cat,piece,10,1.00,1.50,2.00,5',
-  ].join('\n'))
-  const prev = must(await inv('csv:preview', { filePath: csvPath, delimiter: ',', hasHeader: true }), 'preview')
-  const imp = must(await inv('csv:import', { entityType: 'products', filePath: csvPath, delimiter: ',', hasHeader: true, encoding: 'utf8', columnMappings: prev.columns.map((c) => ({ sourceColumn: c, targetField: c })) }), 'import')
-  const bad = (await inv('products:get-by-sku', 'CSV-2')).v
-  check('CSV-1', 'CSV import: a row with an invalid price is skipped (not imported)', !bad && imp.imported + imp.skipped === imp.totalRows,
-    { totalRows: imp.totalRows, imported: imp.imported, skipped: imp.skipped, duplicates: imp.duplicates, badRowProductCreated: !!bad, badRowPrices: bad && { cost: bad.baseCostPrice, sell: bad.sellingPrice }, errors: imp.errors })
-  const good = (await inv('products:get-by-sku', 'CSV-1')).v
-  const expPath = path.join(S, 'e2e-export-products.csv')
-  must(await inv('csv:export', { entityType: 'products', filePath: expPath, delimiter: ',', encoding: 'utf8', includeHeaders: true,
-    columns: ['sku', 'name', 'category', 'unit', 'baseCostPrice', 'minSellingPrice', 'sellingPrice', 'reorderLevel', 'currentStock', 'isActive'], filters: {} }), 'export')
-  const expLines = fs.readFileSync(expPath, 'utf8').split(/\r?\n/)
-  const csvRow = expLines.find((l) => l.startsWith('CSV-1')) ?? ''
-  check('CSV-2', 'CSV export writes prices in the same units the import expects (e.g. 2.00, not 200)', /,2(\.00?)?,/.test(csvRow) && !/,200,/.test(csvRow),
-    { importedSellingPriceCents: good?.sellingPrice, exportHeader: expLines[0], exportRow: csvRow })
-
   // =============== More UI checks ===============
-  // UI-2 invoice default tax + currency
+  // UI-2 no tax rate field in the new invoice form
   await nav('Invoices'); await wait(900)
   await clickBtn('+ New invoice'); await wait(700)
-  const taxDefault = await ev(`(()=>{const l=[...document.querySelectorAll('label.field')].find(l=>l.textContent.includes('Tax rate')); return l?.querySelector('input')?.value})()`)
-  check('UI-2', 'New invoice form pre-fills the business profile default tax rate (10%)', taxDefault === '10', { taxRateFieldValue: taxDefault })
+  const taxField = await ev(`[...document.querySelectorAll('label.field')].some((l) => l.textContent.includes('Tax rate'))`)
+  check('UI-2', 'New invoice form has no tax rate field (sales tax fully removed)', taxField === false, { taxRateFieldPresent: taxField })
   await clickBtn('Cancel'); await wait(300)
   const dollars = await ev(`document.body.innerText.includes('$')`)
   check('UI-3', 'Money uses the business profile currency (PKR), not "$"', !dollars, { dollarSignShown: dollars })
@@ -277,11 +252,11 @@ try {
     { shown: firstTime, localTimeNow: nowLocal })
   await ev(`document.querySelector('.overlay')?.click()`); await wait(300)
 
-  // UI-6 reports default range
-  await nav('Reports'); await wait(1200)
+  // UI-6 reports default range (reports live inside Dashboard)
+  await nav('Dashboard'); await wait(1500)
   const range = await ev(`[...document.querySelectorAll('input[type=date]')].map(i=>i.value)`)
   const monthStart = TODAY.slice(0, 8) + '01'
-  check('UI-6', `Reports default "From" date is the 1st of this month (${monthStart})`, range?.[0] === monthStart, { from: range?.[0], to: range?.[1] })
+  check('UI-6', `Reports on the Dashboard default "From" date is the 1st of this month (${monthStart})`, range?.[0] === monthStart, { from: range?.[0], to: range?.[1] })
 
   // UI-7 delete a payment from the invoice details page
   await nav('Invoices'); await wait(900)

@@ -105,10 +105,6 @@ export const IPC_CHANNELS = {
   STOCK_ADJUSTMENTS_CREATE: 'stock-adjustments:create',
   STOCK_ADJUSTMENTS_DELETE: 'stock-adjustments:delete',
 
-  CSV_IMPORT: 'csv:import',
-  CSV_EXPORT: 'csv:export',
-  CSV_PREVIEW: 'csv:preview',
-
   PAYMENTS_LIST_BY_INVOICE: 'payments:list-by-invoice',
   PAYMENTS_LIST_BETWEEN: 'payments:list-between',
 

@@ -101,11 +101,11 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
           </div>
         </div>
 
-        {customer.phone && (
+        {customer.address && (
           <dl className="detail-rows">
             <div>
-              <dt>Phone</dt>
-              <dd>{customer.phone}</dd>
+              <dt>Address</dt>
+              <dd>{customer.address}</dd>
             </div>
           </dl>
         )}

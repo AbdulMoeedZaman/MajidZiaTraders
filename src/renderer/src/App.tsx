@@ -8,9 +8,7 @@ import { InvoiceDetailPage } from './features/invoices/components/InvoiceDetailP
 import { CustomerList } from './features/customers/components/CustomerList'
 import { CustomerDetailPage } from './features/customers/components/CustomerDetailPage'
 import { PaymentsList } from './features/payments/components/PaymentsList'
-import { ReportsPage } from './features/reports/components/ReportsPage'
 import { SettingsPage } from './features/settings/components/SettingsPage'
-import { CsvWizard } from './features/csv/components/CsvWizard'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { api } from './lib/api'
 import { setCurrency } from './lib/format'
@@ -90,9 +88,7 @@ export default function App() {
           <CustomerList onSelect={(c) => setSelectedCustomerId(c.id)} />
         ))}
       {view === 'payments' && <PaymentsList />}
-      {view === 'reports' && <ReportsPage />}
       {view === 'settings' && <SettingsPage />}
-      {view === 'csv' && <CsvWizard />}
       </ErrorBoundary>
     </Layout>
   )

@@ -4,9 +4,7 @@ export type AppView =
   | 'invoices'
   | 'customers'
   | 'payments'
-  | 'reports'
   | 'settings'
-  | 'csv'
 
 export interface NavItem {
   key: AppView
@@ -21,8 +19,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'customers', label: 'Customers', icon: '◉', enabled: true },
   { key: 'products', label: 'Products', icon: '▤', enabled: true },
   { key: 'payments', label: 'Payments', icon: '◈', enabled: true },
-  { key: 'reports', label: 'Reports', icon: '∑', enabled: true },
-  { key: 'csv', label: 'CSV Tools', icon: '⧉', enabled: true },
   { key: 'settings', label: 'Settings', icon: '⌘', enabled: true },
 ]
 
@@ -32,7 +28,5 @@ export const VIEW_TITLES: Record<AppView, string> = {
   invoices: 'Invoices',
   customers: 'Customers',
   payments: 'Payments',
-  reports: 'Reports',
   settings: 'Settings',
-  csv: 'CSV Tools',
 }

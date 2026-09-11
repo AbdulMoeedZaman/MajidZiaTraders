@@ -46,13 +46,6 @@ export class CustomerService {
       throw new Error('A customer with this name already exists')
     }
 
-    this.validatePhone(data.phone)
-
-    const existingPhone = data.phone?.trim()
-    if (existingPhone && this.customerRepo.findByPhone(existingPhone)) {
-      throw new Error('A customer with this phone number already exists')
-    }
-
     return this.customerRepo.create(data)
   }
 
@@ -69,18 +62,6 @@ export class CustomerService {
       const conflict = this.customerRepo.findByNameExcludingId(data.name.trim(), id)
       if (conflict) {
         throw new Error('A customer with this name already exists')
-      }
-    }
-
-    this.validatePhone(data.phone)
-
-    if (data.phone !== undefined) {
-      const phone = data.phone?.trim()
-      if (phone) {
-        const conflict = this.customerRepo.findByPhoneExcludingId(phone, id)
-        if (conflict) {
-          throw new Error('A customer with this phone number already exists')
-        }
       }
     }
 
@@ -108,15 +89,6 @@ export class CustomerService {
 
   count(): number {
     return this.customerRepo.count()
-  }
-
-  private validatePhone(phone?: string | null): void {
-    if (phone) {
-      const digits = (phone as string).replace(/\D/g, '')
-      if (digits.length < 7 || digits.length > 15) {
-        throw new Error('Invalid phone number')
-      }
-    }
   }
 
   private withBalance(c: Customer & { totalDebit: number; totalCredit: number }): CustomerWithBalance {

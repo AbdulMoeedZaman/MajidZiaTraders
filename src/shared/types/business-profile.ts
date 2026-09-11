@@ -7,8 +7,6 @@ export interface BusinessProfile {
   address: string | null
   city: string | null
   country: string | null
-  taxId: string | null
-  taxRate: number
   logoPath: string | null
   currency: string
   invoiceFooter: string | null
@@ -26,8 +24,6 @@ export interface UpdateBusinessProfileDTO {
   address?: string | null
   city?: string | null
   country?: string | null
-  taxId?: string | null
-  taxRate?: number
   logoPath?: string | null
   currency?: string
   invoiceFooter?: string | null

@@ -9,8 +9,8 @@ export class BusinessProfileRepository extends BaseRepository {
   create(data: Partial<BusinessProfile>): BusinessProfile {
     const result = this.db
       .prepare(
-        `INSERT INTO business_profile (name, ownerName, phone, email, address, city, country, taxId, taxRate, logoPath, currency, invoiceFooter, invoicePrefix, invoiceNextNumber)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO business_profile (name, ownerName, phone, email, address, city, country, logoPath, currency, invoiceFooter, invoicePrefix, invoiceNextNumber)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         data.name ?? '',
@@ -20,8 +20,6 @@ export class BusinessProfileRepository extends BaseRepository {
         data.address ?? null,
         data.city ?? null,
         data.country ?? null,
-        data.taxId ?? null,
-        data.taxRate ?? 0,
         data.logoPath ?? null,
         data.currency ?? 'USD',
         data.invoiceFooter ?? null,
@@ -48,8 +46,6 @@ export class BusinessProfileRepository extends BaseRepository {
     if (data.address !== undefined) { fields.push('address = ?'); values.push(data.address) }
     if (data.city !== undefined) { fields.push('city = ?'); values.push(data.city) }
     if (data.country !== undefined) { fields.push('country = ?'); values.push(data.country) }
-    if (data.taxId !== undefined) { fields.push('taxId = ?'); values.push(data.taxId) }
-    if (data.taxRate !== undefined) { fields.push('taxRate = ?'); values.push(data.taxRate) }
     if (data.logoPath !== undefined) { fields.push('logoPath = ?'); values.push(data.logoPath) }
     if (data.currency !== undefined) { fields.push('currency = ?'); values.push(data.currency) }
     if (data.invoiceFooter !== undefined) { fields.push('invoiceFooter = ?'); values.push(data.invoiceFooter) }
