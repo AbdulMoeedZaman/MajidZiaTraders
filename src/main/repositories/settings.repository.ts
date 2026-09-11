@@ -41,11 +41,11 @@ export class SettingsRepository extends BaseRepository {
 
   bulkUpdate(data: BulkUpdateSettingsDTO): void {
     const stmt = this.db.prepare("UPDATE settings SET value = ?, updatedAt = datetime('now') WHERE key = ?")
-    this.db.transaction(() => {
+    this.runInTransaction(() => {
       for (const setting of data.settings) {
         stmt.run(setting.value, setting.key)
       }
-    })()
+    })
   }
 
   delete(key: string): void {

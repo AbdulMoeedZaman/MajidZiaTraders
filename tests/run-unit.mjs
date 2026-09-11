@@ -1,4 +1,4 @@
-// Runs Vitest under Electron's Node so better-sqlite3 (rebuilt in postinstall for Electron) loads.
+// Runs Vitest under Electron's Node so node:sqlite (built into Electron) is available.
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'

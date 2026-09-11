@@ -1,24 +1,22 @@
-import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 import { runMigrations } from './migrations/migrate'
+import { AppDatabase } from './sqlite'
 
-let db: Database.Database | null = null
+let db: AppDatabase | null = null
 let dbPath: string | null = null
 
-export function getDatabase(): Database.Database {
+export function getDatabase(): AppDatabase {
   if (db) return db
 
   dbPath = path.join(app.getPath('userData'), 'inventory.db')
-  db = new Database(dbPath)
-
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
-
-  runMigrations(db)
-
-  return db
+  const connection = new AppDatabase(dbPath)
+  connection.exec('PRAGMA journal_mode = WAL')
+  connection.exec('PRAGMA foreign_keys = ON')
+  runMigrations(connection)
+  db = connection
+  return connection
 }
 
 export function getDatabasePath(): string {

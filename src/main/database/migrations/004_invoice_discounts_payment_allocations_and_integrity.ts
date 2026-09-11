@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { AppDatabase } from '../sqlite'
 import { localDate } from '@shared/date'
 
 interface LegacyMovement {
@@ -37,7 +37,7 @@ function recomputeStatus(current: string, dueDate: string | null, paid: number, 
   return overdue ? 'overdue' : 'partial'
 }
 
-export function up(db: Database.Database): void {
+export function up(db: AppDatabase): void {
   const invoiceItemColumns = (
     db.prepare('PRAGMA table_info(invoice_items)').all() as Array<{ name: string }>
   ).map((c) => c.name)

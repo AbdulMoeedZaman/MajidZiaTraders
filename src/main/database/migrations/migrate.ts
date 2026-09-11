@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import { runInTransaction, type AppDatabase } from '../sqlite'
 import { up as initialSchema } from './001_initial_schema'
 import { up as businessModules } from './002_business_modules'
 import { up as completeBusinessSchema } from './003_complete_business_schema'
@@ -8,7 +8,7 @@ import { up as ledgerSyncAndReversals } from './005_ledger_sync_allocation_repai
 interface Migration {
   version: number
   name: string
-  up: (db: Database.Database) => void
+  up: (db: AppDatabase) => void
 }
 
 /*
@@ -31,7 +31,7 @@ const migrations: Migration[] = [
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: AppDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       version INTEGER PRIMARY KEY,
@@ -46,13 +46,13 @@ export function runMigrations(db: Database.Database): void {
 
   for (const migration of migrations) {
     if (!applied.includes(migration.version)) {
-      db.transaction(() => {
+      runInTransaction(db, () => {
         migration.up(db)
         db.prepare('INSERT INTO _migrations (version, name) VALUES (?, ?)').run(
           migration.version,
           migration.name
         )
-      })()
+      })
     }
   }
 }

@@ -1,9 +1,9 @@
-import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 import { getDatabase, getDatabasePath, replaceDatabaseFromFile } from '../database/connection'
 import { LATEST_MIGRATION_VERSION } from '../database/migrations/migrate'
+import { backupDatabase, openReadonlyDatabase, type AppDatabase } from '../database/sqlite'
 import type { BackupValidation, BackupMetadata, BackupRestoreResult } from '@shared/types/backup'
 
 // Tables every supported backup must contain. They all exist since database version 3;
@@ -30,14 +30,14 @@ function withBackupExtension(destinationPath: string): string {
   return /\.(db|sqlite3?)$/i.test(destinationPath) ? destinationPath : `${destinationPath}.db`
 }
 
-function tableNames(connection: Database.Database): string[] {
+function tableNames(connection: AppDatabase): string[] {
   const rows = connection
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
     .all() as Array<{ name: string }>
   return rows.map((r) => r.name)
 }
 
-function migrationVersion(connection: Database.Database, tables: string[]): number | null {
+function migrationVersion(connection: AppDatabase, tables: string[]): number | null {
   if (!tables.includes('_migrations')) return null
   const row = connection.prepare('SELECT MAX(version) AS version FROM _migrations').get() as { version: number | null }
   return row.version ?? null
@@ -55,8 +55,8 @@ export class BackupService {
     const dest = withBackupExtension(destinationPath)
     const tmp = `${dest}.${process.pid}.tmp`
     try {
-      // db.backup() includes changes still in the WAL file, unlike a plain file copy.
-      await getDatabase().backup(tmp)
+      // backup() includes changes still in the WAL file, unlike a plain file copy.
+      await backupDatabase(getDatabase(), tmp)
       fs.copyFileSync(tmp, dest)
     } finally {
       try {
@@ -74,9 +74,9 @@ export class BackupService {
       return invalid('File does not exist')
     }
 
-    let connection: Database.Database | null = null
+    let connection: AppDatabase | null = null
     try {
-      connection = new Database(filePath, { readonly: true, fileMustExist: true })
+      connection = openReadonlyDatabase(filePath)
     } catch (error) {
       return invalid(`File is not a valid SQLite database: ${String(error)}`)
     }
@@ -154,7 +154,7 @@ export class BackupService {
     fs.mkdirSync(dir, { recursive: true })
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const dest = path.join(dir, `before-restore-${stamp}.db`)
-    await getDatabase().backup(dest)
+    await backupDatabase(getDatabase(), dest)
 
     const copies = fs
       .readdirSync(dir)
@@ -166,13 +166,13 @@ export class BackupService {
     return dest
   }
 
-  private inspect(filePath: string, connection: Database.Database | null): BackupMetadata {
+  private inspect(filePath: string, connection: AppDatabase | null): BackupMetadata {
     const stats = fs.statSync(filePath)
     let tableCount: number
     if (connection) {
       tableCount = tableNames(connection).length
     } else {
-      const temp = new Database(filePath, { readonly: true })
+      const temp = openReadonlyDatabase(filePath)
       try {
         tableCount = tableNames(temp).length
       } finally {

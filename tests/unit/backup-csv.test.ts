@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import Database from 'better-sqlite3'
+import { AppDatabase, openReadonlyDatabase } from '../../src/main/database/sqlite'
 import { describe, expect, it } from 'vitest'
 import { BackupService } from '../../src/main/services/backup.service'
 import { CSVService } from '../../src/main/services/csv.service'
@@ -29,7 +29,7 @@ describe('backups', () => {
 
   it('rejects a backup made by a newer version of the app', () => {
     const file = copyFixture('future.db')
-    const future = new Database(file)
+    const future = new AppDatabase(file)
     future.prepare('INSERT INTO _migrations (version, name) VALUES (?, ?)').run(999, 'from the future')
     future.close()
 
@@ -47,7 +47,7 @@ describe('backups', () => {
     expect(result.success).toBe(true)
     expect(result.safetyCopyPath).toBeTruthy()
     expect(path.dirname(result.safetyCopyPath!)).toBe(path.join(db.dir(), 'backups'))
-    const safety = new Database(result.safetyCopyPath!, { readonly: true })
+    const safety = openReadonlyDatabase(result.safetyCopyPath!)
     expect(safety.prepare("SELECT COUNT(*) AS n FROM products WHERE sku = 'SAFE-1'").get()).toEqual({ n: 1 })
     safety.close()
 
@@ -59,7 +59,7 @@ describe('backups', () => {
 
   it('rejects a backup that has the core tables but no migration history', () => {
     const file = copyFixture('no-history.db')
-    const stripped = new Database(file)
+    const stripped = new AppDatabase(file)
     stripped.exec('DROP TABLE _migrations')
     stripped.close()
 

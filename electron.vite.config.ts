@@ -7,7 +7,6 @@ const alias = { '@shared': resolve(__dirname, 'src/shared') }
 export default defineConfig({
   main: {
     resolve: { alias },
-    // Keep better-sqlite3 (a native module) out of the bundle.
     build: { externalizeDeps: true },
   },
   preload: {

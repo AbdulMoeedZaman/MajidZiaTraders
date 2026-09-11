@@ -1,12 +1,12 @@
 import { getDatabase } from '../database/connection'
-import type Database from 'better-sqlite3'
+import { runInTransaction, type AppDatabase } from '../database/sqlite'
 
 export abstract class BaseRepository {
-  protected get db(): Database.Database {
+  protected get db(): AppDatabase {
     return getDatabase()
   }
 
   runInTransaction<T>(fn: () => T): T {
-    return this.db.transaction(fn)()
+    return runInTransaction(this.db, fn)
   }
 }

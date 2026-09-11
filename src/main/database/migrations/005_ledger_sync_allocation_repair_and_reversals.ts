@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { AppDatabase } from '../sqlite'
 
 // Frozen copies of helpers that this migration used when it was written. Do not import
 // live shared code here — later edits would silently change what already-applied
@@ -33,11 +33,11 @@ function computeInvoiceStatus(
 //  5. paid / outstanding / status are recomputed for every invoice.
 //  6. The restock number counter is seeded so numbers are never reused.
 
-function columnNames(db: Database.Database, table: string): string[] {
+function columnNames(db: AppDatabase, table: string): string[] {
   return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name)
 }
 
-export function up(db: Database.Database): void {
+export function up(db: AppDatabase): void {
   const today = localDate()
 
   // 1. Reversal columns.

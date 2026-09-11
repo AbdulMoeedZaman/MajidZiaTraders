@@ -13,7 +13,7 @@ release/
 *.blockmap
 *.zip
 
-# Native addon build artifacts (better-sqlite3)
+# Native addon build artifacts
 build/Release/
 
 # Local SQLite databases and WAL files — keep committed test fixtures

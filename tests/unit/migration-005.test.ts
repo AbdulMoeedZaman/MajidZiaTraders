@@ -1,8 +1,8 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it } from 'vitest'
+import { AppDatabase, runInTransaction } from '../../src/main/database/sqlite'
 import { up as m1 } from '../../src/main/database/migrations/001_initial_schema'
 import { up as m2 } from '../../src/main/database/migrations/002_business_modules'
 import { up as m3 } from '../../src/main/database/migrations/003_complete_business_schema'
@@ -16,18 +16,18 @@ afterEach(() => {
 })
 
 /** A database at version 4 holding the inconsistent data that migration 004 left behind. */
-function legacyDatabase(): Database.Database {
+function legacyDatabase(): AppDatabase {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inventory-mig-'))
   dirs.push(dir)
-  const db = new Database(path.join(dir, 'inventory.db'))
-  db.pragma('foreign_keys = ON')
+  const db = new AppDatabase(path.join(dir, 'inventory.db'))
+  db.exec('PRAGMA foreign_keys = ON')
   db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, appliedAt TEXT NOT NULL DEFAULT (datetime('now')))`)
-  const steps: Array<[number, (d: Database.Database) => void]> = [[1, m1], [2, m2], [3, m3], [4, m4]]
+  const steps: Array<[number, (d: AppDatabase) => void]> = [[1, m1], [2, m2], [3, m3], [4, m4]]
   for (const [version, up] of steps) {
-    db.transaction(() => {
+    runInTransaction(db, () => {
       up(db)
       db.prepare('INSERT INTO _migrations (version, name) VALUES (?, ?)').run(version, `v${version}`)
-    })()
+    })
   }
 
   db.exec(`
@@ -63,7 +63,7 @@ function legacyDatabase(): Database.Database {
   return db
 }
 
-const snapshot = (db: Database.Database) => ({
+const snapshot = (db: AppDatabase) => ({
   invoices: db.prepare('SELECT id, paid, outstanding, status, total FROM invoices ORDER BY id').all(),
   allocations: db.prepare('SELECT paymentId, invoiceId, amount FROM payment_allocations ORDER BY paymentId, invoiceId').all(),
   ledger: db.prepare('SELECT id, debit, credit FROM customer_ledger ORDER BY id').all(),
@@ -116,7 +116,7 @@ describe('migration 005', () => {
     const db = legacyDatabase()
     runMigrations(db)
     const before = snapshot(db)
-    db.transaction(() => m5(db))()
+    runInTransaction(db, () => m5(db))
     expect(snapshot(db)).toEqual(before)
     db.close()
   })

@@ -1,6 +1,6 @@
-import type Database from 'better-sqlite3'
+import type { AppDatabase } from '../sqlite'
 
-export function up(db: Database.Database): void {
+export function up(db: AppDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
