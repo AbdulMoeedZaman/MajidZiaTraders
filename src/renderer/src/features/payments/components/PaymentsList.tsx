@@ -17,7 +17,7 @@ export function PaymentsList() {
 
   useEffect(() => {
     api.customers
-      .listWithBalance('active')
+      .listWithBalance()
       .then(setCustomers)
       .catch(() => setCustomers([]))
   }, [])

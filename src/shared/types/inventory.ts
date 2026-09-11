@@ -23,6 +23,12 @@ export interface StockMovement {
   createdAt: string
 }
 
+export interface StockMovementWithContext extends StockMovement {
+  invoiceNumber: string | null
+  customerName: string | null
+  supplierName: string | null
+}
+
 export interface RecordMovementDTO {
   productId: number
   type: StockMovementType

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../../lib/api'
 import type { ProductWithStock } from '@shared/types/inventory'
 import type { CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
+import type { AddStockDTO } from '@shared/types/restock'
 
 export type CatalogFilter = 'all' | 'active' | 'inactive'
 
@@ -37,10 +38,7 @@ export function useProducts() {
     const q = query.trim().toLowerCase()
     if (q) {
       list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          (p.description ?? '').toLowerCase().includes(q)
+        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
       )
     }
     return list
@@ -98,6 +96,19 @@ export function useProducts() {
     [load]
   )
 
+  const addStock = useCallback(
+    async (data: AddStockDTO): Promise<string | null> => {
+      try {
+        await api.products.addStock(data)
+        await load()
+        return null
+      } catch (e) {
+        return String(e)
+      }
+    },
+    [load]
+  )
+
   return {
     products,
     visible,
@@ -111,6 +122,7 @@ export function useProducts() {
     updateProduct,
     setProductActive,
     deleteProduct,
+    addStock,
     reload: load,
   }
 }

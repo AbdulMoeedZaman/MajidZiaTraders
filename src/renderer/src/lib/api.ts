@@ -2,11 +2,12 @@ import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/
 import type { Category, CreateCategoryDTO, UpdateCategoryDTO } from '@shared/types/category'
 import type {
   StockMovement,
+  StockMovementWithContext,
   SetOpeningStockDTO,
   ProductWithStock,
   StockSummary,
 } from '@shared/types/inventory'
-import type { Customer, CreateCustomerDTO, UpdateCustomerDTO, CustomerWithBalance, CustomerStatusFilter } from '@shared/types/customer'
+import type { Customer, CreateCustomerDTO, UpdateCustomerDTO, CustomerWithBalance } from '@shared/types/customer'
 import type {
   CustomerLedgerEntry,
   CustomerLedgerEntryWithBalance,
@@ -15,7 +16,7 @@ import type {
 } from '@shared/types/customer-ledger'
 import type { CustomerPayment, CustomerPaymentWithCustomer, CreateCustomerPaymentDTO } from '@shared/types/customer-payment'
 import type { Invoice, InvoiceItem, InvoiceWithCustomer, InvoiceWithItems, CreateInvoiceDTO, UpdateInvoiceDTO } from '@shared/types/invoice'
-import type { Restock, RestockListItem, RestockWithItems, CreateRestockDTO, UpdateRestockDTO } from '@shared/types/restock'
+import type { Restock, RestockListItem, RestockWithItems, CreateRestockDTO, UpdateRestockDTO, AddStockDTO } from '@shared/types/restock'
 import type { BusinessProfile, UpdateBusinessProfileDTO } from '@shared/types/business-profile'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 import type { StockAdjustment, CreateStockAdjustmentDTO } from '@shared/types/stock-adjustment'
@@ -72,6 +73,7 @@ export const api = {
     create: (data: CreateProductDTO) => ipc<Product>('products:create', data),
     update: (id: number, data: UpdateProductDTO) => ipc<Product>('products:update', id, data),
     setActive: (id: number, isActive: boolean) => ipc<Product>('products:set-active', id, isActive),
+    addStock: (data: AddStockDTO) => ipc<Restock>('products:add-stock', data),
     delete: (id: number) => ipc<{ success: boolean }>('products:delete', id),
     count: () => ipc<number>('products:count'),
     countActive: () => ipc<number>('products:count-active'),
@@ -91,6 +93,8 @@ export const api = {
   inventory: {
     listMovements: (productId: number) =>
       ipc<StockMovement[]>('inventory:list-movements', productId),
+    listMovementsWithContext: (productId: number) =>
+      ipc<StockMovementWithContext[]>('inventory:list-movements-with-context', productId),
     getById: (id: number) => ipc<StockMovement | null>('inventory:get-by-id', id),
     currentQuantity: (productId: number) =>
       ipc<number>('inventory:current-quantity', productId),
@@ -108,20 +112,14 @@ export const api = {
 
   customers: {
     list: () => ipc<Customer[]>('customers:list'),
-    listActive: () => ipc<Customer[]>('customers:list-active'),
-    listInactive: () => ipc<Customer[]>('customers:list-inactive'),
-    listWithBalance: (filter: CustomerStatusFilter = 'all') =>
-      ipc<CustomerWithBalance[]>('customers:list-with-balance', filter),
+    listWithBalance: () => ipc<CustomerWithBalance[]>('customers:list-with-balance'),
     getById: (id: number) => ipc<Customer | null>('customers:get-by-id', id),
     getWithBalance: (id: number) => ipc<CustomerWithBalance | null>('customers:get-with-balance', id),
-    search: (query: string, status: CustomerStatusFilter = 'active') =>
-      ipc<Customer[]>('customers:search', query, status),
+    search: (query: string) => ipc<Customer[]>('customers:search', query),
     create: (data: CreateCustomerDTO) => ipc<Customer>('customers:create', data),
     update: (id: number, data: UpdateCustomerDTO) => ipc<Customer>('customers:update', id, data),
-    setActive: (id: number, isActive: boolean) => ipc<Customer>('customers:set-active', id, isActive),
     delete: (id: number) => ipc<{ success: boolean }>('customers:delete', id),
     count: () => ipc<number>('customers:count'),
-    countActive: () => ipc<number>('customers:count-active'),
   },
 
   customerLedger: {

@@ -56,7 +56,6 @@ export class DashboardService {
       outstandingBalance,
       totals: {
         customers: customers.length,
-        customersActive: customers.filter((c) => c.isActive === 1).length,
         products: products.length,
         productsLowStock,
         productsOutOfStock,

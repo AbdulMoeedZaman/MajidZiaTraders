@@ -134,10 +134,7 @@ export class CSVService {
       }
       case 'customers': {
         const all = this.customerService.list()
-        const status = filter.status
-        rows = all
-          .filter((c) => (status === undefined ? true : c.isActive === (status === 'active' ? 1 : 0)))
-          .map((c) => ({ ...c }))
+        rows = all.map((c) => ({ ...c }))
         break
       }
       case 'restocks': {
@@ -260,7 +257,6 @@ export class CSVService {
       const dto: CreateProductDTO = {
         sku,
         name: values.name,
-        description: values.description || undefined,
         unit: values.unit || undefined,
       }
 
@@ -353,9 +349,6 @@ export class CSVService {
       const dto: CreateCustomerDTO = {
         name: values.name.trim(),
         phone: values.phone || undefined,
-        email: values.email || undefined,
-        address: values.address || undefined,
-        notes: values.notes || undefined,
       }
 
       try {

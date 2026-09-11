@@ -42,9 +42,6 @@ export class PaymentService {
     if (!customer) {
       throw new Error('Customer not found')
     }
-    if (customer.isActive !== 1) {
-      throw new Error(`Cannot record a payment for inactive customer "${customer.name}"`)
-    }
     if (typeof data.amount !== 'number' || !Number.isInteger(data.amount) || data.amount <= 0) {
       throw new Error('Payment amount must be a positive whole number of cents')
     }

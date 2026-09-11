@@ -1,24 +1,31 @@
 import { useEffect, useState } from 'react'
-import type { StockMovement } from '@shared/types/inventory'
+import type { StockMovementWithContext } from '@shared/types/inventory'
 import { api } from '../../../lib/api'
 import { formatDateTime } from '../../../lib/format'
-import { STOCK_MOVEMENT_LABELS } from '../../products/types/product-form'
+import { STOCK_MOVEMENT_LABELS } from '../types/product-form'
 
-interface MovementHistoryProps {
+interface StockHistoryModalProps {
   productId: number
   productName: string
   onClose: () => void
 }
 
-export function MovementHistory({ productId, productName, onClose }: MovementHistoryProps) {
-  const [movements, setMovements] = useState<StockMovement[]>([])
+function referenceText(m: StockMovementWithContext): string {
+  if (m.referenceType === 'invoice' && m.invoiceNumber) return `Invoice ${m.invoiceNumber}`
+  if (m.referenceType === 'invoice' && m.customerName) return `Invoice ${m.customerName}`
+  if (m.referenceType === 'restock' && m.supplierName) return `Restock · ${m.supplierName}`
+  return m.reason ?? '—'
+}
+
+export function StockHistoryModal({ productId, productName, onClose }: StockHistoryModalProps) {
+  const [movements, setMovements] = useState<StockMovementWithContext[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     api.inventory
-      .listMovements(productId)
+      .listMovementsWithContext(productId)
       .then((rows) => {
         if (!cancelled) setMovements(rows)
       })
@@ -71,7 +78,7 @@ export function MovementHistory({ productId, productName, onClose }: MovementHis
                   {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                 </td>
                 <td className="num">{m.newQuantity}</td>
-                <td>{m.reason ?? '—'}</td>
+                <td>{referenceText(m)}</td>
               </tr>
             ))}
           </tbody>

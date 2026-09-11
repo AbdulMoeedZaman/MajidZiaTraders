@@ -76,11 +76,6 @@ export function ProductForm({ mode, product, categories, onSubmit, onCancel }: P
           {errors.sku && <em className="field-error">{errors.sku}</em>}
         </label>
 
-        <label className="field field-span-2">
-          <span>Description</span>
-          <textarea value={state.description} onChange={set('description')} rows={2} />
-        </label>
-
         <label className="field">
           <span>Category</span>
           <select value={state.categoryId} onChange={set('categoryId')}>
@@ -105,23 +100,8 @@ export function ProductForm({ mode, product, categories, onSubmit, onCancel }: P
         </label>
 
         <label className="field">
-          <span>Pack size</span>
-          <input value={state.packSize} onChange={set('packSize')} placeholder="e.g. 33g" />
-        </label>
-
-        <label className="field">
-          <span>Pack config</span>
-          <input value={state.packConfig} onChange={set('packConfig')} placeholder="e.g. 6x24" />
-        </label>
-
-        <label className="field">
           <span>MRP per piece</span>
           <input type="number" step="0.01" min={0} value={state.mrp} onChange={set('mrp')} placeholder="e.g. 25.00" />
-        </label>
-
-        <label className="field">
-          <span>Purchase unit</span>
-          <input value={state.purchaseUnit} onChange={set('purchaseUnit')} placeholder="carton" />
         </label>
 
         <label className="field">

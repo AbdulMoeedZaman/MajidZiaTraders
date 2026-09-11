@@ -7,6 +7,8 @@ interface ProductDetailProps {
   onEdit: (product: ProductWithStock) => void
   onToggleActive: (product: ProductWithStock) => void
   onDelete: (product: ProductWithStock) => void
+  onAddStock: (product: ProductWithStock) => void
+  onViewHistory: (product: ProductWithStock) => void
   onClose: () => void
 }
 
@@ -28,6 +30,8 @@ export function ProductDetail({
   onEdit,
   onToggleActive,
   onDelete,
+  onAddStock,
+  onViewHistory,
   onClose,
 }: ProductDetailProps) {
   const sessions = (p: ProductWithStock) => {
@@ -68,28 +72,12 @@ export function ProductDetail({
           <dt>Pieces per carton</dt>
           <dd>{product.piecesPerCarton}</dd>
         </div>
-        {product.packSize && (
-          <div>
-            <dt>Pack size</dt>
-            <dd>{product.packSize}</dd>
-          </div>
-        )}
-        {product.packConfig && (
-          <div>
-            <dt>Pack config</dt>
-            <dd>{product.packConfig}</dd>
-          </div>
-        )}
         {product.mrp != null && (
           <div>
             <dt>MRP per piece</dt>
             <dd>{formatMoney(product.mrp)}</dd>
           </div>
         )}
-        <div>
-          <dt>Purchase unit</dt>
-          <dd>{product.purchaseUnit || 'carton'}</dd>
-        </div>
         <div>
           <dt>Base cost price</dt>
           <dd>{formatMoney(product.baseCostPrice)}</dd>
@@ -118,15 +106,15 @@ export function ProductDetail({
           <dt>Last updated</dt>
           <dd>{formatDateTime(product.updatedAt)}</dd>
         </div>
-        {product.description && (
-          <div className="detail-span">
-            <dt>Description</dt>
-            <dd>{product.description}</dd>
-          </div>
-        )}
       </dl>
 
       <div className="detail-actions">
+        <button className="btn primary" onClick={() => onAddStock(product)}>
+          + Add Stock
+        </button>
+        <button className="btn" onClick={() => onViewHistory(product)}>
+          View History
+        </button>
         <button className="btn" onClick={() => onEdit(product)}>
           Edit
         </button>

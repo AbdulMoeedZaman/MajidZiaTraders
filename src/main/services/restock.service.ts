@@ -9,6 +9,7 @@ import type {
   CreateRestockDTO,
   CreateRestockItemDTO,
   UpdateRestockDTO,
+  AddStockDTO,
 } from '@shared/types/restock'
 import {
   computeRestockLineTotals,
@@ -19,7 +20,7 @@ import {
   PURCHASE_ADVANCE_TAX_SETTING,
   type RestockLineInput,
 } from '@shared/calc/restock-totals'
-import { assertIsoDate } from '@shared/date'
+import { assertIsoDate, localDate } from '@shared/date'
 
 export class RestockService {
   private restockRepo = new RestockRepository()
@@ -63,6 +64,69 @@ export class RestockService {
     return this.restockRepo.runInTransaction(() => {
       const referenceNumber = this.restockRepo.generateReferenceNumber()
       return this.restockRepo.create({ ...data, supplierName: data.supplierName.trim(), items }, referenceNumber)
+    })
+  }
+
+  addStock(data: AddStockDTO): Restock {
+    if (!Number.isInteger(data.productId) || data.productId < 1) {
+      throw new Error('A valid product is required')
+    }
+    if (!Number.isInteger(data.quantity) || data.quantity < 1) {
+      throw new Error('Quantity must be a positive whole number')
+    }
+    if (data.costPerUnit !== undefined && (data.costPerUnit === null || !Number.isInteger(data.costPerUnit) || data.costPerUnit < 0)) {
+      throw new Error('Cost per unit must be a non-negative whole number of cents')
+    }
+    const product = this.productRepo.findById(data.productId)
+    if (!product) {
+      throw new Error('Product not found')
+    }
+
+    const date = localDate()
+    const unitCost = data.costPerUnit ?? product.baseCostPrice
+    const supplierName = data.supplierName?.trim() || 'Direct stock-in'
+
+    return this.restockRepo.runInTransaction(() => {
+      const referenceNumber = this.restockRepo.generateReferenceNumber()
+      const restock = this.restockRepo.create(
+        {
+          supplierName,
+          date,
+          notes: data.note?.trim() || `Stock added via product view (${product.name})`,
+          items: [
+            {
+              productId: data.productId,
+              qtyCartons: data.quantity,
+              piecesPerCarton: 1,
+              mrpPerPiece: product.mrp,
+              salesTaxRate: 0,
+              advanceTaxRate: 0,
+              netSalesValueExcl: unitCost * data.quantity,
+              tradeDiscountValue: 0,
+            },
+          ],
+        },
+        referenceNumber
+      )
+
+      // A direct stock-in is immediately received.
+      this.restockRepo.update(restock.id, { status: 'received' })
+
+      this.inventoryRepo.create({
+        productId: data.productId,
+        type: 'restock',
+        quantity: data.quantity,
+        referenceType: 'restock',
+        referenceId: restock.id,
+        reason: `Stock in — ${restock.referenceNumber}`,
+        cost: unitCost,
+      })
+
+      if (data.costPerUnit !== undefined) {
+        this.productRepo.update(data.productId, { baseCostPrice: unitCost })
+      }
+
+      return restock
     })
   }
 

@@ -164,10 +164,9 @@ describe('payments and customer credit', () => {
 describe('customers and profile', () => {
   it('clears optional fields when they are sent as null', () => {
     const customers = new CustomerService()
-    const created = customers.create({ name: 'Pat', phone: '5551234567', email: 'pat@example.com' })
-    const updated = customers.update(created.id, { phone: null, email: null })
+    const created = customers.create({ name: 'Pat', phone: '5551234567' })
+    const updated = customers.update(created.id, { phone: null })
     expect(updated.phone).toBeNull()
-    expect(updated.email).toBeNull()
   })
 
   it('rejects a NaN tax rate and a non-integer next invoice number', () => {

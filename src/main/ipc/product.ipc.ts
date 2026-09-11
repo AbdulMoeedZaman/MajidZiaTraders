@@ -1,8 +1,11 @@
 import { ipcMain } from 'electron'
 import { ProductService } from '../services/product.service'
+import { RestockService } from '../services/restock.service'
 import type { CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
+import type { AddStockDTO } from '@shared/types/restock'
 
 const productService = new ProductService()
+const restockService = new RestockService()
 
 export function registerProductIpc(): void {
   ipcMain.handle('products:list', () => {
@@ -55,6 +58,10 @@ export function registerProductIpc(): void {
 
   ipcMain.handle('products:set-active', (_, id: number, isActive: boolean) => {
     return productService.setActive(id, isActive)
+  })
+
+  ipcMain.handle('products:add-stock', (_, data: AddStockDTO) => {
+    return restockService.addStock(data)
   })
 
   ipcMain.handle('products:delete', (_, id: number) => {

@@ -27,7 +27,7 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
   // so a new invoice never works from stale stock numbers.
   const loadFormData = useCallback(async () => {
     const [c, p, profile] = await Promise.all([
-      api.customers.listWithBalance('active').catch(() => [] as CustomerWithBalance[]),
+      api.customers.listWithBalance().catch(() => [] as CustomerWithBalance[]),
       api.products.listActiveWithStock().catch(() => [] as ProductWithStock[]),
       api.businessProfile.get().catch(() => null),
     ])

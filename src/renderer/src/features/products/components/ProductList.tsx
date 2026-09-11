@@ -5,6 +5,8 @@ import { useProducts, CatalogFilter } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { ProductForm } from './ProductForm'
 import { ProductDetail } from './ProductDetail'
+import { AddStockModal } from './AddStockModal'
+import { StockHistoryModal } from './StockHistoryModal'
 import { CategoryManager } from './CategoryManager'
 import { formatMoney } from '../../../lib/format'
 import { ProductFormMode } from '../types/product-form'
@@ -23,6 +25,7 @@ export function ProductList() {
     updateProduct,
     setProductActive,
     deleteProduct,
+    addStock,
   } = useProducts()
   const { categories, categoryName, createCategory, renameCategory, setCategoryActive, deleteCategory } =
     useCategories()
@@ -30,6 +33,8 @@ export function ProductList() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [form, setForm] = useState<{ mode: ProductFormMode; product: Product | null } | null>(null)
+  const [addStockFor, setAddStockFor] = useState<ProductWithStock | null>(null)
+  const [historyFor, setHistoryFor] = useState<ProductWithStock | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const selected = selectedId === null ? null : (products.find((p) => p.id === selectedId) ?? null)
@@ -145,6 +150,8 @@ export function ProductList() {
               onEdit={() => setForm({ mode: 'edit', product: selected })}
               onToggleActive={handleToggleActive}
               onDelete={handleDelete}
+              onAddStock={(p) => setAddStockFor(p)}
+              onViewHistory={(p) => setHistoryFor(p)}
               onClose={() => setSelectedId(null)}
             />
           )}
@@ -159,6 +166,26 @@ export function ProductList() {
             categories={categories}
             onSubmit={handleFormSubmit}
             onCancel={() => setForm(null)}
+          />
+        </Modal>
+      )}
+
+      {addStockFor && (
+        <Modal title={`Add Stock · ${addStockFor.name}`} onClose={() => setAddStockFor(null)}>
+          <AddStockModal
+            product={addStockFor}
+            onSubmit={addStock}
+            onClose={() => setAddStockFor(null)}
+          />
+        </Modal>
+      )}
+
+      {historyFor && (
+        <Modal title="Stock history" onClose={() => setHistoryFor(null)}>
+          <StockHistoryModal
+            productId={historyFor.id}
+            productName={historyFor.name}
+            onClose={() => setHistoryFor(null)}
           />
         </Modal>
       )}

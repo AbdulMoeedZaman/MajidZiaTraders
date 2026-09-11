@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
-import type { Customer, CustomerWithBalance, CreateCustomerDTO } from '@shared/types/customer'
+import type { Customer, CustomerWithBalance } from '@shared/types/customer'
 import { formatDate, formatMoney } from '../../../lib/format'
 import { useCustomerLedger } from '../hooks/useCustomerLedger'
 import { CustomerLedgerTable } from './CustomerLedgerTable'
@@ -64,7 +64,7 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
     )
   }
 
-  const handleFormSubmit = async (payload: CreateCustomerDTO): Promise<string | null> => {
+  const handleFormSubmit = async (payload: Parameters<typeof api.customers.update>[1]): Promise<string | null> => {
     if (!form) return null
     try {
       await api.customers.update(customerId, payload)
@@ -73,16 +73,6 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
       return null
     } catch (e) {
       return String(e)
-    }
-  }
-
-  const handleToggleActive = async () => {
-    setActionError(null)
-    try {
-      await api.customers.setActive(customerId, customer.isActive !== 1)
-      await load()
-    } catch (e) {
-      setActionError(String(e))
     }
   }
 
@@ -105,38 +95,18 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
           <div>
             <h3>{customer.name}</h3>
             <span className="muted">
-              {customer.isActive === 1 ? 'Active' : 'Inactive'} customer · since{' '}
+              customer · since{' '}
               {formatDate(customer.createdAt)}
             </span>
           </div>
         </div>
 
-        {(customer.phone || customer.email || customer.address || customer.notes) && (
+        {customer.phone && (
           <dl className="detail-rows">
-            {customer.phone && (
-              <div>
-                <dt>Phone</dt>
-                <dd>{customer.phone}</dd>
-              </div>
-            )}
-            {customer.email && (
-              <div>
-                <dt>Email</dt>
-                <dd>{customer.email}</dd>
-              </div>
-            )}
-            {customer.address && (
-              <div>
-                <dt>Address</dt>
-                <dd>{customer.address}</dd>
-              </div>
-            )}
-            {customer.notes && (
-              <div className="detail-span">
-                <dt>Notes</dt>
-                <dd>{customer.notes}</dd>
-              </div>
-            )}
+            <div>
+              <dt>Phone</dt>
+              <dd>{customer.phone}</dd>
+            </div>
           </dl>
         )}
 
@@ -180,9 +150,6 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
         <div className="detail-actions">
           <button className="btn" onClick={() => setForm({ mode: 'edit', customer })}>
             Edit
-          </button>
-          <button className="btn" onClick={handleToggleActive}>
-            {customer.isActive === 1 ? 'Deactivate' : 'Reactivate'}
           </button>
           <button
             className="btn danger"

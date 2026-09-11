@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Customer, CustomerWithBalance, CreateCustomerDTO } from '@shared/types/customer'
-import type { CustomerStatusFilter } from '@shared/types/customer'
 import { useCustomers } from '../hooks/useCustomers'
 import { CustomerForm } from './CustomerForm'
 import { formatMoney } from '../../../lib/format'
@@ -15,8 +14,6 @@ export function CustomerList({ onSelect }: CustomerListProps) {
     loading,
     error,
     outstandingCount,
-    filter,
-    setFilter,
     query,
     setQuery,
     createCustomer,
@@ -45,17 +42,10 @@ export function CustomerList({ onSelect }: CustomerListProps) {
       <div className="toolbar">
         <input
           className="search-input"
-          placeholder="Search by name, phone, or email…"
+          placeholder="Search by name or phone…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="segmented">
-          {(['all', 'active', 'inactive'] as CustomerStatusFilter[]).map((f) => (
-            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
         <div className="spacer" />
         <span className="muted fine-text">{outstandingCount} with outstanding balance</span>
         <button className="btn primary" onClick={() => setForm({ mode: 'create', customer: null })}>
@@ -79,17 +69,16 @@ export function CustomerList({ onSelect }: CustomerListProps) {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Phone / Contact</th>
+                <th>Phone</th>
                 <th className="num">Balance</th>
                 <th className="num">Outstanding</th>
-                <th>Status</th>
                 <th className="actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="muted">
+                  <td colSpan={5} className="muted">
                     No customers found.
                   </td>
                 </tr>
@@ -98,7 +87,6 @@ export function CustomerList({ onSelect }: CustomerListProps) {
                 <tr key={c.id} onClick={() => onSelect(c)}>
                   <td>
                     <strong>{c.name}</strong>
-                    {c.email && <div className="muted fine-text">{c.email}</div>}
                   </td>
                   <td>{c.phone ?? '—'}</td>
                   <td
@@ -110,11 +98,6 @@ export function CustomerList({ onSelect }: CustomerListProps) {
                   </td>
                   <td className={`num ${c.outstanding > 0 ? 'text-danger' : ''}`}>
                     {c.outstanding > 0 ? formatMoney(c.outstanding) : '—'}
-                  </td>
-                  <td>
-                    <span className={`badge ${c.isActive === 1 ? 'ok' : 'muted-badge'}`}>
-                      {c.isActive === 1 ? 'Active' : 'Inactive'}
-                    </span>
                   </td>
                   <td className="actions-col" onClick={(e) => e.stopPropagation()}>
                     <button className="btn small" onClick={() => onSelect(c)}>

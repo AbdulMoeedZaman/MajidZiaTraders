@@ -93,13 +93,13 @@ try {
   check('V-3', 'Non-whole-cent prices rejected by backend', !v6.ok, v6.ok ? `accepted, stored sellingPrice=${v6.v.sellingPrice}` : v6.e)
   if (v6.ok) await inv('products:delete', v6.v.id)
 
-  const C1 = must(await inv('customers:create', { name: 'Alice', phone: '+92 300 1234567', email: 'a@x.com' }), 'C1')
+  const C1 = must(await inv('customers:create', { name: 'Alice', phone: '+92 300 1234567' }), 'C1')
   const C2 = must(await inv('customers:create', { name: 'Bob' }), 'C2')
   const c3 = await inv('customers:create', { name: 'Alice' })
   const c4 = await inv('customers:create', { name: 'Carl', phone: '+92 300 1234567' })
-  const c5 = await inv('customers:create', { name: 'Dan', email: 'bad-email' })
+  const c5 = await inv('customers:create', { name: '' })
   const c6 = await inv('customers:create', { name: 'Eve', phone: '123' })
-  check('V-4', 'Customer validation (dup name, dup phone, bad email, short phone) all rejected', !c3.ok && !c4.ok && !c5.ok && !c6.ok, [c3.e, c4.e, c5.e, c6.e])
+  check('V-4', 'Customer validation (dup name, dup phone, empty name, short phone) all rejected', !c3.ok && !c4.ok && !c5.ok && !c6.ok, [c3.e, c4.e, c5.e, c6.e])
 
   // =============== Stock integrity ===============
   let expectP1 = 100
@@ -140,10 +140,7 @@ try {
   must(await inv('products:set-active', P2.id, false), 'deact P2')
   const g4 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P2, 1, 800)] })
   must(await inv('products:set-active', P2.id, true), 'react P2')
-  must(await inv('customers:set-active', C2.id, false), 'deact C2')
-  const g5 = await inv('invoices:create', { customerId: C2.id, date: TODAY, items: [item(P2, 1, 800)] })
-  must(await inv('customers:set-active', C2.id, true), 'react C2')
-  check('I-3', 'Invoice guards: oversell, below-min price, tax 150%, inactive product, inactive customer all rejected', [g1, g2, g3, g4, g5].every((r) => !r.ok), [g1, g2, g3, g4, g5].map((r) => r.e ?? 'ACCEPTED'))
+  check('I-3', 'Invoice guards: oversell, below-min price, tax 150%, inactive product all rejected', [g1, g2, g3, g4].every((r) => !r.ok), [g1, g2, g3, g4].map((r) => r.e ?? 'ACCEPTED'))
 
   // =============== Payments ===============
   const pay1 = must(await inv('payments:create', { customerId: C1.id, invoiceId: I1.id, amount: 5000, method: 'cash', paymentDate: TODAY }), 'pay1')
@@ -271,9 +268,9 @@ try {
   await inv('products:set-active', P1.id, true)
 
   // UI-5 time display in stock history
-  await nav('Inventory'); await wait(900)
-  await ev(`(()=>{const r=[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes('Widget')); [...r.querySelectorAll('button')].find(b=>b.textContent.trim()==='History').click()})()`)
-  await wait(900)
+  await nav('Products'); await wait(900)
+  await clickRowWith('Widget'); await wait(900)
+  await clickBtn('View History'); await wait(900)
   const firstTime = await ev(`document.querySelector('.history tbody tr td')?.innerText`)
   const nowLocal = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   check('UI-5', 'Stock history shows local time (movement just created ≈ now)', !!firstTime && firstTime.includes(nowLocal.slice(0, 2)),

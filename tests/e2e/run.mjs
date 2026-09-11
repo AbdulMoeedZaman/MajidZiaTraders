@@ -11,9 +11,10 @@ import { fileURLToPath } from 'node:url'
 const require = createRequire(import.meta.url)
 const electronBinary = require('electron')
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const run = (cmd, args) => spawnSync(cmd, args, { cwd: root, stdio: 'inherit' }).status ?? 1
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const run = (cmd, args) => spawnSync(cmd, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' }).status ?? 1
 
-if (!process.argv.includes('--no-build') && run('npm', ['run', 'build']) !== 0) process.exit(1)
+if (!process.argv.includes('--no-build') && run(npmCmd, ['run', 'build']) !== 0) process.exit(1)
 
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inventory-e2e-'))
 console.log(`\nTest data folder: ${testDir}\n`)

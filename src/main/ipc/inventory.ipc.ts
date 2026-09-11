@@ -9,6 +9,10 @@ export function registerInventoryIpc(): void {
     return inventoryService.listMovements(productId)
   })
 
+  ipcMain.handle('inventory:list-movements-with-context', (_, productId: number) => {
+    return inventoryService.listMovementsWithContext(productId)
+  })
+
   ipcMain.handle('inventory:get-by-id', (_, id: number) => {
     return inventoryService.getById(id)
   })

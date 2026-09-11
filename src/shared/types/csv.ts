@@ -58,7 +58,6 @@ export const CSV_IMPORT_FIELDS: Record<CSVImportEntityType, CSVFieldDefinition[]
   products: [
     { key: 'sku', label: 'SKU', required: true, type: 'string' },
     { key: 'name', label: 'Name', required: true, type: 'string' },
-    { key: 'description', label: 'Description', required: false, type: 'string' },
     { key: 'category', label: 'Category name', required: false, type: 'string' },
     { key: 'unit', label: 'Unit', required: false, type: 'string' },
     { key: 'piecesPerCarton', label: 'Pieces per carton', required: false, type: 'number' },
@@ -70,9 +69,6 @@ export const CSV_IMPORT_FIELDS: Record<CSVImportEntityType, CSVFieldDefinition[]
   customers: [
     { key: 'name', label: 'Name', required: true, type: 'string' },
     { key: 'phone', label: 'Phone', required: false, type: 'string' },
-    { key: 'email', label: 'Email', required: false, type: 'string' },
-    { key: 'address', label: 'Address', required: false, type: 'string' },
-    { key: 'notes', label: 'Notes', required: false, type: 'string' },
   ],
   restocks: [
     { key: 'supplierName', label: 'Supplier name', required: true, type: 'string' },
@@ -113,10 +109,6 @@ export const CSV_EXPORT_FIELDS: Record<CSVExportEntityType, CSVExportField[]> = 
   customers: [
     { key: 'name', label: 'Name' },
     { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
-    { key: 'address', label: 'Address' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'isActive', label: 'Active' },
   ],
   restocks: [
     { key: 'referenceNumber', label: 'Reference' },

@@ -6,11 +6,8 @@ import type {
   Customer,
   CreateCustomerDTO,
   UpdateCustomerDTO,
-  CustomerStatusFilter,
   CustomerWithBalance,
 } from '@shared/types/customer'
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export class CustomerService {
   private customerRepo = new CustomerRepository()
@@ -22,20 +19,8 @@ export class CustomerService {
     return this.customerRepo.findAll()
   }
 
-  listActive(): Customer[] {
-    return this.customerRepo.findActive()
-  }
-
-  listInactive(): Customer[] {
-    return this.customerRepo.findInactive()
-  }
-
-  listByStatus(filter: CustomerStatusFilter): Customer[] {
-    return this.customerRepo.findByStatus(filter)
-  }
-
-  listWithBalances(filter: CustomerStatusFilter = 'all'): CustomerWithBalance[] {
-    return this.customerRepo.findAllWithTotals(filter).map((c) => this.withBalance(c))
+  listWithBalances(): CustomerWithBalance[] {
+    return this.customerRepo.findAllWithTotals().map((c) => this.withBalance(c))
   }
 
   getById(id: number): Customer | null {
@@ -47,8 +32,8 @@ export class CustomerService {
     return customer ? this.withBalance(customer) : null
   }
 
-  search(query: string, status: CustomerStatusFilter = 'active'): Customer[] {
-    return this.customerRepo.search(query, status)
+  search(query: string): Customer[] {
+    return this.customerRepo.search(query)
   }
 
   create(data: CreateCustomerDTO): Customer {
@@ -61,7 +46,7 @@ export class CustomerService {
       throw new Error('A customer with this name already exists')
     }
 
-    this.validateContact(data.phone, data.email)
+    this.validatePhone(data.phone)
 
     const existingPhone = data.phone?.trim()
     if (existingPhone && this.customerRepo.findByPhone(existingPhone)) {
@@ -87,7 +72,7 @@ export class CustomerService {
       }
     }
 
-    this.validateContact(data.phone, data.email)
+    this.validatePhone(data.phone)
 
     if (data.phone !== undefined) {
       const phone = data.phone?.trim()
@@ -102,14 +87,6 @@ export class CustomerService {
     return this.customerRepo.update(id, data)
   }
 
-  setActive(id: number, isActive: boolean): Customer {
-    const existing = this.customerRepo.findById(id)
-    if (!existing) {
-      throw new Error('Customer not found')
-    }
-    return this.customerRepo.update(id, { isActive: isActive ? 1 : 0 })
-  }
-
   delete(id: number): void {
     const existing = this.customerRepo.findById(id)
     if (!existing) {
@@ -122,7 +99,7 @@ export class CustomerService {
 
     if (ledgerCount > 0 || payments.length > 0 || invoices.length > 0) {
       throw new Error(
-        'Customer has account history (ledger, payments, or invoices). Deactivate them instead of deleting.'
+        'Customer has account history (ledger, payments, or invoices). They cannot be deleted.'
       )
     }
 
@@ -133,15 +110,7 @@ export class CustomerService {
     return this.customerRepo.count()
   }
 
-  countActive(): number {
-    return this.customerRepo.countActive()
-  }
-
-  private validateContact(phone?: string | null, email?: string | null): void {
-    if (email && !EMAIL_PATTERN.test(email.trim())) {
-      throw new Error('Invalid email format')
-    }
-
+  private validatePhone(phone?: string | null): void {
     if (phone) {
       const digits = (phone as string).replace(/\D/g, '')
       if (digits.length < 7 || digits.length > 15) {

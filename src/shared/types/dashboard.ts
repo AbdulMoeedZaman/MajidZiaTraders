@@ -15,7 +15,6 @@ export interface DashboardOverview {
   outstandingBalance: number
   totals: {
     customers: number
-    customersActive: number
     products: number
     productsLowStock: number
     productsOutOfStock: number

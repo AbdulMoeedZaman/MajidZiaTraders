@@ -1,6 +1,6 @@
 import { InventoryRepository } from '../repositories/inventory.repository'
 import { ProductRepository } from '../repositories/product.repository'
-import type { StockMovement, StockSummary, SetOpeningStockDTO } from '@shared/types/inventory'
+import type { StockMovement, StockMovementWithContext, StockSummary, SetOpeningStockDTO } from '@shared/types/inventory'
 
 export class InventoryService {
   private inventoryRepo = new InventoryRepository()
@@ -8,6 +8,10 @@ export class InventoryService {
 
   listMovements(productId: number): StockMovement[] {
     return this.inventoryRepo.findByProductId(productId)
+  }
+
+  listMovementsWithContext(productId: number): StockMovementWithContext[] {
+    return this.inventoryRepo.findMovementsWithContext(productId)
   }
 
   getById(id: number): StockMovement | null {

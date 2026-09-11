@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   PRODUCTS_UPDATE: 'products:update',
   PRODUCTS_SET_ACTIVE: 'products:set-active',
   PRODUCTS_DELETE: 'products:delete',
+  PRODUCTS_ADD_STOCK: 'products:add-stock',
   PRODUCTS_COUNT: 'products:count',
   PRODUCTS_COUNT_ACTIVE: 'products:count-active',
 
@@ -26,6 +27,7 @@ export const IPC_CHANNELS = {
   CATEGORIES_COUNT: 'categories:count',
 
   INVENTORY_LIST_MOVEMENTS: 'inventory:list-movements',
+  INVENTORY_LIST_MOVEMENTS_WITH_CONTEXT: 'inventory:list-movements-with-context',
   INVENTORY_GET_BY_ID: 'inventory:get-by-id',
   INVENTORY_CURRENT_QUANTITY: 'inventory:current-quantity',
   INVENTORY_CURRENT_QUANTITIES: 'inventory:current-quantities',
@@ -36,18 +38,14 @@ export const IPC_CHANNELS = {
   INVENTORY_SET_OPENING_STOCK: 'inventory:set-opening-stock',
 
   CUSTOMERS_LIST: 'customers:list',
-  CUSTOMERS_LIST_ACTIVE: 'customers:list-active',
-  CUSTOMERS_LIST_INACTIVE: 'customers:list-inactive',
   CUSTOMERS_LIST_WITH_BALANCE: 'customers:list-with-balance',
   CUSTOMERS_GET_BY_ID: 'customers:get-by-id',
   CUSTOMERS_GET_WITH_BALANCE: 'customers:get-with-balance',
   CUSTOMERS_SEARCH: 'customers:search',
   CUSTOMERS_CREATE: 'customers:create',
   CUSTOMERS_UPDATE: 'customers:update',
-  CUSTOMERS_SET_ACTIVE: 'customers:set-active',
   CUSTOMERS_DELETE: 'customers:delete',
   CUSTOMERS_COUNT: 'customers:count',
-  CUSTOMERS_COUNT_ACTIVE: 'customers:count-active',
 
   CUSTOMER_LEDGER_LIST_BY_CUSTOMER: 'customer-ledger:list-by-customer',
   CUSTOMER_LEDGER_LIST: 'customer-ledger:list',

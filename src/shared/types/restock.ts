@@ -62,6 +62,16 @@ export interface CreateRestockDTO {
   items: CreateRestockItemDTO[]
 }
 
+/** Minimal direct stock-in used by the product detail "Add Stock" action. */
+export interface AddStockDTO {
+  productId: number
+  quantity: number
+  /** Per-piece unit cost in minor units; when provided, updates the product's base cost. */
+  costPerUnit?: number
+  supplierName?: string
+  note?: string
+}
+
 export interface CreateRestockItemDTO {
   productId: number
   qtyCartons: number

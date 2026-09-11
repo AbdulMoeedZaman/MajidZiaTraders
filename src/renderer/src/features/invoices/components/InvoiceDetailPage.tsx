@@ -53,7 +53,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: InvoiceDetailPageProps)
 
   useEffect(() => {
     api.customers
-      .listWithBalance('active')
+      .listWithBalance()
       .then(setCustomers)
       .catch(() => setCustomers([]))
     api.businessProfile

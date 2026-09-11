@@ -129,20 +129,19 @@ describe('CSV', () => {
   })
 
   it('escapes formula-like cells so Excel will not run them', () => {
-    new CustomerService().create({ name: '=cmd|calc', notes: '+1+1', address: '@SUM(1)' })
-    const file = path.join(db.dir(), 'customers.csv')
+    new ProductService().create({ name: '=cmd|calc', sku: 'FORMULA1', unit: '+1+1' })
+    const file = path.join(db.dir(), 'products.csv')
     new CSVService().export({
-      entityType: 'customers',
+      entityType: 'products',
       filePath: file,
       delimiter: ',',
       encoding: 'utf8',
       includeHeaders: true,
-      columns: ['name', 'notes', 'address'],
+      columns: ['sku', 'name', 'unit'],
     })
     const body = fs.readFileSync(file, 'utf8')
     expect(body).toContain("'=cmd|calc")
     expect(body).toContain("'+1+1")
-    expect(body).toContain("'@SUM(1)")
     expect(body).not.toMatch(/(?:^|,)=cmd/m)
   })
 

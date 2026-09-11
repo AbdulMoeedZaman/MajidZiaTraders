@@ -1,5 +1,5 @@
 import { BaseRepository } from './base.repository'
-import type { StockMovement, RecordMovementDTO } from '@shared/types/inventory'
+import type { StockMovement, RecordMovementDTO, StockMovementWithContext } from '@shared/types/inventory'
 import type { StockMovementReportItem } from '@shared/types/report'
 
 export class InventoryRepository extends BaseRepository {
@@ -7,6 +7,23 @@ export class InventoryRepository extends BaseRepository {
     return this.db
       .prepare('SELECT * FROM stock_movements WHERE productId = ? ORDER BY id DESC')
       .all(productId) as StockMovement[]
+  }
+
+  findMovementsWithContext(productId: number): StockMovementWithContext[] {
+    return this.db
+      .prepare(
+        `SELECT m.*,
+                inv.invoiceNumber AS invoiceNumber,
+                cus.name AS customerName,
+                res.supplierName AS supplierName
+         FROM stock_movements m
+         LEFT JOIN invoices inv ON m.referenceType = 'invoice' AND inv.id = m.referenceId
+         LEFT JOIN customers cus ON cus.id = inv.customerId
+         LEFT JOIN restocks res ON m.referenceType = 'restock' AND res.id = m.referenceId
+         WHERE m.productId = ?
+         ORDER BY m.createdAt DESC, m.id DESC`
+      )
+      .all(productId) as StockMovementWithContext[]
   }
 
   findMovements(from?: string, to?: string): StockMovementReportItem[] {

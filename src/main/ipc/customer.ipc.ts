@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { CustomerService } from '../services/customer.service'
-import type { CreateCustomerDTO, UpdateCustomerDTO, CustomerStatusFilter } from '@shared/types/customer'
+import type { CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
 
 const customerService = new CustomerService()
 
@@ -9,16 +9,8 @@ export function registerCustomerIpc(): void {
     return customerService.list()
   })
 
-  ipcMain.handle('customers:list-active', () => {
-    return customerService.listActive()
-  })
-
-  ipcMain.handle('customers:list-inactive', () => {
-    return customerService.listInactive()
-  })
-
-  ipcMain.handle('customers:list-with-balance', (_, filter: CustomerStatusFilter = 'all') => {
-    return customerService.listWithBalances(filter)
+  ipcMain.handle('customers:list-with-balance', () => {
+    return customerService.listWithBalances()
   })
 
   ipcMain.handle('customers:get-by-id', (_, id: number) => {
@@ -29,8 +21,8 @@ export function registerCustomerIpc(): void {
     return customerService.getWithBalance(id)
   })
 
-  ipcMain.handle('customers:search', (_, query: string, status: CustomerStatusFilter = 'active') => {
-    return customerService.search(query, status)
+  ipcMain.handle('customers:search', (_, query: string) => {
+    return customerService.search(query)
   })
 
   ipcMain.handle('customers:create', (_, data: CreateCustomerDTO) => {
@@ -41,10 +33,6 @@ export function registerCustomerIpc(): void {
     return customerService.update(id, data)
   })
 
-  ipcMain.handle('customers:set-active', (_, id: number, isActive: boolean) => {
-    return customerService.setActive(id, isActive)
-  })
-
   ipcMain.handle('customers:delete', (_, id: number) => {
     customerService.delete(id)
     return { success: true }
@@ -52,9 +40,5 @@ export function registerCustomerIpc(): void {
 
   ipcMain.handle('customers:count', () => {
     return customerService.count()
-  })
-
-  ipcMain.handle('customers:count-active', () => {
-    return customerService.countActive()
   })
 }

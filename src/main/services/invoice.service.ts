@@ -85,9 +85,6 @@ export class InvoiceService {
     if (!customer) {
       throw new Error('Customer not found')
     }
-    if (customer.isActive !== 1) {
-      throw new Error(`Cannot create an invoice for inactive customer "${customer.name}"`)
-    }
 
     const items = this.buildItems(data.items)
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.actualSellingPrice, 0)

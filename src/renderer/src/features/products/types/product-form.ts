@@ -7,14 +7,10 @@ export type ProductFormMode = 'create' | 'edit'
 export interface ProductFormState {
   sku: string
   name: string
-  description: string
   categoryId: string
   unit: string
   piecesPerCarton: string
-  packSize: string
-  packConfig: string
   mrp: string
-  purchaseUnit: string
   baseCostPrice: string
   minSellingPrice: string
   sellingPrice: string
@@ -25,14 +21,10 @@ export function toProductFormState(product: Product | null): ProductFormState {
   return {
     sku: product?.sku ?? '',
     name: product?.name ?? '',
-    description: product?.description ?? '',
     categoryId: product?.categoryId != null ? String(product.categoryId) : '',
     unit: product?.unit ?? 'piece',
     piecesPerCarton: product?.piecesPerCarton != null ? String(product.piecesPerCarton) : '1',
-    packSize: product?.packSize ?? '',
-    packConfig: product?.packConfig ?? '',
     mrp: product?.mrp != null ? String(product.mrp / 100) : '',
-    purchaseUnit: product?.purchaseUnit ?? 'carton',
     baseCostPrice: product?.baseCostPrice != null ? String(product.baseCostPrice / 100) : '0',
     minSellingPrice: product?.minSellingPrice != null ? String(product.minSellingPrice / 100) : '0',
     sellingPrice: product?.sellingPrice != null ? String(product.sellingPrice / 100) : '0',
@@ -43,12 +35,8 @@ export function toProductFormState(product: Product | null): ProductFormState {
 export function fromProductFormState(state: ProductFormState, mode: ProductFormMode) {
   const payload: Record<string, unknown> = {
     name: state.name.trim(),
-    description: state.description.trim(),
     unit: state.unit.trim(),
     piecesPerCarton: Math.max(1, parseInt(state.piecesPerCarton || '1', 10) || 1),
-    packSize: state.packSize.trim() || null,
-    packConfig: state.packConfig.trim() || null,
-    purchaseUnit: state.purchaseUnit.trim() || 'carton',
     baseCostPrice: Math.round(parseFloat(state.baseCostPrice || '0') * 100),
     minSellingPrice: Math.round(parseFloat(state.minSellingPrice || '0') * 100),
     sellingPrice: Math.round(parseFloat(state.sellingPrice || '0') * 100),

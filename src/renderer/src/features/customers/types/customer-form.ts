@@ -6,18 +6,12 @@ export type CustomerFormMode = 'create' | 'edit'
 export interface CustomerFormState {
   name: string
   phone: string
-  email: string
-  address: string
-  notes: string
 }
 
 export function toCustomerFormState(customer: Customer | null): CustomerFormState {
   return {
     name: customer?.name ?? '',
     phone: customer?.phone ?? '',
-    email: customer?.email ?? '',
-    address: customer?.address ?? '',
-    notes: customer?.notes ?? '',
   }
 }
 
@@ -25,9 +19,6 @@ export function fromCustomerFormState(state: CustomerFormState): CreateCustomerD
   return {
     name: state.name.trim(),
     phone: state.phone.trim() || null,
-    email: state.email.trim() || null,
-    address: state.address.trim() || null,
-    notes: state.notes.trim() || null,
   }
 }
 
