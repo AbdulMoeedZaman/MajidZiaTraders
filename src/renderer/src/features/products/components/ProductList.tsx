@@ -21,6 +21,7 @@ export function ProductList({ onOpen }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [importMessage, setImportMessage] = useState<string | null>(null)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -62,6 +63,23 @@ export function ProductList({ onOpen }: Props) {
     window.setTimeout(() => setSuccess(null), 3000)
   }
 
+  const handleImportCsv = async () => {
+    setFormError(null)
+    setImportMessage(null)
+    try {
+      const pick = await api.dialogs.openCsv()
+      if (pick.canceled || !pick.path) return
+      const result = await api.products.importCsv(pick.path)
+      const parts = [`Imported ${result.created} product${result.created === 1 ? '' : 's'}`]
+      if (result.skippedDuplicate > 0) parts.push(`${result.skippedDuplicate} skipped (already exist)`)
+      if (result.skippedInvalid > 0) parts.push(`${result.skippedInvalid} skipped (invalid rows)`)
+      setImportMessage(parts.join(' · '))
+      await reload()
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to import CSV')
+    }
+  }
+
   if (loading) return <div className="placeholder"><h3>Loading products…</h3></div>
   if (error) return <div className="error-screen">{error}</div>
 
@@ -88,13 +106,17 @@ export function ProductList({ onOpen }: Props) {
         <button className="btn ghost" onClick={() => setShowInventory(true)}>
           Inventory
         </button>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>
+        <button className="btn ghost" onClick={() => setShowAdd(true)}>
           + Add Product
+        </button>
+        <button className="btn ghost" onClick={() => void handleImportCsv()}>
+          Import CSV…
         </button>
       </div>
 
       {formError && <div className="form-error">{formError}</div>}
       {success && <div className="form-success">{success}</div>}
+      {importMessage && <div className="text-ok fine-text">{importMessage}</div>}
 
       {visible.length === 0 ? (
         <div className="empty-state">

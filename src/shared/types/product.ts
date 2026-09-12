@@ -20,3 +20,11 @@ export interface UpdateProductDTO {
   rate?: number
   boxesPerCarton?: number
 }
+
+export interface ProductImportResult {
+  file: string
+  created: number
+  skippedDuplicate: number
+  skippedInvalid: number
+  products: Product[]
+}

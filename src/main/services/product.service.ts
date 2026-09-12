@@ -1,5 +1,6 @@
+import fs from 'fs'
 import { ProductRepository } from '../repositories/product.repository'
-import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
+import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 
 const MONEY_LABEL = 'Rate'
 const COUNT_LABEL = 'Boxes per carton'
@@ -63,14 +64,71 @@ export class ProductService {
     if (this.productRepo.countInvoiceReferences(id) > 0) {
       throw new Error('Cannot delete a product that appears on an invoice')
     }
-    if (this.productRepo.countStockLedger(id) > 0) {
-      throw new Error('Cannot delete a product that has stock ledger entries')
-    }
     this.productRepo.delete(id)
   }
 
   count(): number {
     return this.productRepo.count()
+  }
+
+  /**
+   * Imports products from a CSV of a sales order. Reads the Description and
+   * "Retail Price per carton Exclusive of Sales Tax" columns; Boxes per carton is
+   * taken from the second number in a "NxM" pattern inside the description (e.g.
+   * "6x18" → 18), defaulting to 1. Creating products never touches the stock
+   * ledger. Rows duplicating an existing product name are skipped and reported.
+   */
+  importFromCsv(filePath: string): ProductImportResult {
+    const text = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
+    const rows = parseCsv(text)
+    if (rows.length < 2) {
+      throw new Error('CSV has no data rows')
+    }
+
+    const header = rows[0]
+    const nameIdx = header.findIndex((h) => h.trim() === 'Description')
+    const priceIdx = header.findIndex((h) => h.trim() === 'Retail Price per carton Exclusive of Sales Tax')
+
+    const result: ProductImportResult = {
+      file: filePath,
+      created: 0,
+      skippedDuplicate: 0,
+      skippedInvalid: 0,
+      products: [],
+    }
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (row.length === 0 || (row.length === 1 && row[0].trim() === '')) continue
+
+      if (nameIdx < 0 || priceIdx < 0) {
+        result.skippedInvalid++
+        continue
+      }
+      const name = row[nameIdx]?.trim() ?? ''
+      if (!name) {
+        result.skippedInvalid++
+        continue
+      }
+      const rawPrice = row[priceIdx]?.trim() ?? ''
+      const rate = Math.round(parseFloat(rawPrice) * 100)
+      if (!Number.isFinite(rate) || rate < 0) {
+        result.skippedInvalid++
+        continue
+      }
+
+      if (this.productRepo.findByName(name)) {
+        result.skippedDuplicate++
+        continue
+      }
+
+      const boxesPerCarton = parseBoxesPerCarton(name)
+      const product = this.productRepo.create({ name, rate, boxesPerCarton } satisfies CreateProductDTO)
+      result.created++
+      result.products.push(product)
+    }
+
+    return result
   }
 
   private assertMoneyField(value: number, label: string): void {
@@ -84,4 +142,51 @@ export class ProductService {
       throw new Error(`${label} must be a whole number of at least 1`)
     }
   }
+}
+
+/** Splits CSV text into rows of fields, honouring double-quoted fields and CRLF. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        field += c
+      }
+    } else if (c === '"') {
+      inQuotes = true
+    } else if (c === ',') {
+      row.push(field)
+      field = ''
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++
+      row.push(field)
+      field = ''
+      if (row.length > 1 || row[0]?.trim() !== '') rows.push(row)
+      row = []
+    } else {
+      field += c
+    }
+  }
+  row.push(field)
+  if (row.length > 1 || row[0]?.trim() !== '') rows.push(row)
+  return rows
+}
+
+/** Reads "NxM" in a product description and returns M (the boxes per carton), else 1. */
+function parseBoxesPerCarton(name: string): number {
+  const match = /(\d+)[xX](\d+)/.exec(name)
+  if (!match) return 1
+  const boxes = parseInt(match[2], 10)
+  return Number.isInteger(boxes) && boxes >= 1 ? boxes : 1
 }

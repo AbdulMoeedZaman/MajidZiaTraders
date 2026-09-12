@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { StockService } from '../../src/main/services/stock.service'
 import { InvoiceService } from '../../src/main/services/invoice.service'
+import { ProductService } from '../../src/main/services/product.service'
 import { useTestDatabase, seedBasics } from './helpers'
 import { localDate } from '../../src/shared/date'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
@@ -81,6 +82,18 @@ describe('StockService', () => {
     expect(stock.list()).toHaveLength(1)
 
     invoice.delete(created.id)
+    expect(stock.list()).toHaveLength(0)
+  })
+
+  it('deleting a product also removes its stock ledger entries', () => {
+    const stock = new StockService()
+    const products = new ProductService()
+    const seed = seedBasics()
+
+    stock.restock({ productId: seed.product.id, quantity: 30 })
+    expect(stock.list()).toHaveLength(1)
+
+    expect(() => products.delete(seed.product.id)).not.toThrow()
     expect(stock.list()).toHaveLength(0)
   })
 })

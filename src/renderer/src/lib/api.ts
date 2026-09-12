@@ -1,7 +1,7 @@
 import type { ProjectOwner, CreateProjectOwnerDTO, UpdateProjectOwnerDTO } from '@shared/types/project-owner'
 import type { Broker, CreateBrokerDTO, UpdateBrokerDTO } from '@shared/types/broker'
 import type { Route, RouteWithCount } from '@shared/types/route'
-import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
+import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
 import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
@@ -54,6 +54,7 @@ export const api = {
     update: (id: number, data: UpdateProductDTO) => ipc<Product>('products:update', id, data),
     delete: (id: number) => ipc<{ success: boolean }>('products:delete', id),
     count: () => ipc<number>('products:count'),
+    importCsv: (filePath: string) => ipc<ProductImportResult>('products:import-csv', filePath),
   },
 
   customers: {
@@ -100,6 +101,7 @@ export const api = {
   dialogs: {
     saveBackup: () => ipc<DialogResult>('dialog:save-backup'),
     openBackup: () => ipc<DialogResult>('dialog:open-backup'),
+    openCsv: () => ipc<DialogResult>('dialog:open-csv'),
   },
 
   backup: {

@@ -24,6 +24,8 @@ export const IPC_CHANNELS = {
   PRODUCTS_UPDATE: 'products:update',
   PRODUCTS_DELETE: 'products:delete',
   PRODUCTS_COUNT: 'products:count',
+  PRODUCTS_IMPORT_CSV: 'products:import-csv',
+  DIALOG_OPEN_CSV: 'dialog:open-csv',
 
   CUSTOMERS_LIST: 'customers:list',
   CUSTOMERS_LIST_BY_ROUTE: 'customers:list-by-route',

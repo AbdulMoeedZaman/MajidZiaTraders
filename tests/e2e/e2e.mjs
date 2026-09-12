@@ -171,6 +171,28 @@ try {
   const gauge = must(await inv('products:list'), 'products').find((p) => p.name === 'GAUGE 2026')
   check('UI-3', 'Creating a product through the UI form stores it (rate 150 cents), 12/carton', gaugeRow && gauge?.rate === 150 && gauge.boxesPerCarton === 12, { id: gauge?.id, rate: gauge?.rate, boxesPerCarton: gauge?.boxesPerCarton })
 
+  // =============== UI-3b: CSV product import (no stock changes) ===============
+  const importBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Import CSV…')`)
+  const csvPath = path.join(TESTDIR, 'import-products.csv')
+  fs.writeFileSync(csvPath, [
+    'Description,Retail Price per carton Exclusive of Sales Tax,Total Retail Value',
+    'Irn Bru New 6x18 Rs.50,1000.50,6003',
+    'Prince New 1x48 Rs.100,2000,2000',
+    'Irn Bru New 6x18 Rs.50,9999,59994',
+    'Broken Rate,X,1',
+    ',100,1',
+  ].join('\n'), 'utf8')
+  const imp = must(await inv('products:import-csv', csvPath), 'import csv')
+  const stockBeforeImport = must(await inv('stock:list'), 'stock before import')
+  const stockAfterImport = must(await inv('stock:list'), 'stock after import')
+  const impProduct = imp.products.find((p) => p.name === 'Irn Bru New 6x18 Rs.50')
+  const impTouchedStock = stockAfterImport.some((m) => ['Irn Bru New 6x18 Rs.50', 'Prince New 1x48 Rs.100'].includes(m.productName))
+  check('UI-3b', 'Import CSV creates products (rate in cents, boxes from NxM, duplicates/invalid skipped) without stock movements',
+    importBtn && imp.created === 2 && imp.skippedDuplicate === 1 && imp.skippedInvalid === 2 &&
+    impProduct?.rate === 100050 && impProduct.boxesPerCarton === 18 &&
+    stockBeforeImport.length === stockAfterImport.length && !impTouchedStock,
+    { importBtn, imp: { created: imp.created, skippedDuplicate: imp.skippedDuplicate, skippedInvalid: imp.skippedInvalid } })
+
   // =============== UI-4: create a customer through the UI form (route tabs) ===============
   await nav('Customers'); await wait(900)
   const mondayTab = await ev(`[...document.querySelectorAll('.route-tabs button')].some((b)=>b.innerText.includes('Monday'))`)

@@ -59,12 +59,4 @@ export class ProductRepository extends BaseRepository {
       .get(productId) as { count: number }
     return result.count
   }
-
-  /** Rows in the (future) stock ledger for this product (blocks deletion). */
-  countStockLedger(productId: number): number {
-    const result = this.db
-      .prepare('SELECT COUNT(*) AS count FROM stock_movements WHERE productId = ?')
-      .get(productId) as { count: number }
-    return result.count
-  }
 }
