@@ -13,10 +13,13 @@ function printDate(iso: string): string {
 }
 
 function printMoney(cents: number | null | undefined): string {
-  return ((cents ?? 0) / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+  return (
+    '₹' +
+    ((cents ?? 0) / 100).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  )
 }
 
 export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
@@ -160,6 +163,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
         </table>
 
         <div className="ip-totals">
+          <div className="ip-currency-note">All amounts in Indian Rupees (₹)</div>
           <div className="ip-totals-row">
             <span>Remaining amount</span>
             <strong>{printMoney(invoice.remaining)}</strong>

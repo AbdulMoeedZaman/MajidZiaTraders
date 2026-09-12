@@ -133,4 +133,48 @@ describe('InvoiceService', () => {
     ).toThrow(/Set up the project owner/)
     expect(service.count()).toBe(0)
   })
+
+  it('builds a load form report aggregating products and customer totals', () => {
+    const service = new InvoiceService()
+    const seed = seedBasics()
+    const secondCustomer = new CustomerService().create({
+      code: 'C-002',
+      shopName: 'Emerald Parts',
+      ownerName: 'Imran',
+      routeId: routeIdFor('Tuesday'),
+    })
+
+    const first = service.create(invoiceInput(seed))
+    const second = service.create({
+      customerId: secondCustomer.id,
+      brokerId: seed.brokerId,
+      date: '2026-09-11',
+      filerStatus: 'non_filer',
+      remaining: null,
+      tax: null,
+      grandTotal: 1500,
+      items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
+    })
+
+    const report = service.buildLoadReport([first.id, second.id])
+
+    expect(report.invoiceNumbers).toEqual(['INV-000001', 'INV-000002'])
+    expect(report.products).toHaveLength(1)
+    expect(report.products[0].productName).toBe('Widget 1')
+    expect(report.products[0].cartonCount).toBe(2)
+    expect(report.products[0].boxCount).toBe(5)
+    expect(report.products[0].totalQuantity).toBe(7)
+
+    expect(report.customers).toHaveLength(2)
+    const c1 = report.customers.find((c) => c.customerName === 'Bilal Auto Shop')
+    const c2 = report.customers.find((c) => c.customerName === 'Emerald Parts')
+    expect(c1?.amount).toBe(1000)
+    expect(c2?.amount).toBe(1500)
+    expect(report.grandTotal).toBe(2500)
+  })
+
+  it('rejects an empty invoice selection for a load form', () => {
+    const service = new InvoiceService()
+    expect(() => service.buildLoadReport([])).toThrow(/at least one/)
+  })
 })

@@ -15,6 +15,9 @@ import type {
   CreateInvoiceDTO,
   CreateInvoiceItemDTO,
   FilerStatus,
+  LoadFormSummary,
+  LoadFormProductLine,
+  LoadFormCustomerLine,
 } from '@shared/types/invoice'
 
 const FILER_STATUSES: FilerStatus[] = ['filer', 'non_filer']
@@ -95,6 +98,70 @@ export class InvoiceService {
     // Future phase: refuse to delete when the invoice has payments or stock-linked
     // movements against it. For now the invoice is deleted outright (items cascade).
     this.invoiceRepo.delete(id)
+  }
+
+  /**
+   * Aggregates a set of invoices into the data behind a printable load form:
+   * every distinct product (with combined quantities) and every customer
+   * (with the sum of their invoice amounts), plus the overall grand total.
+   */
+  buildLoadReport(invoiceIds: number[]): LoadFormSummary {
+    const ids = [...new Set(invoiceIds ?? [])]
+    if (ids.length === 0) {
+      throw new Error('Select at least one invoice for the load form')
+    }
+
+    const productMap = new Map<number, LoadFormProductLine>()
+    const customerMap = new Map<number, LoadFormCustomerLine>()
+    const invoiceNumbers: string[] = []
+
+    for (const id of ids) {
+      const invoice = this.invoiceRepo.findByIdWithCustomer(id)
+      if (!invoice) {
+        throw new Error('Invoice not found')
+      }
+      invoiceNumbers.push(invoice.invoiceNumber)
+
+      const amount = invoice.grandTotal ?? invoice.subtotal
+      const customerLine = customerMap.get(invoice.customerId)
+      if (customerLine) {
+        customerLine.amount += amount
+      } else {
+        customerMap.set(invoice.customerId, {
+          customerId: invoice.customerId,
+          customerName: invoice.customerName,
+          amount,
+        })
+      }
+
+      const items = this.invoiceRepo.getItems(id)
+      for (const item of items) {
+        const line = productMap.get(item.productId)
+        if (line) {
+          line.cartonCount += item.cartonCount
+          line.boxCount += item.boxCount
+          line.totalQuantity += item.cartonCount + item.boxCount
+        } else {
+          productMap.set(item.productId, {
+            productId: item.productId,
+            productName: item.productName,
+            cartonCount: item.cartonCount,
+            boxCount: item.boxCount,
+            totalQuantity: item.cartonCount + item.boxCount,
+          })
+        }
+      }
+    }
+
+    const products = [...productMap.values()].sort((a, b) =>
+      a.productName.localeCompare(b.productName)
+    )
+    const customers = [...customerMap.values()].sort((a, b) =>
+      a.customerName.localeCompare(b.customerName)
+    )
+    const grandTotal = customers.reduce((sum, c) => sum + c.amount, 0)
+
+    return { invoiceNumbers, products, customers, grandTotal }
   }
 
   count(): number {

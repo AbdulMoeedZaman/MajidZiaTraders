@@ -80,3 +80,31 @@ export interface InvoiceDetails {
   owner: ProjectOwner | null
   broker: Broker | null
 }
+
+/** A product line aggregated across the invoices in a load form. */
+export interface LoadFormProductLine {
+  productId: number
+  productName: string
+  /** Combined carton count across all selected invoices. */
+  cartonCount: number
+  /** Combined loose-box count across all selected invoices. */
+  boxCount: number
+  /** cartonCount + boxCount. */
+  totalQuantity: number
+}
+
+/** A customer aggregated across the invoices in a load form. */
+export interface LoadFormCustomerLine {
+  customerId: number
+  customerName: string
+  /** Sum of that customer's invoice amounts (grand total, else subtotal) in minor units. */
+  amount: number
+}
+
+/** Aggregate used by the printable load form report. */
+export interface LoadFormSummary {
+  invoiceNumbers: string[]
+  products: LoadFormProductLine[]
+  customers: LoadFormCustomerLine[]
+  grandTotal: number
+}

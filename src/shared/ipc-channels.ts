@@ -38,6 +38,7 @@ export const IPC_CHANNELS = {
   INVOICES_GET_WITH_DETAILS: 'invoices:get-with-details',
   INVOICES_LIST_BY_CUSTOMER: 'invoices:list-by-customer',
   INVOICES_CREATE: 'invoices:create',
+  INVOICES_BUILD_LOAD_FORM: 'invoices:build-load-form',
   INVOICES_DELETE: 'invoices:delete',
   INVOICES_COUNT: 'invoices:count',
 

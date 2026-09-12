@@ -160,7 +160,7 @@ try {
   await clickBtn('+ Add Product'); await wait(700)
   await ev(`(()=>{
     const set=(name,val)=>{const i=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}};
-    set('Product name','GAUGE 2026'); set('Minimum rate (Rs.)','1.50'); set('Boxes per carton','12'); return true
+    set('Product name','GAUGE 2026'); set('Minimum rate (₹)','1.50'); set('Boxes per carton','12'); return true
   })()`)
   await clickBtn('Save'); await wait(1200)
   const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE 2026'))`)
@@ -208,7 +208,7 @@ try {
     const sel=(name,val)=>{const s=[...document.querySelectorAll('label.field select')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!s) return false; Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(s,String(val)); s.dispatchEvent(new Event('change',{bubbles:true})); return true};
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
     sel('Customer', ${C1.id}); sel('Booker', ${brokerId}); sel('Product', ${gauge.id});
-    num('Rate (Rs.)','2.00'); num('Carton no.','3'); return true
+    num('Rate (₹)','2.00'); num('Carton no.','3'); return true
   })()`)
   await wait(400)
   const lineAmountShown = await ev(`[...document.querySelectorAll('.invoice-line .line-total strong')].map((n)=>n.textContent.trim()).join('|')`)
@@ -229,9 +229,45 @@ try {
   check('UI-5', 'Invoicing through the UI lands on the printable sheet with owner band, booker, scheme column, signature and description',
     detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasSchemeCol && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, schemeColumn: hasSchemeCol, signature: hasSignature, description: hasDescription })
-  check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, and "Status" (not "Filer status")',
-    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel,
-    { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel })
+  check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
+    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('₹') && sheetText.includes('All amounts in Indian Rupees (₹)'),
+    { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('₹') })
+
+  // =============== UI-7: load form selection + printable report ===============
+  await nav('Invoices'); await wait(900)
+  const loadBtnShown = await clickBtn('Load form'); await wait(400)
+  const checkboxesShown = await ev(`document.querySelectorAll('.data-table .select-col input[type="checkbox"]').length`)
+  await clickBtn('Cancel'); await wait(400)
+  const boxesAfterCancel = await ev(`document.querySelectorAll('.data-table .select-col input[type="checkbox"]').length`)
+  await clickBtn('Load form'); await wait(400)
+  const enabledBefore = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Create Load Form' && !b.disabled)`)
+  await ev(`(()=>{
+    const rows=[...document.querySelectorAll('tbody tr')];
+    const invRow=(n)=>rows.find((r)=>r.textContent.includes(n));
+    invRow('INV-000001')?.querySelector('.select-col input').click();
+    invRow('INV-000002')?.querySelector('.select-col input').click();
+    return !!(invRow('INV-000001') && invRow('INV-000002'))
+  })()`)
+  await wait(200)
+  const enabledAfter = await ev(`[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='Create Load Form')?.disabled === false`)
+  await clickBtn('Create Load Form'); await wait(1200)
+  const lfText = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
+  const lfHasProducts = lfText.includes('Products') && lfText.includes('Axle Bearing 6204')
+  const lfHasCustomers = lfText.includes('Customers')
+  const lfGrandTotal = await ev(`document.querySelector('.invoice-sheet tfoot')?.innerText.trim() ?? ''`)
+  const lfCoversInvoices = lfText.includes('INV-000001') && lfText.includes('INV-000002')
+  check('UI-7', 'Load form: checkboxes select invoices and the printable report aggregates products + customers + grand total',
+    loadBtnShown && checkboxesShown >= 2 && boxesAfterCancel === 0 && !enabledBefore && enabledAfter && lfHasProducts && lfHasCustomers && /Grand total.*₹/.test(lfGrandTotal) && lfCoversInvoices,
+    { loadButton: loadBtnShown, checkboxCount: checkboxesShown, afterCancel: boxesAfterCancel, disabledBeforeSelection: !enabledBefore, enabledAfterSelection: enabledAfter, products: lfHasProducts, customers: lfHasCustomers, grandTotal: lfGrandTotal, invoiceNumbers: lfCoversInvoices })
+  const lfData = must(await inv('invoices:build-load-form', [I1.id, I2.id]), 'load form data')
+  check('UI-7b', 'Load form IPC aggregates quantities and rupee customer totals for the same invoices',
+    lfData.products.length === 2 && lfData.grandTotal === 362500 &&
+    lfData.products.find((p) => p.productName === 'Axle Bearing 6204').cartonCount === 2 &&
+    lfData.products.find((p) => p.productName === 'Axle Bearing 6204').boxCount === 5,
+    { products: lfData.products, customers: lfData.customers, grandTotal: lfData.grandTotal })
+  await clickBtn('Back to Invoices'); await wait(500)
+  const backToList = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='+ New Invoice')`)
+  check('UI-7c', 'Load form report can be closed back to the invoice list', backToList, { backToList })
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)

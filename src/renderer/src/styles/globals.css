@@ -351,6 +351,20 @@ body {
   text-align: right;
 }
 
+.data-table .select-col {
+  width: 44px;
+  text-align: center;
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+.data-table .select-col input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
@@ -1566,6 +1580,13 @@ body {
   max-width: 320px;
   margin-left: auto;
   margin-top: 14px;
+}
+
+.invoice-sheet .ip-currency-note {
+  font-size: 12px;
+  color: #333;
+  text-align: right;
+  margin-bottom: 8px;
 }
 
 .invoice-sheet .ip-totals-row {

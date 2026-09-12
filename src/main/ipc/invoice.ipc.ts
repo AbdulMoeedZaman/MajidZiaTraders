@@ -12,6 +12,9 @@ export function registerInvoiceIpc(): void {
     invoiceService.listByCustomer(customerId)
   )
   ipcMain.handle('invoices:create', (_, data: CreateInvoiceDTO) => invoiceService.create(data))
+  ipcMain.handle('invoices:build-load-form', (_event, invoiceIds: number[]) =>
+    invoiceService.buildLoadReport(invoiceIds)
+  )
   ipcMain.handle('invoices:delete', (_, id: number) => {
     invoiceService.delete(id)
     return { success: true }

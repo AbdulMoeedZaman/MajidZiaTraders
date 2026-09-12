@@ -3,7 +3,7 @@ import type { Broker, CreateBrokerDTO, UpdateBrokerDTO } from '@shared/types/bro
 import type { Route, RouteWithCount } from '@shared/types/route'
 import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
 import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
-import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO } from '@shared/types/invoice'
+import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 
 declare global {
@@ -71,6 +71,7 @@ export const api = {
     listByCustomer: (customerId: number) =>
       ipc<InvoiceWithCustomer[]>('invoices:list-by-customer', customerId),
     create: (data: CreateInvoiceDTO) => ipc<Invoice>('invoices:create', data),
+    buildLoadForm: (invoiceIds: number[]) => ipc<LoadFormSummary>('invoices:build-load-form', invoiceIds),
     delete: (id: number) => ipc<{ success: boolean }>('invoices:delete', id),
     count: () => ipc<number>('invoices:count'),
   },
