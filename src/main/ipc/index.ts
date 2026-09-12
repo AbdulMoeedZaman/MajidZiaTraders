@@ -1,5 +1,4 @@
 import { registerProductIpc } from './product.ipc'
-import { registerCategoryIpc } from './category.ipc'
 import { registerInventoryIpc } from './inventory.ipc'
 import { registerCustomerIpc } from './customer.ipc'
 import { registerCustomerLedgerIpc } from './customer-ledger.ipc'
@@ -15,7 +14,6 @@ import { registerDialogIpc } from './dialog.ipc'
 
 export function registerAllIpc(): void {
   registerProductIpc()
-  registerCategoryIpc()
   registerInventoryIpc()
   registerCustomerIpc()
   registerCustomerLedgerIpc()

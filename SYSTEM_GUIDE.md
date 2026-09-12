@@ -1,4 +1,4 @@
-# MajidZiaTraders — System Guide
+# MZTraders — System Guide
 
 Technical documentation for developers: how the app is put together, how data flows
 through it, and the rules the code enforces. For end-user instructions see
@@ -29,7 +29,7 @@ are in [`PRODUCT_STRUCTURE_PLAN.md`](./PRODUCT_STRUCTURE_PLAN.md).
 
 ## 1. What the system is
 
-**MajidZiaTraders** is an offline desktop app for small wholesale/trading businesses. It
+**MZTraders** is an offline desktop app for small wholesale/trading businesses. It
 does four connected jobs in one place:
 
 - **Stock control** — a product catalogue plus a total-audit-trail stock system. Every

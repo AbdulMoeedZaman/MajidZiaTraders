@@ -220,6 +220,12 @@ body {
   font-size: 14px;
 }
 
+.icon-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .btn.small {
   padding: 5px 10px;
   font-size: 12px;
@@ -1070,15 +1076,4 @@ body {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-}
-
-/* Category manager (Products → Categories) */
-.category-manager .add-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.category-manager .add-row input {
-  flex: 1;
 }

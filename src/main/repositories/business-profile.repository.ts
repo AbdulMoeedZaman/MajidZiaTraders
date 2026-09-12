@@ -21,7 +21,7 @@ export class BusinessProfileRepository extends BaseRepository {
         data.city ?? null,
         data.country ?? null,
         data.logoPath ?? null,
-        data.currency ?? 'USD',
+        data.currency ?? 'PKR',
         data.invoiceFooter ?? null,
         data.invoicePrefix ?? 'INV-',
         data.invoiceNextNumber ?? 1

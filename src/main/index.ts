@@ -4,7 +4,7 @@ import { getDatabase, closeDatabase } from './database/connection'
 import { InvoiceRepository } from './repositories/invoice.repository'
 import { registerAllIpc } from './ipc'
 
-app.setName('MajidZiaTraders')
+app.setName('MZTraders')
 
 function isSameAppOrigin(target: string, current: string): boolean {
   try {
@@ -23,7 +23,7 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: 'MajidZiaTraders',
+    title: 'MZTraders',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),

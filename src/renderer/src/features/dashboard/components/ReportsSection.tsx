@@ -177,7 +177,6 @@ function InventoryTab({ data }: { data: NonNullable<ReturnType<typeof useReports
         cards={[
           { label: 'Products', value: String(data.totalProducts) },
           { label: 'Stock value (cost)', value: formatMoney(data.totalValue) },
-          { label: 'Low stock', value: String(data.lowStockCount) },
         ]}
       />
       <table className="data-table">

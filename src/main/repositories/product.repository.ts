@@ -6,14 +6,6 @@ export class ProductRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM products ORDER BY name').all() as Product[]
   }
 
-  findActive(): Product[] {
-    return this.db.prepare('SELECT * FROM products WHERE isActive = 1 ORDER BY name').all() as Product[]
-  }
-
-  findInactive(): Product[] {
-    return this.db.prepare('SELECT * FROM products WHERE isActive = 0 ORDER BY name').all() as Product[]
-  }
-
   findById(id: number): Product | null {
     return this.db.prepare('SELECT * FROM products WHERE id = ?').get(id) as Product | null
   }
@@ -26,37 +18,24 @@ export class ProductRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM products WHERE sku = ? AND id != ?').get(sku, excludeId) as Product | null
   }
 
-  findByCategoryId(categoryId: number): Product[] {
-    return this.db.prepare('SELECT * FROM products WHERE categoryId = ? AND isActive = 1 ORDER BY name').all(categoryId) as Product[]
-  }
-
-  findByCategoryIdAll(categoryId: number): Product[] {
-    return this.db.prepare('SELECT * FROM products WHERE categoryId = ? ORDER BY name').all(categoryId) as Product[]
-  }
-
   search(query: string): Product[] {
     return this.db
-      .prepare('SELECT * FROM products WHERE (name LIKE ? OR sku LIKE ?) AND isActive = 1 ORDER BY name')
+      .prepare('SELECT * FROM products WHERE (name LIKE ? OR sku LIKE ?) ORDER BY name')
       .all(`%${query}%`, `%${query}%`) as Product[]
   }
 
   create(data: CreateProductDTO): Product {
     const result = this.db
       .prepare(
-        `INSERT INTO products (sku, name, categoryId, unit, piecesPerCarton, mrp, baseCostPrice, minSellingPrice, sellingPrice, reorderLevel)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO products (sku, name, piecesPerCarton, minSellingPrice, sellingPrice)
+         VALUES (?, ?, ?, ?, ?)`
       )
       .run(
         data.sku,
         data.name,
-        data.categoryId ?? null,
-        data.unit ?? 'piece',
         data.piecesPerCarton ?? 1,
-        data.mrp ?? null,
-        data.baseCostPrice ?? 0,
         data.minSellingPrice ?? 0,
-        data.sellingPrice ?? 0,
-        data.reorderLevel ?? 0
+        data.sellingPrice ?? 0
       )
 
     return this.findById(result.lastInsertRowid as number)!
@@ -68,15 +47,9 @@ export class ProductRepository extends BaseRepository {
 
     if (data.sku !== undefined) { fields.push('sku = ?'); values.push(data.sku) }
     if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name) }
-    if (data.categoryId !== undefined) { fields.push('categoryId = ?'); values.push(data.categoryId) }
-    if (data.unit !== undefined) { fields.push('unit = ?'); values.push(data.unit) }
     if (data.piecesPerCarton !== undefined) { fields.push('piecesPerCarton = ?'); values.push(data.piecesPerCarton) }
-    if (data.mrp !== undefined) { fields.push('mrp = ?'); values.push(data.mrp) }
-    if (data.baseCostPrice !== undefined) { fields.push('baseCostPrice = ?'); values.push(data.baseCostPrice) }
     if (data.minSellingPrice !== undefined) { fields.push('minSellingPrice = ?'); values.push(data.minSellingPrice) }
     if (data.sellingPrice !== undefined) { fields.push('sellingPrice = ?'); values.push(data.sellingPrice) }
-    if (data.reorderLevel !== undefined) { fields.push('reorderLevel = ?'); values.push(data.reorderLevel) }
-    if (data.isActive !== undefined) { fields.push('isActive = ?'); values.push(data.isActive) }
 
     if (fields.length === 0) return this.findById(id)!
 
@@ -93,9 +66,5 @@ export class ProductRepository extends BaseRepository {
 
   count(): number {
     return (this.db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }).count
-  }
-
-  countActive(): number {
-    return (this.db.prepare('SELECT COUNT(*) as count FROM products WHERE isActive = 1').get() as { count: number }).count
   }
 }

@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import type { ProductWithStock } from '@shared/types/inventory'
 import type { Product } from '@shared/types/product'
-import { useProducts, CatalogFilter } from '../hooks/useProducts'
-import { useCategories } from '../hooks/useCategories'
+import { useProducts } from '../hooks/useProducts'
 import { ProductForm } from './ProductForm'
 import { ProductDetail } from './ProductDetail'
 import { AddStockModal } from './AddStockModal'
 import { StockHistoryModal } from './StockHistoryModal'
-import { CategoryManager } from './CategoryManager'
 import { formatMoney } from '../../../lib/format'
 import { ProductFormMode } from '../types/product-form'
 
@@ -17,21 +15,15 @@ export function ProductList() {
     visible,
     loading,
     error,
-    filter,
-    setFilter,
     query,
     setQuery,
     createProduct,
     updateProduct,
-    setProductActive,
     deleteProduct,
     addStock,
   } = useProducts()
-  const { categories, categoryName, createCategory, renameCategory, setCategoryActive, deleteCategory } =
-    useCategories()
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [form, setForm] = useState<{ mode: ProductFormMode; product: Product | null } | null>(null)
   const [addStockFor, setAddStockFor] = useState<ProductWithStock | null>(null)
   const [historyFor, setHistoryFor] = useState<ProductWithStock | null>(null)
@@ -47,12 +39,6 @@ export function ProductList() {
         : await updateProduct(form.product!.id, payload as unknown as Parameters<typeof updateProduct>[1])
     if (!err) setForm(null)
     return err
-  }
-
-  const handleToggleActive = async (p: ProductWithStock) => {
-    setActionError(null)
-    const err = await setProductActive(p.id, p.isActive !== 1)
-    if (err) setActionError(err)
   }
 
   const handleDelete = async (p: ProductWithStock) => {
@@ -71,17 +57,7 @@ export function ProductList() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="segmented">
-          {(['all', 'active', 'inactive'] as CatalogFilter[]).map((f) => (
-            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
         <div className="spacer" />
-        <button className="btn" onClick={() => setCategoriesOpen(true)}>
-          Categories
-        </button>
         <button
           className="btn primary"
           onClick={() => setForm({ mode: 'create', product: null })}
@@ -103,16 +79,14 @@ export function ProductList() {
                 <tr>
                   <th>SKU</th>
                   <th>Name</th>
-                  <th>Category</th>
                   <th className="num">Selling price</th>
                   <th className="num">Stock</th>
-                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="muted">
+                    <td colSpan={4} className="muted">
                       No products found.
                     </td>
                   </tr>
@@ -125,17 +99,9 @@ export function ProductList() {
                   >
                     <td className="mono">{p.sku}</td>
                     <td>{p.name}</td>
-                    <td>{categoryName(p.categoryId)}</td>
                     <td className="num">{formatMoney(p.sellingPrice)}</td>
                     <td className="num">
-                      <span className={p.isOutOfStock ? 'text-danger' : p.isLowStock ? 'text-warn' : ''}>
-                        {p.currentStock}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${p.isActive === 1 ? 'ok' : 'muted-badge'}`}>
-                        {p.isActive === 1 ? 'Active' : 'Inactive'}
-                      </span>
+                      <span className={p.isOutOfStock ? 'text-danger' : ''}>{p.currentStock}</span>
                     </td>
                   </tr>
                 ))}
@@ -146,9 +112,7 @@ export function ProductList() {
           {selected && (
             <ProductDetail
               product={selected}
-              categoryName={categoryName(selected.categoryId)}
               onEdit={() => setForm({ mode: 'edit', product: selected })}
-              onToggleActive={handleToggleActive}
               onDelete={handleDelete}
               onAddStock={(p) => setAddStockFor(p)}
               onViewHistory={(p) => setHistoryFor(p)}
@@ -163,7 +127,6 @@ export function ProductList() {
           <ProductForm
             mode={form.mode}
             product={form.product}
-            categories={categories}
             onSubmit={handleFormSubmit}
             onCancel={() => setForm(null)}
           />
@@ -171,7 +134,7 @@ export function ProductList() {
       )}
 
       {addStockFor && (
-        <Modal title={`Add Stock · ${addStockFor.name}`} onClose={() => setAddStockFor(null)}>
+        <Modal title={`Add stock · ${addStockFor.name}`} onClose={() => setAddStockFor(null)}>
           <AddStockModal
             product={addStockFor}
             onSubmit={addStock}
@@ -186,19 +149,6 @@ export function ProductList() {
             productId={historyFor.id}
             productName={historyFor.name}
             onClose={() => setHistoryFor(null)}
-          />
-        </Modal>
-      )}
-
-      {categoriesOpen && (
-        <Modal title="Categories" onClose={() => setCategoriesOpen(false)}>
-          <CategoryManager
-            categories={categories}
-            onCreate={createCategory}
-            onRename={renameCategory}
-            onSetActive={setCategoryActive}
-            onDelete={deleteCategory}
-            onClose={() => setCategoriesOpen(false)}
           />
         </Modal>
       )}

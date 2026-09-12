@@ -1,4 +1,4 @@
-// Round-2 retest checks (X-1 … X-9) for MajidZiaTraders, through the real renderer -> preload -> IPC -> SQLite path.
+// Round-2 retest checks (X-1 … X-9) for MZTraders, through the real renderer -> preload -> IPC -> SQLite path.
 // Runs against an ISOLATED user-data dir; aborts if the test DB is not there.
 //
 // Usage (never point --user-data-dir at your real data). Requires the `sqlite3` CLI (built into macOS):
@@ -49,10 +49,10 @@ const qty = async (pid) => must(await inv('inventory:current-quantity', pid), 'q
 const stamp = Date.now().toString().slice(-6)
 
 try {
-  const P = must(await inv('products:create', { sku: 'X-' + stamp, name: 'Extra ' + stamp, baseCostPrice: 500, minSellingPrice: 0, sellingPrice: 1000 }), 'product')
+  const P = must(await inv('products:create', { sku: 'X-' + stamp, name: 'Extra ' + stamp, minSellingPrice: 500, sellingPrice: 1000 }), 'product')
   must(await inv('inventory:set-opening-stock', { productId: P.id, quantity: 100 }), 'opening')
   const C = must(await inv('customers:create', { name: 'Extra Cust ' + stamp }), 'customer')
-  const item = (qn, price) => ({ productId: P.id, productName: P.name, productSku: P.sku, quantity: qn, costPriceAtSale: P.baseCostPrice, minSellingPriceAtSale: 0, actualSellingPrice: price })
+  const item = (qn, price) => ({ productId: P.id, productName: P.name, productSku: P.sku, quantity: qn, costPriceAtSale: P.minSellingPrice, minSellingPriceAtSale: P.minSellingPrice, actualSellingPrice: price })
 
   // X-1: a payment without an invoice (auto-allocated) is visible on the invoice it paid
   const Ia = must(await inv('invoices:create', { customerId: C.id, date: TODAY, items: [item(2, 1000)] }), 'Ia')

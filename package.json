@@ -1,10 +1,10 @@
 {
-  "name": "MajidZiaTraders",
-  "productName": "MajidZiaTraders",
+  "name": "MZTraders",
+  "productName": "MZTraders",
   "version": "0.1.0",
   "private": true,
-  "author": "MajidZiaTraders",
-  "description": "MajidZiaTraders — desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
+  "author": "MZTraders",
+  "description": "MZTraders — desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -19,8 +19,8 @@
     "dist:mac": "npm run build && electron-builder --mac"
   },
   "build": {
-    "appId": "com.majidziatraders.app",
-    "productName": "MajidZiaTraders",
+    "appId": "com.mztraders.app",
+    "productName": "MZTraders",
     "directories": {
       "output": "release",
       "buildResources": "build"

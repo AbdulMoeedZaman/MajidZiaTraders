@@ -77,7 +77,7 @@ export class RestockService {
     }
 
     const date = localDate()
-    const unitCost = data.costPerUnit ?? product.baseCostPrice
+    const unitCost = data.costPerUnit ?? product.minSellingPrice
     const supplierName = data.supplierName?.trim() || 'Direct stock-in'
 
     return this.restockRepo.runInTransaction(() => {
@@ -92,7 +92,6 @@ export class RestockService {
               productId: data.productId,
               qtyCartons: data.quantity,
               piecesPerCarton: 1,
-              mrpPerPiece: product.mrp,
               netSalesValueExcl: unitCost * data.quantity,
               tradeDiscountValue: 0,
             },
@@ -115,7 +114,7 @@ export class RestockService {
       })
 
       if (data.costPerUnit !== undefined) {
-        this.productRepo.update(data.productId, { baseCostPrice: unitCost })
+        this.productRepo.update(data.productId, { minSellingPrice: unitCost })
       }
 
       return restock
@@ -173,7 +172,7 @@ export class RestockService {
         })
 
         if (options?.updateCost !== false) {
-          this.productRepo.update(item.productId, { baseCostPrice: restockLineUnitCost(item) })
+          this.productRepo.update(item.productId, { minSellingPrice: restockLineUnitCost(item) })
         }
       }
       return this.restockRepo.update(id, { status: 'received' })
@@ -239,23 +238,16 @@ export class RestockService {
       if (item.tradeDiscountValue !== undefined && (!Number.isInteger(item.tradeDiscountValue) || item.tradeDiscountValue < 0)) {
         throw new Error('Trade discount must be a non-negative whole number')
       }
-      if (item.mrpPerPiece !== undefined && item.mrpPerPiece !== null && (!Number.isInteger(item.mrpPerPiece) || item.mrpPerPiece < 0)) {
-        throw new Error('MRP must be a non-negative whole number')
-      }
 
       const product = this.productRepo.findById(item.productId)
       if (!product) {
         throw new Error('Restock references an unknown product')
-      }
-      if (product.isActive !== 1) {
-        throw new Error(`Cannot restock inactive product "${product.name}"`)
       }
 
       const resolvedItem = {
         productId: item.productId,
         qtyCartons: item.qtyCartons,
         piecesPerCarton: item.piecesPerCarton,
-        mrpPerPiece: (item.mrpPerPiece ?? product.mrp ?? null) as number | null,
         netSalesValueExcl: item.netSalesValueExcl,
         tradeDiscountValue: item.tradeDiscountValue ?? 0,
       } satisfies CreateRestockItemDTO

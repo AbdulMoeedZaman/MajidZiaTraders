@@ -34,7 +34,7 @@ export function up(db: AppDatabase): void {
       taxId TEXT,
       taxRate INTEGER NOT NULL DEFAULT 0,
       logoPath TEXT,
-      currency TEXT NOT NULL DEFAULT 'USD',
+      currency TEXT NOT NULL DEFAULT 'PKR',
       invoiceFooter TEXT,
       invoicePrefix TEXT NOT NULL DEFAULT 'INV-',
       invoiceNextNumber INTEGER NOT NULL DEFAULT 1,

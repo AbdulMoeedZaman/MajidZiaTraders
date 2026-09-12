@@ -124,10 +124,10 @@ describe('restock numbers', () => {
     // 3 cartons x 24 pieces = 72 pieces added; per-piece cost is discounted total / pieces.
     expect(new InventoryService().getCurrentQuantity(product.id)).toBe(172)
     const updatedProduct = new ProductService().getById(product.id)!
-    expect(updatedProduct.baseCostPrice).toBe(Math.round(item.discountedValueInclusive / 72))
+    expect(updatedProduct.minSellingPrice).toBe(Math.round(item.discountedValueInclusive / 72))
     const lastMovement = new InventoryService().listMovements(product.id)[0]!
     expect(lastMovement.referenceType).toBe('restock')
     expect(lastMovement.quantity).toBe(72)
-    expect(lastMovement.cost).toBe(updatedProduct.baseCostPrice)
+    expect(lastMovement.cost).toBe(updatedProduct.minSellingPrice)
   })
 })

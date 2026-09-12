@@ -33,7 +33,7 @@ export function InvoiceForm({ customers, products, onCustomerChange, onSubmit, o
     })
     const requestedDiscount = moneyToCents(state.discount)
     const totals = calculateInvoiceTotals(
-      lines.map((l) => ({ quantity: l.qty, unitPrice: l.price, unitCost: l.product?.baseCostPrice ?? 0 })),
+      lines.map((l) => ({ quantity: l.qty, unitPrice: l.price, unitCost: l.product?.minSellingPrice ?? 0 })),
       requestedDiscount
     )
     return {
@@ -132,9 +132,8 @@ export function InvoiceForm({ customers, products, onCustomerChange, onSubmit, o
           productId: parseInt(item.productId, 10),
           productName: product?.name ?? '',
           productSku: product?.sku ?? '',
-          unit: product?.unit,
           quantity: qty,
-          costPriceAtSale: product?.baseCostPrice ?? 0,
+          costPriceAtSale: product?.minSellingPrice ?? 0,
           minSellingPriceAtSale: product?.minSellingPrice ?? 0,
           actualSellingPrice: price,
         }
@@ -256,7 +255,7 @@ export function InvoiceForm({ customers, products, onCustomerChange, onSubmit, o
               />
               {line?.product && (
                 <span className="fine-text muted line-hint">
-                  Min {formatMoney(line.product.minSellingPrice)} · Cost {formatMoney(line.product.baseCostPrice)}
+                  Min {formatMoney(line.product.minSellingPrice)}
                 </span>
               )}
               <span className="line-total">{formatMoney(line?.lineSubtotal ?? 0)}</span>

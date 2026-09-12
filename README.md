@@ -1,2 +1,2 @@
-# MajidZiaTraders
+# MZTraders
 Traders

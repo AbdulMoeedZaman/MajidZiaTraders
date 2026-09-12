@@ -114,15 +114,14 @@ export class RestockRepository extends BaseRepository {
     const result = this.db
       .prepare(
         `INSERT INTO restock_items
-          (restockId, productId, qtyCartons, piecesPerCarton, mrpPerPiece, salesTaxRate, retailPricePerCarton, totalRetailValueExcl, salesTaxAmount, advanceTaxRate, advanceTax, netSalesValueExcl, tradeDiscountValue, discountedValueInclusive)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (restockId, productId, qtyCartons, piecesPerCarton, salesTaxRate, retailPricePerCarton, totalRetailValueExcl, salesTaxAmount, advanceTaxRate, advanceTax, netSalesValueExcl, tradeDiscountValue, discountedValueInclusive)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         restockId,
         item.productId,
         item.qtyCartons,
         item.piecesPerCarton,
-        item.mrpPerPiece ?? null,
         0,
         0,
         0,

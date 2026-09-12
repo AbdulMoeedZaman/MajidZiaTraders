@@ -23,7 +23,6 @@ export interface RestockItem {
   productId: number
   qtyCartons: number
   piecesPerCarton: number
-  mrpPerPiece: number | null
   /** The authoritative trade value, from the supplier's invoice. */
   netSalesValueExcl: number
   tradeDiscountValue: number
@@ -46,7 +45,7 @@ export interface CreateRestockDTO {
 export interface AddStockDTO {
   productId: number
   quantity: number
-  /** Per-piece unit cost in minor units; when provided, updates the product's base cost. */
+  /** Per-piece unit cost in minor units; when provided, updates the product's minSellingPrice (cost basis). */
   costPerUnit?: number
   supplierName?: string
   note?: string
@@ -56,7 +55,6 @@ export interface CreateRestockItemDTO {
   productId: number
   qtyCartons: number
   piecesPerCarton: number
-  mrpPerPiece?: number | null
   netSalesValueExcl: number
   tradeDiscountValue?: number
 }

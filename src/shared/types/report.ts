@@ -35,7 +35,6 @@ export interface InventoryReport {
   generatedAt: string
   totalProducts: number
   totalValue: number
-  lowStockCount: number
   items: InventoryReportItem[]
 }
 

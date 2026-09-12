@@ -5,7 +5,6 @@ import { CustomerLedgerRepository } from '../repositories/customer-ledger.reposi
 import { PaymentRepository } from '../repositories/payment.repository'
 import { InventoryRepository } from '../repositories/inventory.repository'
 import type { DashboardOverview } from '@shared/types/dashboard'
-import type { ProductWithStock } from '@shared/types/inventory'
 import { localDate } from '@shared/date'
 
 export class DashboardService {
@@ -26,24 +25,13 @@ export class DashboardService {
     const customers = this.customerRepo.findAll()
     const outstandingBalance = this.ledgerRepo.getTotalPositiveBalance()
 
-    const products = this.productRepo.findActive()
+    const products = this.productRepo.findAll()
     const quantities = this.inventoryRepo.getCurrentQuantities(products.map((p) => p.id))
-    const lowStockItems: ProductWithStock[] = []
-    let productsLowStock = 0
     let productsOutOfStock = 0
     for (const p of products) {
       const currentStock = quantities.get(p.id) ?? 0
-      const summary: ProductWithStock = {
-        ...p,
-        currentStock,
-        isLowStock: p.reorderLevel > 0 && currentStock > 0 && currentStock <= p.reorderLevel,
-        isOutOfStock: currentStock <= 0,
-      }
-      if (summary.isLowStock) productsLowStock += 1
-      if (summary.isOutOfStock) productsOutOfStock += 1
-      if (summary.isLowStock || summary.isOutOfStock) lowStockItems.push(summary)
+      if (currentStock <= 0) productsOutOfStock += 1
     }
-    lowStockItems.sort((a, b) => a.currentStock - b.currentStock)
 
     return {
       date: today,
@@ -57,12 +45,10 @@ export class DashboardService {
       totals: {
         customers: customers.length,
         products: products.length,
-        productsLowStock,
         productsOutOfStock,
       },
       recentInvoices: this.invoiceRepo.findAllWithCustomer({ limit: 5 }),
       recentPayments: this.paymentRepo.findAllWithDetails(undefined, undefined, 5),
-      lowStockItems,
     }
   }
 }

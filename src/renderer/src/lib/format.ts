@@ -1,12 +1,20 @@
 import { localDate } from '@shared/date'
 
-let currency = 'USD'
+let currency = 'PKR'
 
 export function setCurrency(code: string): boolean {
-  const next = (code || 'USD').toUpperCase()
+  const next = (code || 'PKR').toUpperCase()
   if (next === currency) return false
   currency = next
   return true
+}
+
+export const CURRENCY_DEFAULT = 'PKR'
+
+const RUPEE_SYMBOLS: Record<string, string> = {
+  PKR: 'Rs.',
+  INR: 'Rs.',
+  NPR: 'Rs.',
 }
 
 const formatters = new Map<string, Intl.NumberFormat | null>()
@@ -24,9 +32,12 @@ function currencyFormatter(code: string): Intl.NumberFormat | null {
 
 export function formatMoney(cents: number | null | undefined): string {
   const value = (cents ?? 0) / 100
+  const number = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const symbol = RUPEE_SYMBOLS[currency]
+  if (symbol) return `${symbol} ${number}`
   const formatter = currencyFormatter(currency)
   if (formatter) return formatter.format(value)
-  return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${currency} ${number}`
 }
 
 function parseDateValue(iso: string): Date {

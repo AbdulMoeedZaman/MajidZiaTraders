@@ -215,6 +215,6 @@ export function up(db: AppDatabase): void {
   if (profileCount === 0) {
     db.prepare(
       'INSERT INTO business_profile (name, currency, invoicePrefix, invoiceNextNumber) VALUES (?, ?, ?, ?)'
-    ).run('MajidZiaTraders', 'USD', 'INV-', 1)
+    ).run('MZTraders', 'PKR', 'INV-', 1)
   }
 }

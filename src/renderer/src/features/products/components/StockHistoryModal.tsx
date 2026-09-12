@@ -13,8 +13,15 @@ interface StockHistoryModalProps {
 function referenceText(m: StockMovementWithContext): string {
   if (m.referenceType === 'invoice' && m.invoiceNumber) return `Invoice ${m.invoiceNumber}`
   if (m.referenceType === 'invoice' && m.customerName) return `Invoice ${m.customerName}`
-  if (m.referenceType === 'restock' && m.supplierName) return `Restock · ${m.supplierName}`
+  if (m.referenceType === 'restock' && m.supplierName) return `Add stock · ${m.supplierName}`
   return m.reason ?? '—'
+}
+
+const TYPE_BADGE_CLASS: Record<string, string> = {
+  restock: 'badge ok',
+  sale: 'badge danger',
+  return: 'badge warn',
+  damage: 'badge warn',
 }
 
 export function StockHistoryModal({ productId, productName, onClose }: StockHistoryModalProps) {
@@ -73,7 +80,11 @@ export function StockHistoryModal({ productId, productName, onClose }: StockHist
             {movements.map((m) => (
               <tr key={m.id}>
                 <td>{formatDateTime(m.createdAt)}</td>
-                <td>{STOCK_MOVEMENT_LABELS[m.type] ?? m.type}</td>
+                <td>
+                  <span className={TYPE_BADGE_CLASS[m.type] ?? 'badge muted-badge'}>
+                    {STOCK_MOVEMENT_LABELS[m.type] ?? m.type}
+                  </span>
+                </td>
                 <td className={`num ${m.quantity < 0 ? 'text-danger' : 'text-ok'}`}>
                   {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                 </td>

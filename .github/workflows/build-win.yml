@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MajidZiaTraders-Windows-x64
+          name: MZTraders-Windows-x64
           path: |
             release/*.exe
             release/win-unpacked

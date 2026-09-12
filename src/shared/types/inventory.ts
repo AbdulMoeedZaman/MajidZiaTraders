@@ -46,15 +46,12 @@ export interface SetOpeningStockDTO {
 
 export interface ProductWithStock extends Product {
   currentStock: number
-  isLowStock: boolean
   isOutOfStock: boolean
 }
 
 export interface StockSummary {
   productId: number
   currentQuantity: number
-  reorderLevel: number
-  isLowStock: boolean
   isOutOfStock: boolean
 }
 

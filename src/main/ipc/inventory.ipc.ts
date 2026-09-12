@@ -34,10 +34,6 @@ export function registerInventoryIpc(): void {
     return inventoryService.getStockSummaries(productIds)
   })
 
-  ipcMain.handle('inventory:low-stock', () => {
-    return inventoryService.getLowStock()
-  })
-
   ipcMain.handle('inventory:out-of-stock', () => {
     return inventoryService.getOutOfStock()
   })

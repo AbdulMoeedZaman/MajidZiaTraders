@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Product } from '@shared/types/product'
-import type { Category } from '@shared/types/category'
 import {
   ProductFormMode,
   ProductFormState,
@@ -11,18 +10,17 @@ import {
 interface ProductFormProps {
   mode: ProductFormMode
   product: Product | null
-  categories: Category[]
   onSubmit: (payload: Record<string, unknown>) => Promise<string | null>
   onCancel: () => void
 }
 
-export function ProductForm({ mode, product, categories, onSubmit, onCancel }: ProductFormProps) {
+export function ProductForm({ mode, product, onSubmit, onCancel }: ProductFormProps) {
   const [state, setState] = useState<ProductFormState>(() => toProductFormState(product))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const set = (field: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+  const set = (field: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setState((s) => ({ ...s, [field]: e.target.value }))
 
   const validate = (): boolean => {
@@ -30,11 +28,9 @@ export function ProductForm({ mode, product, categories, onSubmit, onCancel }: P
     if (!state.name.trim()) next.name = 'Name is required'
     if (mode === 'create' && !state.sku.trim()) next.sku = 'SKU is required'
 
-    const cost = parseFloat(state.baseCostPrice)
     const min = parseFloat(state.minSellingPrice)
     const sell = parseFloat(state.sellingPrice)
 
-    if (Number.isNaN(cost) || cost < 0) next.baseCostPrice = 'Must be 0 or more'
     if (Number.isNaN(min) || min < 0) next.minSellingPrice = 'Must be 0 or more'
     if (Number.isNaN(sell) || sell < 0) next.sellingPrice = 'Must be 0 or more'
     if (!Number.isNaN(sell) && !Number.isNaN(min) && sell < min) {
@@ -77,42 +73,9 @@ export function ProductForm({ mode, product, categories, onSubmit, onCancel }: P
         </label>
 
         <label className="field">
-          <span>Category</span>
-          <select value={state.categoryId} onChange={set('categoryId')}>
-            <option value="">Uncategorized</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Unit</span>
-          <input value={state.unit} onChange={set('unit')} placeholder="piece / carton / kg" />
-        </label>
-
-        <label className="field">
           <span>Pieces per carton</span>
           <input type="number" min={1} value={state.piecesPerCarton} onChange={set('piecesPerCarton')} />
           {errors.piecesPerCarton && <em className="field-error">{errors.piecesPerCarton}</em>}
-        </label>
-
-        <label className="field">
-          <span>MRP per piece</span>
-          <input type="number" step="0.01" min={0} value={state.mrp} onChange={set('mrp')} placeholder="e.g. 25.00" />
-        </label>
-
-        <label className="field">
-          <span>Reorder level</span>
-          <input type="number" min={0} value={state.reorderLevel} onChange={set('reorderLevel')} />
-        </label>
-
-        <label className="field">
-          <span>Base cost price</span>
-          <input type="number" step="0.01" min={0} value={state.baseCostPrice} onChange={set('baseCostPrice')} />
-          {errors.baseCostPrice && <em className="field-error">{errors.baseCostPrice}</em>}
         </label>
 
         <label className="field">

@@ -74,7 +74,7 @@ export class ReportService {
   }
 
   getInventoryReport(): InventoryReport {
-    const products = this.productRepo.findActive()
+    const products = this.productRepo.findAll()
     const quantities = this.inventoryRepo.getCurrentQuantities(products.map((p) => p.id))
 
     const items: InventoryReportItem[] = products.map((p) => {
@@ -86,21 +86,16 @@ export class ReportService {
         currentQuantity,
         price: p.sellingPrice,
         totalValue: currentQuantity * p.sellingPrice,
-        costValue: currentQuantity * p.baseCostPrice,
+        costValue: currentQuantity * p.minSellingPrice,
       }
     })
 
     const totalValue = items.reduce((sum, item) => sum + item.costValue, 0)
-    const lowStockCount = items.filter((item) => {
-      const product = products.find((p) => p.id === item.productId)
-      return product && item.currentQuantity > 0 && product.reorderLevel > 0 && item.currentQuantity <= product.reorderLevel
-    }).length
 
     return {
       generatedAt: new Date().toISOString(),
       totalProducts: products.length,
       totalValue,
-      lowStockCount,
       items,
     }
   }

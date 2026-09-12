@@ -1,4 +1,4 @@
-// End-to-end test of MajidZiaTraders through the real renderer -> preload -> IPC -> SQLite path.
+// End-to-end test of MZTraders through the real renderer -> preload -> IPC -> SQLite path.
 // Runs against an ISOLATED user-data dir; aborts if the test DB is not there.
 //
 // Usage (never point --user-data-dir at your real data):
@@ -78,17 +78,13 @@ try {
   await nav('Dashboard'); await wait(500)
 
   // =============== Setup + validation ===============
-  const cat = must(await inv('categories:create', { name: 'Hardware' }), 'category')
-  const dupCat = await inv('categories:create', { name: 'Hardware' })
-  check('V-1', 'Duplicate category name rejected', !dupCat.ok, dupCat.e ?? 'accepted')
-
-  const P1 = must(await inv('products:create', { sku: 'P1', name: 'Widget', categoryId: cat.id, baseCostPrice: 1000, minSellingPrice: 1200, sellingPrice: 1500, reorderLevel: 5 }), 'P1')
-  const P2 = must(await inv('products:create', { sku: 'P2', name: 'Gadget', baseCostPrice: 500, minSellingPrice: 0, sellingPrice: 800 }), 'P2')
+  const P1 = must(await inv('products:create', { sku: 'P1', name: 'Widget', minSellingPrice: 1200, sellingPrice: 1500 }), 'P1')
+  const P2 = must(await inv('products:create', { sku: 'P2', name: 'Gadget', minSellingPrice: 0, sellingPrice: 800 }), 'P2')
   const v2 = await inv('products:create', { sku: 'X1', name: 'x', minSellingPrice: 1000, sellingPrice: 500 })
-  const v3 = await inv('products:create', { sku: 'X2', name: 'x', baseCostPrice: -1 })
+  const v3 = await inv('products:create', { sku: 'X2', name: 'x', minSellingPrice: -1 })
   const v4 = await inv('products:create', { sku: 'P1', name: 'dup' })
   const v5 = await inv('products:create', { sku: 'X3', name: 'x', piecesPerCarton: 0 })
-  check('V-2', 'Product validation (sell<min, negative cost, duplicate SKU, carton 0) all rejected', !v2.ok && !v3.ok && !v4.ok && !v5.ok, [v2.e, v3.e, v4.e, v5.e])
+  check('V-2', 'Product validation (sell<min, negative price, duplicate SKU, carton 0) all rejected', !v2.ok && !v3.ok && !v4.ok && !v5.ok, [v2.e, v3.e, v4.e, v5.e])
   const v6 = await inv('products:create', { sku: 'X4', name: 'fractional cents', sellingPrice: 1234.5 })
   check('V-3', 'Non-whole-cent prices rejected by backend', !v6.ok, v6.ok ? `accepted, stored sellingPrice=${v6.v.sellingPrice}` : v6.e)
   if (v6.ok) await inv('products:delete', v6.v.id)
@@ -114,7 +110,7 @@ try {
   must(await inv('inventory:set-opening-stock', { productId: P2.id, quantity: 50 }), 'opening P2')
 
   // =============== Invoices ===============
-  const item = (p, qn, price) => ({ productId: p.id, productName: p.name, productSku: p.sku, quantity: qn, costPriceAtSale: p.baseCostPrice, minSellingPriceAtSale: p.minSellingPrice, actualSellingPrice: price })
+  const item = (p, qn, price) => ({ productId: p.id, productName: p.name, productSku: p.sku, quantity: qn, costPriceAtSale: p.minSellingPrice, minSellingPriceAtSale: p.minSellingPrice, actualSellingPrice: price })
   const noProf = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P2, 1, 800)] })
   check('I-0', 'Invoice can be created on a fresh install (before any business profile exists)', noProf.ok, noProf.e ?? 'ok')
   if (noProf.ok) await inv('invoices:delete', noProf.v.id)
@@ -123,7 +119,7 @@ try {
   const I1 = must(await inv('invoices:create', { customerId: C1.id, date: TODAY, discount: 1000, items: [item(P1, 10, 1500)] }), 'I1'); expectP1 -= 10
   check('I-1', 'Saved total equals the New-invoice form total (subtotal − discount)', I1.total === 14000,
     { saved: { subtotal: I1.subtotal, discount: I1.discount, total: I1.total } })
-  const trueProfit = 15000 - 1000 - 10000
+  const trueProfit = 15000 - 1000 - 12000
   check('I-2', 'Invoice profit = (subtotal − discount) − cost', I1.totalProfit === trueProfit, { expected: trueProfit, saved: I1.totalProfit })
   q = await qty(P1.id)
   check('S-3', `Invoice reduces stock (expect ${expectP1})`, q.single === expectP1 && q.list === expectP1, q)
@@ -134,10 +130,7 @@ try {
 
   const g1 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P1, 100000, 1500)] })
   const g2 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P1, 1, 1100)] })
-  must(await inv('products:set-active', P2.id, false), 'deact P2')
-  const g4 = await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P2, 1, 800)] })
-  must(await inv('products:set-active', P2.id, true), 'react P2')
-  check('I-3', 'Invoice guards: oversell, below-min price, inactive product all rejected', [g1, g2, g4].every((r) => !r.ok), [g1, g2, g4].map((r) => r.e ?? 'ACCEPTED'))
+  check('I-3', 'Invoice guards: oversell and below-min price both rejected', !g1.ok && !g2.ok, [g1.e ?? 'ACCEPTED', g2.e ?? 'ACCEPTED'])
 
   // =============== Payments ===============
   const pay1 = must(await inv('payments:create', { customerId: C1.id, invoiceId: I1.id, amount: 5000, method: 'cash', paymentDate: TODAY }), 'pay1')
@@ -188,10 +181,10 @@ try {
   const rdel = await inv('restocks:delete', R1.id), rcan = await inv('restocks:cancel', R1.id)
   check('R-4', 'Received restock cannot be deleted or cancelled', !rdel.ok && !rcan.ok, [rdel.e, rcan.e])
   const P1after = must(await inv('products:get-by-id', P1.id), 'P1')
-  check('R-5', 'Receiving a restock at a new unit cost updates the product cost price', P1after.baseCostPrice === 900, { unitCostReceived: 900, productBaseCostPrice: P1after.baseCostPrice })
+  check('R-5', 'Receiving a restock at a new unit cost updates the product min selling price (cost basis)', P1after.minSellingPrice === 900, { unitCostReceived: 900, productMinSellingPrice: P1after.minSellingPrice })
 
   // =============== Deletion integrity ===============
-  const P3 = must(await inv('products:create', { sku: 'P3', name: 'Temp', baseCostPrice: 100, sellingPrice: 200 }), 'P3')
+  const P3 = must(await inv('products:create', { sku: 'P3', name: 'Temp', minSellingPrice: 100, sellingPrice: 200 }), 'P3')
   must(await inv('inventory:set-opening-stock', { productId: P3.id, quantity: 10 }), 'opening P3')
   const I4 = must(await inv('invoices:create', { customerId: C1.id, date: TODAY, items: [item(P3, 2, 200)] }), 'I4')
   const itemsBefore = must(await inv('invoices:get-items', I4.id), 'items').length
@@ -201,8 +194,7 @@ try {
   check('D-1', 'Deleting a sold product is blocked, or at least keeps its past invoice lines', !pdel.ok || itemsAfter === itemsBefore,
     { deleteAllowed: pdel.ok, invoiceLinesBefore: itemsBefore, invoiceLinesAfter: itemsAfter, invoiceTotalStillCharged: i4.total })
   const cdel = await inv('customers:delete', C1.id)
-  const catdel = await inv('categories:delete', cat.id)
-  check('D-2', 'Customer with history and category with products cannot be deleted', !cdel.ok && !catdel.ok, [cdel.e, catdel.e])
+  check('D-2', 'Customer with history cannot be deleted', !cdel.ok, cdel.e ?? 'accepted')
 
   // =============== Reports ===============
   const sales = must(await inv('reports:sales', '2026-08-01', TODAY), 'sales')
@@ -229,28 +221,62 @@ try {
   const taxField = await ev(`[...document.querySelectorAll('label.field')].some((l) => l.textContent.includes('Tax rate'))`)
   check('UI-2', 'New invoice form has no tax rate field (sales tax fully removed)', taxField === false, { taxRateFieldPresent: taxField })
   await clickBtn('Cancel'); await wait(300)
+  const rupees = await ev(`document.body.innerText.includes('Rs.')`)
   const dollars = await ev(`document.body.innerText.includes('$')`)
-  check('UI-3', 'Money uses the business profile currency (PKR), not "$"', !dollars, { dollarSignShown: dollars })
+  check('UI-3', 'Money is shown in rupees ("Rs."), with no "$"', rupees && !dollars, { rupeeSignShown: rupees, dollarSignShown: dollars })
 
-  // UI-4 product detail refresh after Deactivate
+  // UI-4 product detail: simplified panel with top-right header icon buttons
   await nav('Products'); await wait(900)
   await clickRowWith('Widget'); await wait(500)
-  await clickBtn('Deactivate'); await wait(1200)
-  const detail = await ev(`document.querySelector('.detail')?.innerText ?? ''`)
-  const dbState = must(await inv('products:get-by-id', P1.id), 'P1').isActive
-  check('UI-4', 'Product details panel refreshes after Deactivate', /Reactivate/.test(detail) && /Status\s*Inactive/.test(detail),
-    { savedIsActive: dbState, panelShowsButton: (detail.match(/Deactivate|Reactivate/) || [])[0], panelShowsStatus: (detail.match(/Status\s*(Active|Inactive)/) || [])[1] })
-  await inv('products:set-active', P1.id, true)
+  const addStockHeader = await ev(`!!document.querySelector('.detail .detail-header button[title="Add stock"]')`)
+  const historyHeader = await ev(`!!document.querySelector('.detail .detail-header button[title="Stock history"]')`)
+  const hasCategory = await ev(`document.querySelector('.detail')?.innerText.includes('Category') ?? false`)
+  const hasStatus = await ev(`document.querySelector('.detail')?.innerText.includes('Status') ?? false`)
+  const hasDeactivate = await ev(`document.querySelector('.detail')?.innerText.includes('Deactivate') ?? false`)
+  const panelText = await ev(`document.querySelector('.detail')?.innerText ?? ''`)
+  check('UI-4', 'Product detail: Add stock + History live in the header as icon buttons, panel has no category/status/deactivate rows',
+    addStockHeader && historyHeader && !hasCategory && !hasStatus && !hasDeactivate,
+    { addStockHeader, historyHeader, panelHasCategory: hasCategory, panelHasStatus: hasStatus, panelHasDeactivate: hasDeactivate })
+  await ev(`document.querySelector('.detail .detail-header button[title="Close"]')?.click()`); await wait(300)
 
-  // UI-5 time display in stock history
+  // UI-5 time display in stock history (opened from the header icon)
   await nav('Products'); await wait(900)
   await clickRowWith('Widget'); await wait(900)
-  await clickBtn('View History'); await wait(900)
+  await ev(`document.querySelector('.detail .detail-header button[title="Stock history"]')?.click()`); await wait(900)
   const firstTime = await ev(`document.querySelector('.history tbody tr td')?.innerText`)
   const nowLocal = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   check('UI-5', 'Stock history shows local time (movement just created ≈ now)', !!firstTime && firstTime.includes(nowLocal.slice(0, 2)),
     { shown: firstTime, localTimeNow: nowLocal })
   await ev(`document.querySelector('.overlay')?.click()`); await wait(300)
+
+  // UI-8 create a product through the UI form
+  await nav('Products'); await wait(900)
+  await clickBtn('+ Add product'); await wait(700)
+  await ev(`(()=>{
+    const set=(name,val)=>{const i=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}};
+    set('Name','GAUGE2026'); set('SKU','GAUGE-SKU'); set('Pieces per carton','12'); set('Min selling price','1.50'); set('Selling price','2.25'); return true
+  })()`)
+  await clickBtn('Create product'); await wait(1200)
+  const gauge = await inv('products:get-by-sku', 'GAUGE-SKU')
+  const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE2026'))`)
+  check('UI-8', 'Create a product through the UI form', !!gauge.ok && gauge.v.sellingPrice === 225 && gaugeRow,
+    { id: gauge.ok ? gauge.v.id : null, sellingPriceStored: gauge.ok ? gauge.v.sellingPrice : null, rowVisible: gaugeRow })
+
+  // UI-9 edit a product through the UI form
+  await nav('Products'); await wait(900)
+  await clickRowWith('GAUGE2026'); await wait(500)
+  await clickBtn('Edit'); await wait(700)
+  await ev(`(()=>{
+    const set=(name,val)=>{const i=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}};
+    set('Name','GAUGE2026 PRO'); set('Selling price','3.00'); return true
+  })()`)
+  await clickBtn('Save changes'); await wait(1200)
+  const gauge2 = await inv('products:get-by-sku', 'GAUGE-SKU')
+  const editedDetail = await ev(`document.querySelector('.detail')?.innerText ?? ''`)
+  check('UI-9', 'Edit a product through the UI form (rename + repricing)', gauge2.ok && gauge2.v.sellingPrice === 300 && editedDetail.includes('GAUGE2026 PRO'),
+    { sellingPriceStored: gauge2.ok ? gauge2.v.sellingPrice : null, detailShows: editedDetail.match(/GAUGE2026 PRO|GAUGE2026/)?.[0] ?? null })
+  await ev(`document.querySelector('.detail .detail-header button[title="Close"]')?.click()`); await wait(300)
+  if (gauge2.ok) await inv('products:delete', gauge2.v.id)
 
   // UI-6 reports default range (reports live inside Dashboard)
   await nav('Dashboard'); await wait(1500)

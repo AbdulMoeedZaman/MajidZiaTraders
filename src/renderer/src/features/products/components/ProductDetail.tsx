@@ -3,9 +3,7 @@ import { formatMoney, formatDateTime } from '../../../lib/format'
 
 interface ProductDetailProps {
   product: ProductWithStock
-  categoryName: string
   onEdit: (product: ProductWithStock) => void
-  onToggleActive: (product: ProductWithStock) => void
   onDelete: (product: ProductWithStock) => void
   onAddStock: (product: ProductWithStock) => void
   onViewHistory: (product: ProductWithStock) => void
@@ -26,19 +24,13 @@ function confirmDelete(product: ProductWithStock): boolean {
 
 export function ProductDetail({
   product,
-  categoryName,
   onEdit,
-  onToggleActive,
   onDelete,
   onAddStock,
   onViewHistory,
   onClose,
 }: ProductDetailProps) {
-  const sessions = (p: ProductWithStock) => {
-    if (p.isOutOfStock) return 'Out of stock'
-    if (p.isLowStock) return 'Low stock'
-    return 'In stock'
-  }
+  const stockStatus = product.isOutOfStock ? 'Out of stock' : 'In stock'
 
   return (
     <div className="detail">
@@ -47,40 +39,28 @@ export function ProductDetail({
           <h3>{product.name}</h3>
           <span className="muted">SKU {product.sku}</span>
         </div>
-        <button className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
-          ✕
-        </button>
+        <div className="icon-cluster">
+          <button className="btn ghost icon" onClick={() => onAddStock(product)} aria-label="Add stock" title="Add stock">
+            +
+          </button>
+          <button className="btn ghost icon" onClick={() => onViewHistory(product)} aria-label="Stock history" title="Stock history">
+            ◷
+          </button>
+          <button className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className="detail-stock">
         <span className="stock-qty">{product.currentStock}</span>
-        <span className={`badge ${product.isOutOfStock ? 'danger' : product.isLowStock ? 'warn' : 'ok'}`}>
-          {sessions(product)}
-        </span>
+        <span className={`badge ${product.isOutOfStock ? 'danger' : 'ok'}`}>{stockStatus}</span>
       </div>
 
       <dl className="detail-rows">
         <div>
-          <dt>Category</dt>
-          <dd>{categoryName}</dd>
-        </div>
-        <div>
-          <dt>Unit</dt>
-          <dd>{product.unit || 'piece'}</dd>
-        </div>
-        <div>
           <dt>Pieces per carton</dt>
           <dd>{product.piecesPerCarton}</dd>
-        </div>
-        {product.mrp != null && (
-          <div>
-            <dt>MRP per piece</dt>
-            <dd>{formatMoney(product.mrp)}</dd>
-          </div>
-        )}
-        <div>
-          <dt>Base cost price</dt>
-          <dd>{formatMoney(product.baseCostPrice)}</dd>
         </div>
         <div>
           <dt>Min selling price</dt>
@@ -89,14 +69,6 @@ export function ProductDetail({
         <div>
           <dt>Selling price</dt>
           <dd>{formatMoney(product.sellingPrice)}</dd>
-        </div>
-        <div>
-          <dt>Reorder level</dt>
-          <dd>{product.reorderLevel}</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd>{product.isActive === 1 ? 'Active' : 'Inactive'}</dd>
         </div>
         <div>
           <dt>Created</dt>
@@ -109,17 +81,8 @@ export function ProductDetail({
       </dl>
 
       <div className="detail-actions">
-        <button className="btn primary" onClick={() => onAddStock(product)}>
-          + Add Stock
-        </button>
-        <button className="btn" onClick={() => onViewHistory(product)}>
-          View History
-        </button>
         <button className="btn" onClick={() => onEdit(product)}>
           Edit
-        </button>
-        <button className="btn" onClick={() => onToggleActive(product)}>
-          {product.isActive === 1 ? 'Deactivate' : 'Reactivate'}
         </button>
         <button
           className="btn danger"

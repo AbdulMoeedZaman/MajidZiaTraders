@@ -93,8 +93,8 @@ export class InvoiceService {
     let profile = this.profileRepo.get()
     if (!profile) {
       profile = this.profileRepo.create({
-        name: 'MajidZiaTraders',
-        currency: 'USD',
+        name: 'MZTraders',
+        currency: 'PKR',
         invoicePrefix: 'INV-',
         invoiceNextNumber: 1,
       })
@@ -243,9 +243,6 @@ export class InvoiceService {
       if (!product) {
         throw new Error('Invoice references an unknown product')
       }
-      if (product.isActive !== 1) {
-        throw new Error(`Cannot sell inactive product "${product.name}"`)
-      }
 
       const price = item.actualSellingPrice
       if (!Number.isInteger(price) || price < 0) {
@@ -261,9 +258,9 @@ export class InvoiceService {
         productId: product.id,
         productName: product.name,
         productSku: product.sku,
-        unit: item.unit ?? product.unit,
+        unit: item.unit ?? 'piece',
         quantity: item.quantity,
-        costPriceAtSale: product.baseCostPrice,
+        costPriceAtSale: product.minSellingPrice,
         minSellingPriceAtSale: product.minSellingPrice,
         actualSellingPrice: price,
       })

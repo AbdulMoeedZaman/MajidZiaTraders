@@ -15,7 +15,7 @@ const EMPTY_PROFILE: BusinessProfile = {
   city: null,
   country: null,
   logoPath: null,
-  currency: 'USD',
+  currency: 'PKR',
   invoiceFooter: null,
   invoicePrefix: 'INV-',
   invoiceNextNumber: 1,
@@ -53,7 +53,7 @@ export function SettingsPage() {
     setActionError(null)
     setActionSuccess(null)
     const result = await api.dialogs.saveFile({
-      defaultPath: `MajidZiaTraders-backup-${localDate()}.db`,
+      defaultPath: `MZTraders-backup-${localDate()}.db`,
       filters: [{ name: 'SQLite database', extensions: ['db'] }],
     })
     if (result.canceled || !result.filePath) return
@@ -225,7 +225,7 @@ function ProfileForm({
     address: initial.address ?? '',
     city: initial.city ?? '',
     country: initial.country ?? '',
-    currency: initial.currency || 'USD',
+    currency: initial.currency || 'PKR',
     invoicePrefix: initial.invoicePrefix || 'INV-',
     invoiceFooter: initial.invoiceFooter ?? '',
   })
@@ -249,11 +249,11 @@ function ProfileForm({
         address: state.address.trim() || null,
         city: state.city.trim() || null,
         country: state.country.trim() || null,
-        currency: state.currency.trim() || 'USD',
+        currency: state.currency.trim() || 'PKR',
         invoicePrefix: state.invoicePrefix.trim() || 'INV-',
         invoiceFooter: state.invoiceFooter.trim() || null,
       })
-      setCurrency(state.currency.trim() || 'USD')
+      setCurrency(state.currency.trim() || 'PKR')
       await onSaved()
     } catch (err) {
       setServerError(String(err))
@@ -270,7 +270,7 @@ function ProfileForm({
     { key: 'address', label: 'Address', span: true },
     { key: 'city', label: 'City' },
     { key: 'country', label: 'Country' },
-    { key: 'currency', label: 'Currency (ISO code)' },
+    { key: 'currency', label: 'Currency (PKR shows as Rs.)' },
     { key: 'invoicePrefix', label: 'Invoice prefix' },
     { key: 'invoiceFooter', label: 'Invoice footer', span: true },
   ]

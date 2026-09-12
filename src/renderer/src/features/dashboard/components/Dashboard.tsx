@@ -67,44 +67,10 @@ export function Dashboard({ onOpenInvoice, onOpenPayments }: DashboardProps) {
           <span className="stat-label">Products</span>
           <span className="stat-value">{data.totals.products}</span>
         </div>
-        <div className="dash-total warn">
-          <span className="stat-label">Low stock</span>
-          <span className="stat-value">{data.totals.productsLowStock}</span>
-        </div>
         <div className="dash-total danger">
           <span className="stat-label">Out of stock</span>
           <span className="stat-value">{data.totals.productsOutOfStock}</span>
         </div>
-      </div>
-
-      <div className="dash-section">
-        <h4 className="section-title">Low stock alerts</h4>
-        {data.lowStockItems.length === 0 ? (
-          <div className="muted">All stock levels are healthy.</div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>SKU</th>
-                  <th className="num">Current</th>
-                  <th className="num">Reorder level</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.lowStockItems.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td className="mono">{p.sku}</td>
-                    <td className="num">{p.currentStock}</td>
-                    <td className="num">{p.reorderLevel}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       <div className="dash-section">

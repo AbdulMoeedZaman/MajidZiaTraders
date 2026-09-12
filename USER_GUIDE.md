@@ -1,4 +1,4 @@
-# MajidZiaTraders — User Guide
+# MZTraders — User Guide
 
 A complete guide to what the app does, what you see on each screen, and how to use it well.
 
@@ -33,7 +33,7 @@ A complete guide to what the app does, what you see on each screen, and how to u
 
 ## 1. What this app is for
 
-**MajidZiaTraders** is a desktop app for small businesses that **buy stock from suppliers, sell it to customers, and often sell on credit.**
+**MZTraders** is a desktop app for small businesses that **buy stock from suppliers, sell it to customers, and often sell on credit.**
 
 It brings four jobs together in one place:
 
@@ -494,7 +494,7 @@ PAINT-5L,White Paint 5L,Paint,tin,4,12.00,15.00,18.50,10
 - *See the known problem in [section 11](#11-known-limitations-in-this-build) about creating the profile the first time.*
 
 **Backup & restore**
-- **Create backup…** — choose where to save. The suggested name is `MajidZiaTraders-backup-YYYY-MM-DD.db`. The file contains **all** your data. Afterwards you'll see the file name, time and size.
+- **Create backup…** — choose where to save. The suggested name is `MZTraders-backup-YYYY-MM-DD.db`. The file contains **all** your data. Afterwards you'll see the file name, time and size.
 - **Restore from backup…** — choose a backup `.db` file. The app first **checks it**: it must be a valid database that passes an integrity check and contains all required tables. It then asks you to confirm, because **restoring replaces all current data and can't be undone.**
 
 ---
@@ -639,11 +639,11 @@ These are true of the current version and are worth knowing before you rely on i
 ## 12. Where your data is stored
 
 - **Everything is in one database file** on this computer. On macOS it's here:
-  `~/Library/Application Support/MajidZiaTraders/inventory.db`
+  `~/Library/Application Support/MZTraders/inventory.db`
 - Nothing is sent over the internet.
 - **If the computer is lost or the disk fails, the data is gone** unless you've made a backup with *Settings → Create backup…* and stored it somewhere else.
 - To move to a new computer: create a backup on the old one, install the app on the new one, then use *Settings → Restore from backup…*.
 
 ---
 
-*This guide describes the "Phase 4" build of MajidZiaTraders.*
+*This guide describes the "Phase 4" build of MZTraders.*

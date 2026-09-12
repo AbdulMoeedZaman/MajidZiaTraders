@@ -33,13 +33,10 @@ export class InventoryService {
     }
 
     const currentQuantity = this.inventoryRepo.getCurrentQuantity(productId)
-    const reorderLevel = product.reorderLevel ?? 0
 
     return {
       productId,
       currentQuantity,
-      reorderLevel,
-      isLowStock: reorderLevel > 0 && currentQuantity > 0 && currentQuantity <= reorderLevel,
       isOutOfStock: currentQuantity <= 0,
     }
   }
@@ -54,25 +51,16 @@ export class InventoryService {
 
     return products.map((p) => {
       const currentQuantity = quantities.get(p.id) ?? 0
-      const reorderLevel = p.reorderLevel ?? 0
       return {
         productId: p.id,
         currentQuantity,
-        reorderLevel,
-        isLowStock: reorderLevel > 0 && currentQuantity > 0 && currentQuantity <= reorderLevel,
         isOutOfStock: currentQuantity <= 0,
       }
     })
   }
 
-  getLowStock(): StockSummary[] {
-    const products = this.productRepo.findActive()
-    const summaries = this.getStockSummaries(products.map((p) => p.id))
-    return summaries.filter((s) => s.isLowStock)
-  }
-
   getOutOfStock(): StockSummary[] {
-    const products = this.productRepo.findActive()
+    const products = this.productRepo.findAll()
     const summaries = this.getStockSummaries(products.map((p) => p.id))
     return summaries.filter((s) => s.isOutOfStock)
   }

@@ -12,20 +12,8 @@ export function registerProductIpc(): void {
     return productService.list()
   })
 
-  ipcMain.handle('products:list-active', () => {
-    return productService.listActive()
-  })
-
-  ipcMain.handle('products:list-inactive', () => {
-    return productService.listInactive()
-  })
-
   ipcMain.handle('products:list-with-stock', () => {
     return productService.listWithStock()
-  })
-
-  ipcMain.handle('products:list-active-with-stock', () => {
-    return productService.listActiveWithStock()
   })
 
   ipcMain.handle('products:get-by-id', (_, id: number) => {
@@ -34,10 +22,6 @@ export function registerProductIpc(): void {
 
   ipcMain.handle('products:get-by-sku', (_, sku: string) => {
     return productService.getBySku(sku)
-  })
-
-  ipcMain.handle('products:get-by-category', (_, categoryId: number) => {
-    return productService.getByCategory(categoryId)
   })
 
   ipcMain.handle('products:search', (_, query: string) => {
@@ -56,10 +40,6 @@ export function registerProductIpc(): void {
     return productService.update(id, data)
   })
 
-  ipcMain.handle('products:set-active', (_, id: number, isActive: boolean) => {
-    return productService.setActive(id, isActive)
-  })
-
   ipcMain.handle('products:add-stock', (_, data: AddStockDTO) => {
     return restockService.addStock(data)
   })
@@ -71,9 +51,5 @@ export function registerProductIpc(): void {
 
   ipcMain.handle('products:count', () => {
     return productService.count()
-  })
-
-  ipcMain.handle('products:count-active', () => {
-    return productService.countActive()
   })
 }

@@ -1,4 +1,4 @@
-# Fix Prompt — Round 2 — MajidZiaTraders
+# Fix Prompt — Round 2 — MZTraders
 
 **What this is:** the result of **retesting on 2026-09-10** after the first round of fixes (`FIX_PROMPT.md`), written as a ready-to-use prompt for an AI coding assistant or a developer.
 
@@ -26,9 +26,9 @@ All tests ran on isolated test databases. The real database was only ever read (
 
 <!-- ======================= COPY FROM HERE ======================= -->
 
-# Task: fix the remaining issues found in the MajidZiaTraders round-2 retest
+# Task: fix the remaining issues found in the MZTraders round-2 retest
 
-You're working on **MajidZiaTraders**, an offline desktop app for inventory, invoicing and customer accounts. A first round of fixes has already been applied, and the main 44-check end-to-end suite passes. Fix **all** issues below **without breaking any of those 44 checks**, verify each fix, and report back.
+You're working on **MZTraders**, an offline desktop app for inventory, invoicing and customer accounts. A first round of fixes has already been applied, and the main 44-check end-to-end suite passes. Fix **all** issues below **without breaking any of those 44 checks**, verify each fix, and report back.
 
 ## Project facts
 - Stack: **Electron 44 + electron-vite 5 + Vite 7 + React 19 + TypeScript + better-sqlite3**.

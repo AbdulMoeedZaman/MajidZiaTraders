@@ -1,5 +1,4 @@
 import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
-import type { Category, CreateCategoryDTO, UpdateCategoryDTO } from '@shared/types/category'
 import type {
   StockMovement,
   StockMovementWithContext,
@@ -53,33 +52,16 @@ function ipc<T>(channel: string, ...args: unknown[]): Promise<T> {
 export const api = {
   products: {
     list: () => ipc<Product[]>('products:list'),
-    listActive: () => ipc<Product[]>('products:list-active'),
-    listInactive: () => ipc<Product[]>('products:list-inactive'),
     listWithStock: () => ipc<ProductWithStock[]>('products:list-with-stock'),
-    listActiveWithStock: () => ipc<ProductWithStock[]>('products:list-active-with-stock'),
     getById: (id: number) => ipc<Product | null>('products:get-by-id', id),
     getBySku: (sku: string) => ipc<Product | null>('products:get-by-sku', sku),
-    getByCategory: (categoryId: number) => ipc<Product[]>('products:get-by-category', categoryId),
     search: (query: string) => ipc<Product[]>('products:search', query),
     searchWithStock: (query: string) => ipc<ProductWithStock[]>('products:search-with-stock', query),
     create: (data: CreateProductDTO) => ipc<Product>('products:create', data),
     update: (id: number, data: UpdateProductDTO) => ipc<Product>('products:update', id, data),
-    setActive: (id: number, isActive: boolean) => ipc<Product>('products:set-active', id, isActive),
     addStock: (data: AddStockDTO) => ipc<Restock>('products:add-stock', data),
     delete: (id: number) => ipc<{ success: boolean }>('products:delete', id),
     count: () => ipc<number>('products:count'),
-    countActive: () => ipc<number>('products:count-active'),
-  },
-
-  categories: {
-    list: () => ipc<Category[]>('categories:list'),
-    listActive: () => ipc<Category[]>('categories:list-active'),
-    getById: (id: number) => ipc<Category | null>('categories:get-by-id', id),
-    create: (data: CreateCategoryDTO) => ipc<Category>('categories:create', data),
-    update: (id: number, data: UpdateCategoryDTO) => ipc<Category>('categories:update', id, data),
-    setActive: (id: number, isActive: boolean) => ipc<Category>('categories:set-active', id, isActive),
-    delete: (id: number) => ipc<{ success: boolean }>('categories:delete', id),
-    count: () => ipc<number>('categories:count'),
   },
 
   inventory: {
@@ -96,7 +78,6 @@ export const api = {
       ipc<StockSummary>('inventory:stock-summary', productId),
     stockSummaries: (productIds: number[]) =>
       ipc<StockSummary[]>('inventory:stock-summaries', productIds),
-    lowStock: () => ipc<StockSummary[]>('inventory:low-stock'),
     outOfStock: () => ipc<StockSummary[]>('inventory:out-of-stock'),
     setOpeningStock: (data: SetOpeningStockDTO) =>
       ipc<StockMovement>('inventory:set-opening-stock', data),

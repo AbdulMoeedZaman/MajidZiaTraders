@@ -73,7 +73,7 @@ export function AddStockModal({ product, onSubmit, onClose }: AddStockModalProps
             step="0.01"
             min={0}
             value={costPerUnit}
-            placeholder={formatMoney(product.baseCostPrice)}
+            placeholder={formatMoney(product.minSellingPrice)}
             onChange={(e) => setCostPerUnit(e.target.value)}
           />
           {errors.costPerUnit && <em className="field-error">{errors.costPerUnit}</em>}

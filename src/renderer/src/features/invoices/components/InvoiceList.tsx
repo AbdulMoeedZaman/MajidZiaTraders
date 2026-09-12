@@ -26,7 +26,7 @@ export function InvoiceList({ onSelect }: InvoiceListProps) {
   const loadFormData = useCallback(async () => {
     const [c, p] = await Promise.all([
       api.customers.listWithBalance().catch(() => [] as CustomerWithBalance[]),
-      api.products.listActiveWithStock().catch(() => [] as ProductWithStock[]),
+      api.products.listWithStock().catch(() => [] as ProductWithStock[]),
     ])
     setCustomers(c)
     setProducts(p)

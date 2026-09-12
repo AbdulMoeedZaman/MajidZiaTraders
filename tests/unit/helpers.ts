@@ -32,7 +32,6 @@ export function seedBasics(sku = 'W1'): { product: Product; customerId: number }
   const product = new ProductService().create({
     sku,
     name: `Widget ${sku}`,
-    baseCostPrice: 500,
     minSellingPrice: 800,
     sellingPrice: 1000,
   })
@@ -47,7 +46,7 @@ export function line(product: Product, quantity: number, price = product.selling
     productName: product.name,
     productSku: product.sku,
     quantity,
-    costPriceAtSale: product.baseCostPrice,
+    costPriceAtSale: product.minSellingPrice,
     minSellingPriceAtSale: product.minSellingPrice,
     actualSellingPrice: price,
   }
