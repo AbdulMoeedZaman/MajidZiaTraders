@@ -1489,14 +1489,24 @@ body {
   color: #111;
 }
 
-.invoice-sheet .ip-owner {
+.invoice-sheet .sheet-head {
   text-align: center;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
+.invoice-sheet .ip-owner {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.invoice-sheet .ip-subtitle {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Keep for the load form report header */
 .invoice-sheet .ip-band {
   display: flex;
   align-items: center;
@@ -1512,41 +1522,76 @@ body {
   font-size: 13px;
 }
 
-.invoice-sheet .ip-details {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
+.invoice-sheet .ip-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  border-top: 1px solid #111;
+  border-bottom: 1px solid #111;
+  padding: 6px 0;
+  margin: 4px 0 16px;
 }
 
-.invoice-sheet .ip-customer {
-  line-height: 1.6;
+/* Metadata boxes: customer (left, framed) + transaction details (right) */
+.invoice-sheet .ip-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 16px;
 }
 
-.invoice-sheet .ip-right {
-  text-align: right;
-  line-height: 1.6;
-  align-self: flex-start;
+.invoice-sheet .ip-customer-box {
+  border: 1px solid #111;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+.invoice-sheet .ip-meta-right {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
+  padding-top: 6px;
+  line-height: 1.5;
   gap: 2px;
 }
 
+.invoice-sheet .ip-meta-line {
+  font-size: 13px;
+}
+
+.invoice-sheet .ip-meta-line.right {
+  text-align: right;
+}
+
+.invoice-sheet .ip-meta-line span {
+  color: #333;
+}
+
+.invoice-sheet .ip-meta-line strong {
+  font-weight: 600;
+}
+
+/* Items table: full thin grid, matrix style */
 .invoice-sheet .ip-table {
   width: 100%;
   border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
 
 .invoice-sheet .ip-table th,
 .invoice-sheet .ip-table td {
-  border: 1px solid #333;
-  padding: 6px 8px;
+  border: 1px solid #111;
+  padding: 5px 8px;
   text-align: left;
 }
 
 .invoice-sheet .ip-table th {
   background: #f1f1f1;
-  font-size: 13px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .invoice-sheet .ip-num {
@@ -1554,14 +1599,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.invoice-sheet .ip-scheme {
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 10px,
-    #eee 10px,
-    #eee 11px
-  );
+.invoice-sheet .ip-unit {
+  text-align: center;
+}
+
+.invoice-sheet .ip-line-note {
+  font-size: 11px;
+  color: #333;
 }
 
 .invoice-sheet .ip-total-row td {
@@ -1573,13 +1617,101 @@ body {
   text-align: right;
 }
 
-.invoice-sheet .ip-totals {
+/* Footer: quantity breakdown + balances (left), financials (right) */
+.invoice-sheet .ip-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.invoice-sheet .ip-left-col {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-width: 320px;
-  margin-left: auto;
-  margin-top: 14px;
+  gap: 12px;
+}
+
+.invoice-sheet .ip-box {
+  border: 1px solid #111;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.invoice-sheet .ip-box-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+
+.invoice-sheet .ip-sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.invoice-sheet .ip-sum-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-sheet .ip-finance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invoice-sheet .ip-fin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 1px 2px;
+}
+
+.invoice-sheet .ip-fin-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-sheet .ip-fin-row.ip-net {
+  border-top: 2px solid #111;
+  border-bottom: 2px solid #111;
+  margin-top: 4px;
+  padding: 6px 2px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* Signatures & timestamp */
+.invoice-sheet .ip-signatures {
+  display: flex;
+  gap: 56px;
+  margin-top: 30px;
+}
+
+.invoice-sheet .ip-signature-field {
+  flex: 1;
+  text-align: center;
+}
+
+.invoice-sheet .ip-signature-line {
+  border-top: 1px solid #111;
+  margin-bottom: 4px;
+}
+
+.invoice-sheet .ip-signature-field span {
+  font-size: 12px;
+}
+
+.invoice-sheet .ip-time {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .invoice-sheet .ip-currency-note {
@@ -1589,40 +1721,8 @@ body {
   margin-bottom: 8px;
 }
 
-.invoice-sheet .ip-totals-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.invoice-sheet .ip-totals-row strong {
-  font-variant-numeric: tabular-nums;
-}
-
-.invoice-sheet .ip-totals-row.ip-grand {
-  border-top: 1px solid #111;
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-.invoice-sheet .ip-signature {
-  width: 220px;
-  text-align: center;
-  margin-left: auto;
-  margin-top: 28px;
-}
-
-.invoice-sheet .ip-signature-line {
-  border-top: 1px solid #111;
-  margin-bottom: 4px;
-}
-
-.invoice-sheet .ip-signature span {
-  font-size: 12px;
-}
-
 .invoice-sheet .ip-description {
-  margin-top: 28px;
+  margin-top: 20px;
   text-align: center;
   font-size: 13px;
 }
@@ -1639,9 +1739,25 @@ body {
     padding: 0;
     margin: 0;
     max-width: none;
+    font-size: 12px;
+    line-height: 1.35;
   }
   .invoice-sheet .ip-owner {
     font-size: 22px;
+  }
+  .invoice-sheet .ip-table th,
+  .invoice-sheet .ip-table td {
+    padding: 3px 6px;
+    font-size: 12px;
+  }
+  .invoice-sheet thead {
+    display: table-header-group;
+  }
+  .invoice-sheet .ip-table tr,
+  .invoice-sheet .ip-footer,
+  .invoice-sheet .ip-signatures {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }
 

@@ -219,19 +219,33 @@ try {
   const hasBand = sheetText.includes('0300-1234567') && sheetText.includes('Main Bazaar, Multan')
   const hasCustomer = sheetText.includes('Bilal Auto Shop')
   const hasBroker = sheetText.includes('Bashir Ahmad')
-  const hasSchemeCol = await ev(`[...document.querySelectorAll('.ip-table th')].some((th)=>th.textContent.trim()==='Scheme')`)
-  const hasSignature = sheetText.includes('Signature')
+  const hasMatrixCols = await ev(`[...document.querySelectorAll('.ip-table th')].map((th)=>th.textContent.trim()).join(',')`)
+  const hasSignature = sheetText.includes('Prepared By') && sheetText.includes('Despatched By')
   const hasDescription = sheetText.includes('Payment due within 7 days.')
   const hasShopNameLabel = sheetText.includes('Shop name:')
   const hasOwnerNameLabel = sheetText.includes('Owner name:')
   const hasStatusLabel = sheetText.includes('Status:') && !sheetText.includes('Filer status')
   const dateCount = (sheetText.match(/Date:/g) ?? []).length
-  check('UI-5', 'Invoicing through the UI lands on the printable sheet with owner band, booker, scheme column, signature and description',
-    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasSchemeCol && hasSignature && hasDescription,
-    { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, schemeColumn: hasSchemeCol, signature: hasSignature, description: hasDescription })
+  check('UI-5', 'Invoicing through the UI lands on the printable sheet with centered header, owner/OGP metadata, matrix item columns, full value stack and signatures',
+    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Description,Qty.,Unit,Rate,Amount' && hasSignature && hasDescription,
+    { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
     dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('₹') && sheetText.includes('All amounts in Indian Rupees (₹)'),
     { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('₹') })
+
+  const headerCentered = await ev(`(()=>{const h=document.querySelector('.invoice-sheet .sheet-head'); if(!h) return false; const s=getComputedStyle(h); return s.textAlign==='center'})()`)
+  const boxHeadings = await ev(`[...document.querySelectorAll('.invoice-sheet .ip-box-heading')].map((h)=>h.textContent.trim()).join(',')`)
+  const hasTitle = sheetText.includes('SALES INVOICE')
+  const hasQtyBreakdown = (boxHeadings.includes('Quantity Breakdown') || boxHeadings.includes('QUANTITY BREAKDOWN')) && sheetText.includes('Total Ctn (Cartons)') && sheetText.includes('Total Pcs')
+  const hasBalances = sheetText.includes('Previous Balance') && sheetText.includes('Current Balance')
+  const hasFinancials = sheetText.includes('Total Gross Amount') && sheetText.includes('Carriage') && sheetText.includes('Tax') && sheetText.includes('Discount') && sheetText.includes('Net Amount / Grand Total')
+  const hasTime = /Time: \d{1,2}:\d{2}:\d{2}(AM|PM)/.test(sheetText)
+  const netStyle = await ev(`(()=>{const n=document.querySelector('.invoice-sheet .ip-net'); if(!n) return 'NOTFOUND'; const s=getComputedStyle(n); return JSON.stringify({top:s.borderTopWidth,bottom:s.borderBottomWidth,topStyle:s.borderTopStyle})})()`)
+  const netParsed = JSON.parse(netStyle)
+  const netBordered = netParsed.topStyle === 'solid' && parseFloat(netParsed.top) > 0 && parseFloat(netParsed.bottom) > 0
+  check('UI-5c', 'Sheet has centered store header, SALES INVOICE title, quantity breakdown, balances, financial stack with bordered net row, and a timestamp',
+    headerCentered && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && hasTime && netBordered,
+    { headerCentered, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, timestamp: hasTime, netRowBordered: netStyle })
 
   // =============== UI-7: load form selection + printable report ===============
   await nav('Invoices'); await wait(900)
