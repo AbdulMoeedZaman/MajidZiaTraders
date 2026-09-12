@@ -155,6 +155,10 @@ try {
   await ev(`document.querySelector('.overlay')?.click()`); await wait(300)
   check('UI-2', 'Settings lists project owners and bookers and opens the add-broker form', ownersSection && bookersSection && brokerModalOpened, { ownersSection, bookersSection, brokerModalOpened })
 
+  // =============== UI-2b: Settings backup & restore actions present ===============
+  const backupSection = await ev(`document.body.innerText.includes('Backup & Restore') && [...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Create backup…') && [...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Restore from backup…')`)
+  check('UI-2b', 'Settings shows the Backup & Restore section with Create and Restore buttons', backupSection, { backupSection })
+
   // =============== UI-3: create a product through the UI form ===============
   await nav('Products'); await wait(900)
   await clickBtn('+ Add Product'); await wait(700)

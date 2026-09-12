@@ -108,6 +108,37 @@ try {
   check('X-7', 'UI restock persisted: GAUGE 2026 +50 purchase movement with running balance carried to 47',
     !!rg && rg.quantity === 50 && rg.date === TODAY && rg.previousQuantity === -3 && rg.newQuantity === 47,
     rg ?? null)
+
+  // X-8: backup create → validate → restore round trip (data intact, safety copy kept)
+  const backupPath = path.join(TESTDIR, 'e2e-backup.db')
+  const created = must(await inv('backup:create', backupPath), 'create backup')
+  const createdOnDisk = fs.existsSync(created.path) && fs.statSync(created.path).size > 0
+
+  const validated = must(await inv('backup:validate', backupPath), 'validate backup')
+  const garbagePath = path.join(TESTDIR, 'not-a-backup.db')
+  fs.writeFileSync(garbagePath, 'not a real sqlite file at all')
+  const garbage = must(await inv('backup:validate', garbagePath), 'validate garbage')
+
+  const restored = must(await inv('backup:restore', backupPath), 'restore backup')
+  const safetyOnDisk = fs.existsSync(restored.safetyPath) && fs.statSync(restored.safetyPath).size > 0
+
+  const invoicesAfter = must(await inv('invoices:list'), 'invoices after restore')
+  const stockAfter = must(await inv('stock:list'), 'stock after restore')
+  check('X-8', 'Backup create/validate/restore round trip: valid backup, garbage rejected, safety copy saved, data intact after restore',
+    createdOnDisk && validated.valid && validated.version === 4 && !garbage.valid &&
+    safetyOnDisk && invoicesAfter.length === invoices.length && stockAfter.length === stockRows.length,
+    { createdOnDisk, fileBytes: created.size, validation: { valid: validated.valid, version: validated.version }, garbageRejected: { valid: garbage.valid, message: garbage.message }, safetyOnDisk, invoicesAfter: invoicesAfter.length, stockAfter: stockAfter.length })
+
+  // X-9: a backup stamped with a future schema version is rejected
+  const { DatabaseSync } = await import('node:sqlite')
+  const futurePath = path.join(TESTDIR, 'e2e-newer-version.db')
+  fs.copyFileSync(backupPath, futurePath)
+  const dup = new DatabaseSync(futurePath)
+  dup.exec("INSERT INTO _migrations (version, name) VALUES (999, 'fictional-future')")
+  dup.close()
+  const future = must(await inv('backup:validate', futurePath), 'validate future backup')
+  check('X-9', 'A backup made by a newer app version is rejected with a clear message',
+    !future.valid && future.version === 999 && /newer version/.test(future.message), future)
 } catch (err) {
   console.log('\nSCRIPT STOPPED:', err.message)
   process.exitCode = 1

@@ -6,6 +6,7 @@ import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO 
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
 import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
+import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
 
 declare global {
   interface Window {
@@ -94,5 +95,16 @@ export const api = {
     bulkUpdate: (data: BulkUpdateSettingsDTO) =>
       ipc<{ success: boolean }>('settings:bulk-update', data),
     delete: (key: string) => ipc<{ success: boolean }>('settings:delete', key),
+  },
+
+  dialogs: {
+    saveBackup: () => ipc<DialogResult>('dialog:save-backup'),
+    openBackup: () => ipc<DialogResult>('dialog:open-backup'),
+  },
+
+  backup: {
+    create: (destinationPath: string) => ipc<BackupFileInfo>('backup:create', destinationPath),
+    validate: (sourcePath: string) => ipc<BackupValidation>('backup:validate', sourcePath),
+    restore: (sourcePath: string) => ipc<BackupRestoreResult>('backup:restore', sourcePath),
   },
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import type { ProjectOwner } from '@shared/types/project-owner'
 import type { Broker } from '@shared/types/broker'
+import type { BackupValidation } from '@shared/types/backup'
 
 interface OwnerFormData {
   name: string
@@ -211,6 +212,14 @@ export function SettingsPage() {
   const [descSaving, setDescSaving] = useState(false)
   const [descMessage, setDescMessage] = useState<string | null>(null)
   const [descError, setDescError] = useState<string | null>(null)
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backupMessage, setBackupMessage] = useState<string | null>(null)
+  const [backupError, setBackupError] = useState<string | null>(null)
+  const [restorePick, setRestorePick] = useState<{
+    path: string
+    name: string
+    validation: BackupValidation
+  } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -282,6 +291,60 @@ export function SettingsPage() {
       setDescError(e instanceof Error ? e.message : 'Failed to save description')
     } finally {
       setDescSaving(false)
+    }
+  }
+
+  const createBackup = async () => {
+    setBackupBusy(true)
+    setBackupMessage(null)
+    setBackupError(null)
+    try {
+      const pick = await api.dialogs.saveBackup()
+      if (pick.canceled || !pick.path) return
+      const file = await api.backup.create(pick.path)
+      setBackupMessage(`Backup saved: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
+    } catch (e) {
+      setBackupError(e instanceof Error ? e.message : 'Failed to create backup')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  const pickRestore = async () => {
+    setBackupBusy(true)
+    setBackupMessage(null)
+    setBackupError(null)
+    try {
+      const pick = await api.dialogs.openBackup()
+      if (pick.canceled || !pick.path) return
+      const validation = await api.backup.validate(pick.path)
+      if (!validation.valid) {
+        setBackupError(validation.message)
+        return
+      }
+      setRestorePick({
+        path: pick.path,
+        name: pick.path.split(/[\\/]/).pop() ?? pick.path,
+        validation,
+      })
+    } catch (e) {
+      setBackupError(e instanceof Error ? e.message : 'Failed to read backup')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  const confirmRestore = async () => {
+    if (!restorePick) return
+    setBackupBusy(true)
+    setBackupError(null)
+    try {
+      await api.backup.restore(restorePick.path)
+      setRestorePick(null)
+      window.location.reload()
+    } catch (e) {
+      setBackupError(e instanceof Error ? e.message : 'Failed to restore backup')
+      setBackupBusy(false)
     }
   }
 
@@ -431,6 +494,26 @@ export function SettingsPage() {
         </div>
       </div>
 
+      <div className="settings-section">
+        <div className="section-title">Backup &amp; Restore</div>
+        <div className="settings-intro">
+          Create a backup to save the whole database (customers, products, stock, invoices,
+          settings) to a .db file, e.g. on a USB drive. Restoring replaces all current data —
+          the app first saves an automatic before-restore copy of today&apos;s database so
+          nothing is lost.
+        </div>
+        {backupError && <div className="form-error">{backupError}</div>}
+        {backupMessage && <div className="text-ok fine-text">{backupMessage}</div>}
+        <div className="form-actions">
+          <button className="btn primary" onClick={() => void createBackup()} disabled={backupBusy}>
+            {backupBusy ? 'Working…' : 'Create backup…'}
+          </button>
+          <button className="btn ghost" onClick={() => void pickRestore()} disabled={backupBusy}>
+            Restore from backup…
+          </button>
+        </div>
+      </div>
+
       {ownerModal.open && (
         <OwnerForm
           initial={ownerModal.editing}
@@ -444,6 +527,32 @@ export function SettingsPage() {
           onSave={saveBroker}
           onCancel={() => setBrokerModal({ open: false, editing: null })}
         />
+      )}
+      {restorePick && (
+        <div className="overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Restore backup</h3>
+            </div>
+            <p className="fine-text">
+              Restore <strong>{restorePick.name}</strong>? All current data will be replaced by
+              the backup&apos;s data
+              {restorePick.validation.version !== null
+                ? ` (backup schema version ${restorePick.validation.version})`
+                : ''}
+              . An automatic copy of today&apos;s database is saved first in case you need to go
+              back.
+            </p>
+            <div className="form-actions">
+              <button className="btn ghost" onClick={() => setRestorePick(null)} disabled={backupBusy}>
+                Cancel
+              </button>
+              <button className="btn danger" onClick={() => void confirmRestore()} disabled={backupBusy}>
+                {backupBusy ? 'Working…' : 'Restore now'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
