@@ -343,6 +343,20 @@ body {
   background: #f8fafc;
 }
 
+.data-table tbody tr.clickable {
+  cursor: pointer;
+}
+
+.stock-in {
+  color: #047857;
+  font-weight: 600;
+}
+
+.stock-out {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .data-table tbody tr.selected {
   background: #eff6ff;
 }
@@ -753,12 +767,13 @@ body {
 }
 
 .form-success {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  color: var(--ok);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  margin: 8px 0;
+  color: #065f46;
+  font-size: 13px;
 }
 
 .toast-message {
@@ -1532,17 +1547,30 @@ body {
 }
 
 .invoice-sheet .ip-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
   border-top: 1px solid #111;
   border-bottom: 1px solid #111;
   padding: 6px 0;
   margin: 4px 0 16px;
 }
 
-/* Metadata boxes: customer (left, framed) + transaction details (right) */
+.invoice-sheet .ip-title-text {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.invoice-sheet .ip-title-number {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-top: 1px;
+}
+
+/* Metadata: customer details (left, borderless) + transaction details (right) */
 .invoice-sheet .ip-meta {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
@@ -1552,8 +1580,7 @@ body {
 }
 
 .invoice-sheet .ip-customer-box {
-  border: 1px solid #111;
-  padding: 8px 12px;
+  padding: 6px 0 0;
   line-height: 1.5;
 }
 
@@ -1695,7 +1722,7 @@ body {
   font-size: 14px;
 }
 
-/* Signatures & timestamp */
+/* Signature */
 .invoice-sheet .ip-signatures {
   display: flex;
   gap: 56px;
@@ -1714,13 +1741,6 @@ body {
 
 .invoice-sheet .ip-signature-field span {
   font-size: 12px;
-}
-
-.invoice-sheet .ip-time {
-  margin-top: 12px;
-  text-align: right;
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .invoice-sheet .ip-currency-note {

@@ -107,7 +107,10 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           </div>
         )}
 
-        <div className="ip-title">SALES INVOICE</div>
+        <div className="ip-title">
+          <span className="ip-title-text">SALES INVOICE</span>
+          <span className="ip-title-number">{invoice.invoiceNumber}</span>
+        </div>
 
         {/* ── Metadata boxes ───────────────────────────────────────────── */}
         <div className="ip-meta">
@@ -118,14 +121,13 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
                 <div className="ip-meta-line"><span>Owner name:</span> <strong>{customer.ownerName}</strong></div>
                 <div className="ip-meta-line"><span>Address:</span> <strong>{customer.address}</strong></div>
                 <div className="ip-meta-line"><span>Phone:</span> <strong>{customer.phone}</strong></div>
+                <div className="ip-meta-line"><span>Status:</span> <strong>{invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</strong></div>
               </>
             )}
           </div>
           <div className="ip-meta-right">
-            <div className="ip-meta-line right"><span>Invoice No:</span> <strong>{invoice.invoiceNumber}</strong></div>
             <div className="ip-meta-line right"><span>Date:</span> <strong>{printDate(invoice.date)}</strong></div>
-            {broker && <div className="ip-meta-line right"><span>O.G.P #:</span> <strong>{broker.name}</strong></div>}
-            <div className="ip-meta-line right"><span>Status:</span> <strong>{invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</strong></div>
+            {broker && <div className="ip-meta-line right"><span>Booker:</span> <strong>{broker.name}</strong></div>}
           </div>
         </div>
 
@@ -196,21 +198,15 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
               <div className="ip-sum-row"><span>Total Ctn (Cartons)</span><strong>{totalCtn}</strong></div>
               <div className="ip-sum-row"><span>Total Pcs</span><strong>{totalPcs}</strong></div>
             </div>
-            <div className="ip-box">
-              <div className="ip-box-heading">Account Balance</div>
-              <div className="ip-sum-row"><span>Previous Balance</span><strong>{'—'}</strong></div>
-              <div className="ip-sum-row"><span>Current Balance</span><strong>{printMoney(invoice.remaining)}</strong></div>
-            </div>
           </div>
 
           <div className="ip-finance">
             <div className="ip-fin-row"><span>Total Gross Amount</span><strong>{printMoney(invoice.subtotal)}</strong></div>
-            <div className="ip-fin-row"><span>Carriage</span><strong>{'—'}</strong></div>
+            <div className="ip-fin-row"><span>Previous Balance</span><strong>{'—'}</strong></div>
             <div className="ip-fin-row">
               <span>Tax</span>
               <strong>{invoice.tax != null ? printMoney(invoice.tax) : '—'}</strong>
             </div>
-            <div className="ip-fin-row"><span>Discount</span><strong>{'—'}</strong></div>
             <div className="ip-fin-row ip-net">
               <span>Net Amount / Grand Total</span>
               <strong>{printMoney(invoice.grandTotal ?? invoice.subtotal)}</strong>
@@ -218,21 +214,12 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           </div>
         </div>
 
-        {/* ── Signatures ────────────────────────────────────────────────── */}
+        {/* ── Signature ────────────────────────────────────────────────── */}
         <div className="ip-signatures">
           <div className="ip-signature-field">
             <div className="ip-signature-line" />
-            <span>Prepared By</span>
+            <span>Signature</span>
           </div>
-          <div className="ip-signature-field">
-            <div className="ip-signature-line" />
-            <span>Despatched By</span>
-          </div>
-        </div>
-
-        {/* ── Timestamp + notes ────────────────────────────────────────── */}
-        <div className="ip-time">
-          Time: {new Date().toLocaleTimeString('en-US', { hour12: true }).replace(' ', '')}
         </div>
 
         {description && (

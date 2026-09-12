@@ -220,13 +220,13 @@ try {
   const hasCustomer = sheetText.includes('Bilal Auto Shop')
   const hasBroker = sheetText.includes('Bashir Ahmad')
   const hasMatrixCols = await ev(`[...document.querySelectorAll('.ip-table th')].map((th)=>th.textContent.trim()).join(',')`)
-  const hasSignature = sheetText.includes('Prepared By') && sheetText.includes('Despatched By')
+  const hasSignature = sheetText.includes('Signature') && !sheetText.includes('Prepared By') && !sheetText.includes('Despatched By')
   const hasDescription = sheetText.includes('Payment due within 7 days.')
   const hasShopNameLabel = sheetText.includes('Shop name:')
   const hasOwnerNameLabel = sheetText.includes('Owner name:')
   const hasStatusLabel = sheetText.includes('Status:') && !sheetText.includes('Filer status')
   const dateCount = (sheetText.match(/Date:/g) ?? []).length
-  check('UI-5', 'Invoicing through the UI lands on the printable sheet with centered header, owner/OGP metadata, matrix item columns, full value stack and signatures',
+  check('UI-5', 'Invoicing through the UI lands on the printable sheet with centered header, owner/Booker metadata, matrix item columns, full value stack and a single signature',
     detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Description,Qty.,Unit,Rate,Amount' && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
@@ -241,15 +241,14 @@ try {
   const boxHeadings = await ev(`[...document.querySelectorAll('.invoice-sheet .ip-box-heading')].map((h)=>h.textContent.trim()).join(',')`)
   const hasTitle = sheetText.includes('SALES INVOICE')
   const hasQtyBreakdown = (boxHeadings.includes('Quantity Breakdown') || boxHeadings.includes('QUANTITY BREAKDOWN')) && sheetText.includes('Total Ctn (Cartons)') && sheetText.includes('Total Pcs')
-  const hasBalances = sheetText.includes('Previous Balance') && sheetText.includes('Current Balance')
-  const hasFinancials = sheetText.includes('Total Gross Amount') && sheetText.includes('Carriage') && sheetText.includes('Tax') && sheetText.includes('Discount') && sheetText.includes('Net Amount / Grand Total')
-  const hasTime = /Time: \d{1,2}:\d{2}:\d{2}(AM|PM)/.test(sheetText)
+  const hasBalances = sheetText.includes('Previous Balance')
+  const hasFinancials = sheetText.includes('Total Gross Amount') && sheetText.includes('Previous Balance') && sheetText.includes('Tax') && sheetText.includes('Net Amount / Grand Total')
   const netStyle = await ev(`(()=>{const n=document.querySelector('.invoice-sheet .ip-net'); if(!n) return 'NOTFOUND'; const s=getComputedStyle(n); return JSON.stringify({top:s.borderTopWidth,bottom:s.borderBottomWidth,topStyle:s.borderTopStyle})})()`)
   const netParsed = JSON.parse(netStyle)
   const netBordered = netParsed.topStyle === 'solid' && parseFloat(netParsed.top) > 0 && parseFloat(netParsed.bottom) > 0
-  check('UI-5c', 'Sheet has Times New Roman font, underlined store name, address/comma/phone header band, SALES INVOICE title, quantity breakdown, balances, financial stack with bordered net row, and a timestamp',
-    headerCentered && fontIsTimes && ownerUnderlined && bandLayout && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && hasTime && netBordered,
-    { headerCentered, fontTimesNewRoman: fontIsTimes, ownerUnderlined, bandLayout, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, timestamp: hasTime, netRowBordered: netStyle })
+  check('UI-5c', 'Sheet has Times New Roman font, underlined store name, address/comma/phone header band, SALES INVOICE title with number, quantity breakdown, previous balance, financial stack with bordered net row',
+    headerCentered && fontIsTimes && ownerUnderlined && bandLayout && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && netBordered,
+    { headerCentered, fontTimesNewRoman: fontIsTimes, ownerUnderlined, bandLayout, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, netRowBordered: netStyle })
 
   // =============== UI-7: load form selection + printable report ===============
   await nav('Invoices'); await wait(900)
@@ -286,6 +285,52 @@ try {
   await clickBtn('Back to Invoices'); await wait(500)
   const backToList = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='+ New Invoice')`)
   check('UI-7c', 'Load form report can be closed back to the invoice list', backToList, { backToList })
+
+  // =============== UI-8/9/10: products → restock, inventory, per-product history ===============
+  await nav('Products'); await wait(900)
+  await clickBtn('Restock'); await wait(400)
+  const restockModalOpen = await ev(`!!document.querySelector('.modal') && document.querySelector('.modal')?.innerText.includes('Restock Product')`)
+  await ev(`(()=>{
+    const sel=[...document.querySelectorAll('.modal select')].find((n)=>n.closest('label')?.innerText.includes('Product'));
+    if(!sel) return false;
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(sel, String(${gauge.id}));
+    sel.dispatchEvent(new Event('change',{bubbles:true}));
+    const inp=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.includes('Quantity'));
+    if(!inp) return false;
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,'50');
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+    return true
+  })()`)
+  await clickBtn('Add Stock'); await wait(1000)
+  const restockSuccess = await ev(`document.querySelector('.form-success')?.innerText ?? ''`)
+  const stockList = must(await inv('stock:list'), 'stock list')
+  const uiRestock = stockList.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
+  check('UI-8', 'Restock modal adds stock as a purchase movement and shows a success toast',
+    restockModalOpen && restockSuccess.includes('50') && restockSuccess.includes('GAUGE 2026') &&
+    !!uiRestock && uiRestock.quantity === 50 && uiRestock.previousQuantity === -3 && uiRestock.newQuantity === 47 && uiRestock.date === TODAY,
+    { modalOpen: restockModalOpen, success: restockSuccess, restock: uiRestock })
+
+  await clickBtn('Inventory'); await wait(1000)
+  const invText = await ev(`document.body.innerText`)
+  const invHasRestock = invText.includes('+50 Restocks')
+  const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650.00') && invText.includes('-7')
+  const invHasSpring = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('Valve Spring') && r.textContent.includes('-4'))`)
+  check('UI-9', 'Inventory view lists restocks (+50 Restocks) and invoice sales with customer, price and quantity',
+    invHasRestock && invHasSale && invHasSpring,
+    { restockRow: invHasRestock, saleRow: invHasSale, springRow: invHasSpring })
+  await clickBtn('Back to Products'); await wait(500)
+
+  await clickRowWith('GAUGE 2026'); await wait(1000)
+  const detailHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
+  const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
+  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*47/.test(detailText)
+  const detailHasHistory = detailText.includes('+50 Restocks') && detailText.includes('-3')
+  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +50, sale -3 and In stock 47',
+    detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory,
+    { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory })
+  await clickBtn('Back to Products'); await wait(500)
+  const backToProducts = await ev(`!!document.querySelector('.toolbar input.search-input')`)
+  check('UI-10b', 'Product detail can be closed back to the product list', backToProducts, { backToProducts })
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)

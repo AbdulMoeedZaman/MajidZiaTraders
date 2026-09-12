@@ -7,6 +7,7 @@ import { InvoiceFormPage } from './features/invoices/components/InvoiceFormPage'
 import { CustomerList } from './features/customers/components/CustomerList'
 import { CustomerDetailPage } from './features/customers/components/CustomerDetailPage'
 import { ProductList } from './features/products/components/ProductList'
+import { ProductDetailPage } from './features/products/components/ProductDetailPage'
 import { SettingsPage } from './features/settings/components/SettingsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -14,6 +15,7 @@ export default function App() {
   const [view, setView] = useState<AppView>('invoices')
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null)
   const [customerDetailId, setCustomerDetailId] = useState<number | null>(null)
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [invoiceDraft, setInvoiceDraft] = useState<{ open: boolean; customerId: number | null }>({
     open: false,
     customerId: null,
@@ -23,12 +25,14 @@ export default function App() {
     setView(next)
     setSelectedInvoiceId(null)
     setCustomerDetailId(null)
+    setSelectedProductId(null)
     setInvoiceDraft({ open: false, customerId: null })
   }
 
   const openNewInvoice = (customerId: number | null) => {
     setSelectedInvoiceId(null)
     setCustomerDetailId(null)
+    setSelectedProductId(null)
     setView('invoices')
     setInvoiceDraft({ open: true, customerId })
   }
@@ -40,7 +44,9 @@ export default function App() {
         ? 'New Invoice'
         : view === 'customers' && customerDetailId !== null
           ? 'Customer Details'
-          : undefined
+          : view === 'products' && selectedProductId !== null
+            ? 'Product Details'
+            : undefined
 
   const headers: Array<{ cond: boolean; label: string; back: () => void }> = [
     {
@@ -58,6 +64,11 @@ export default function App() {
       label: 'Back to Customers',
       back: () => setCustomerDetailId(null),
     },
+    {
+      cond: view === 'products' && selectedProductId !== null,
+      label: 'Back to Products',
+      back: () => setSelectedProductId(null),
+    },
   ]
   const header = headers.find((h) => h.cond)
 
@@ -69,7 +80,7 @@ export default function App() {
       onBack={header?.back}
       backLabel={header?.label}
     >
-      <ErrorBoundary key={`${view}-${selectedInvoiceId}-${customerDetailId}-${invoiceDraft.open}`}>
+      <ErrorBoundary key={`${view}-${selectedInvoiceId}-${selectedProductId}-${customerDetailId}-${invoiceDraft.open}`}>
         {view === 'invoices' &&
           (selectedInvoiceId !== null ? (
             <InvoiceDetailPage
@@ -106,7 +117,15 @@ export default function App() {
             />
           ))}
 
-        {view === 'products' && <ProductList />}
+        {view === 'products' &&
+          (selectedProductId !== null ? (
+            <ProductDetailPage
+              productId={selectedProductId}
+              onBack={() => setSelectedProductId(null)}
+            />
+          ) : (
+            <ProductList onOpen={(id) => setSelectedProductId(id)} />
+          ))}
         {view === 'settings' && <SettingsPage />}
       </ErrorBoundary>
     </Layout>

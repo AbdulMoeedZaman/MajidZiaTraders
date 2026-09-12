@@ -1,16 +1,26 @@
 import { useMemo, useState } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import { ProductForm } from './ProductForm'
+import { RestockModal } from './RestockModal'
+import { InventoryView } from './InventoryView'
 import { formatMoney } from '../../../lib/format'
+import { api } from '../../../lib/api'
 import type { Product } from '@shared/types/product'
 
-export function ProductList() {
+interface Props {
+  onOpen?: (id: number) => void
+}
+
+export function ProductList({ onOpen }: Props) {
   const { products, loading, error, reload, create, update, remove } = useProducts()
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Product | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [showRestock, setShowRestock] = useState(false)
+  const [showInventory, setShowInventory] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -45,8 +55,17 @@ export function ProductList() {
     }
   }
 
+  const handleRestock = async (data: { productId: number; quantity: number }) => {
+    const product = products.find((p) => p.id === data.productId)
+    await api.stock.restock(data)
+    setSuccess(`Added ${data.quantity} units to ${product?.name ?? 'product'}`)
+    window.setTimeout(() => setSuccess(null), 3000)
+  }
+
   if (loading) return <div className="placeholder"><h3>Loading products…</h3></div>
   if (error) return <div className="error-screen">{error}</div>
+
+  if (showInventory) return <InventoryView onBack={() => setShowInventory(false)} />
 
   return (
     <div className="feature">
@@ -63,12 +82,19 @@ export function ProductList() {
             ↻
           </button>
         </div>
+        <button className="btn ghost" onClick={() => setShowRestock(true)}>
+          Restock
+        </button>
+        <button className="btn ghost" onClick={() => setShowInventory(true)}>
+          Inventory
+        </button>
         <button className="btn primary" onClick={() => setShowAdd(true)}>
           + Add Product
         </button>
       </div>
 
       {formError && <div className="form-error">{formError}</div>}
+      {success && <div className="form-success">{success}</div>}
 
       {visible.length === 0 ? (
         <div className="empty-state">
@@ -88,11 +114,11 @@ export function ProductList() {
             </thead>
             <tbody>
               {visible.map((p) => (
-                <tr key={p.id}>
+                <tr key={p.id} className="clickable" onClick={() => onOpen?.(p.id)}>
                   <td>{p.name}</td>
                   <td className="num mono">{formatMoney(p.rate)}</td>
                   <td className="num">{p.boxesPerCarton}</td>
-                  <td className="actions-col">
+                  <td className="actions-col" onClick={(e) => e.stopPropagation()}>
                     {confirmId === p.id ? (
                       <span className="confirm-bar">
                         <button className="btn danger small" onClick={() => void handleDelete(p.id)}>
@@ -128,6 +154,14 @@ export function ProductList() {
             setShowAdd(false)
             setEditing(null)
           }}
+        />
+      )}
+
+      {showRestock && (
+        <RestockModal
+          products={products}
+          onConfirm={handleRestock}
+          onCancel={() => setShowRestock(false)}
         />
       )}
     </div>

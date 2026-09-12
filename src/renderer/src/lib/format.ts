@@ -49,4 +49,17 @@ export function formatDateTime(iso: string | null | undefined): string {
   })
 }
 
+const MONTH_SHORT: Record<string, string> = {
+  '01': 'JAN', '02': 'FEB', '03': 'MAR', '04': 'APR', '05': 'MAY', '06': 'JUN',
+  '07': 'JUL', '08': 'AUG', '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DEC',
+}
+
+/** Compact ledger date used by the stock views, e.g. "2 AUG" for 2026-08-02. */
+export function formatStockDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return iso
+  return `${parseInt(m[3], 10)} ${MONTH_SHORT[m[2]] ?? m[2]}`
+}
+
 export { localDate }

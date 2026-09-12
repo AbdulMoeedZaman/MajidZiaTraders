@@ -91,6 +91,23 @@ try {
     items: [{ productId: gauge.id, rate: 149, cartonCount: 1, boxCount: 0 }],
   })
   check('X-5', 'A rate of Rs.1.49 below the UI product\'s min (Rs.1.50) is rejected', !lowRate.ok, lowRate.e ?? 'accepted')
+
+  // X-6: every round-1 invoice line was recorded in the stock ledger as a sale movement
+  const stockRows = must(await inv('stock:list'), 'stock list')
+  const s1 = stockRows.find((m) => m.productName === 'Axle Bearing 6204' && m.type === 'sale')
+  const s2 = stockRows.find((m) => m.productName === 'Valve Spring' && m.type === 'sale')
+  const sg = stockRows.find((m) => m.productName === 'GAUGE 2026' && m.type === 'sale')
+  check('X-6', 'Round-1 invoice lines wrote sale movements (negative qty, price snapshot, customer name)',
+    !!s1 && s1.quantity === -7 && s1.price === 65000 && s1.customerName === 'Bilal Auto Shop' &&
+    !!s2 && s2.quantity === -4 &&
+    !!sg && sg.quantity === -3,
+    stockRows.map((m) => ({ p: m.productName, t: m.type, q: m.quantity, price: m.price, c: m.customerName })))
+
+  // X-7: the UI restock from round 1 persisted as a purchase movement dated today
+  const rg = stockRows.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
+  check('X-7', 'UI restock persisted: GAUGE 2026 +50 purchase movement with running balance carried to 47',
+    !!rg && rg.quantity === 50 && rg.date === TODAY && rg.previousQuantity === -3 && rg.newQuantity === 47,
+    rg ?? null)
 } catch (err) {
   console.log('\nSCRIPT STOPPED:', err.message)
   process.exitCode = 1
