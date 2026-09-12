@@ -5,6 +5,7 @@ import { formatDate, formatMoney } from '../../../lib/format'
 import { useCustomerLedger } from '../hooks/useCustomerLedger'
 import { CustomerLedgerTable } from './CustomerLedgerTable'
 import { CustomerForm } from './CustomerForm'
+import { DateRangePicker } from '../../../components/DateRangePicker'
 import type { CustomerFormMode } from '../types/customer-form'
 
 interface CustomerDetailPageProps {
@@ -166,18 +167,14 @@ export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPagePro
         <div className="ledger-toolbar">
           <h3 className="ledger-title">Ledger / Transaction history</h3>
           <div className="ledger-dates">
-            <input
-              type="date"
-              value={ledger.from}
-              onChange={(e) => ledger.setFrom(e.target.value)}
-              aria-label="From date"
-            />
-            <span className="muted">to</span>
-            <input
-              type="date"
-              value={ledger.to}
-              onChange={(e) => ledger.setTo(e.target.value)}
-              aria-label="To date"
+            <DateRangePicker
+              from={ledger.from}
+              to={ledger.to}
+              onChange={(r) => {
+                ledger.setFrom(r.from)
+                ledger.setTo(r.to)
+              }}
+              placeholder="All dates"
             />
           </div>
         </div>

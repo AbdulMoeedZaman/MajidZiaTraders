@@ -3,6 +3,7 @@ import { useReports, ReportTab } from '../../reports/hooks/useReports'
 import { STOCK_MOVEMENT_LABELS } from '../../products/types/product-form'
 import { PAYMENT_METHOD_LABELS } from '../../payments/types/payment-form'
 import { formatDate, formatMoney } from '../../../lib/format'
+import { DateRangePicker } from '../../../components/DateRangePicker'
 
 const TABS: Array<{ id: ReportTab; label: string }> = [
   { id: 'sales', label: 'Sales' },
@@ -22,8 +23,7 @@ export function ReportsSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleRangeChange = (patch: Partial<{ from: string; to: string }>) => {
-    const next = { ...report.range, ...patch }
+  const handleRangeChange = (next: { from: string; to: string }) => {
     report.setRange(next)
     void report.load(next)
   }
@@ -46,22 +46,9 @@ export function ReportsSection() {
           ))}
         </div>
         <div className="spacer" />
-        <label className="range-field">
-          From
-          <input
-            type="date"
-            value={report.range.from}
-            onChange={(e) => handleRangeChange({ from: e.target.value })}
-          />
-        </label>
-        <label className="range-field">
-          To
-          <input
-            type="date"
-            value={report.range.to}
-            onChange={(e) => handleRangeChange({ to: e.target.value })}
-          />
-        </label>
+        <div className="range-field">
+          <DateRangePicker from={report.range.from} to={report.range.to} onChange={handleRangeChange} />
+        </div>
       </div>
 
       {report.error && <div className="form-error">{report.error}</div>}

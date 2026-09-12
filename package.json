@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node tests/run-unit.mjs",
     "test:e2e": "node tests/e2e/run.mjs",
+    "sample-data": "node tests/sample-data.mjs",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win --x64",
     "dist:win:portable": "npm run build && electron-builder --win --x64 --config.win.target=portable",
