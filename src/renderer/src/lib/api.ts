@@ -41,6 +41,7 @@ export const api = {
   routes: {
     list: () => ipc<Route[]>('routes:list'),
     listWithCounts: () => ipc<RouteWithCount[]>('routes:list-with-counts'),
+    rename: (id: number, name: string) => ipc<Route>('routes:rename', id, name),
   },
 
   products: {

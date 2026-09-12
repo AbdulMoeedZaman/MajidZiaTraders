@@ -291,72 +291,61 @@ export function SettingsPage() {
   return (
     <div className="feature">
       <div className="settings-section">
-        <div className="section-title">Project Owners</div>
+        <div className="section-title">Project Owner</div>
         <div className="settings-intro">
-          Project owners appear at the top of the printed invoice (name, phone, address).
+          The project owner appears at the top of the printed invoice. This owner must be set
+          up before any invoice can be created.
         </div>
         {owners.length === 0 ? (
           <div className="empty-state">
-            <p>No project owners yet.</p>
+            <p>No project owner set up yet.</p>
+            <div className="form-actions">
+              <button
+                className="btn primary"
+                onClick={() => setOwnerModal({ open: true, editing: null })}
+              >
+                + Set Up Project Owner
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Address</th>
-                  <th className="actions-col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {owners.map((o) => (
-                  <tr key={o.id}>
-                    <td>{o.name}</td>
-                    <td>{o.phone || '—'}</td>
-                    <td>{o.address || '—'}</td>
-                    <td className="actions-col">
-                      {confirmDelete?.type === 'owner' && confirmDelete.id === o.id ? (
-                        <span className="confirm-bar">
-                          <button className="btn danger small" onClick={() => void handleDelete()}>
-                            Confirm
-                          </button>
-                          <button className="btn ghost small" onClick={() => setConfirmDelete(null)}>
-                            Cancel
-                          </button>
-                        </span>
-                      ) : (
-                        <>
-                          <button
-                            className="btn ghost small"
-                            onClick={() => setOwnerModal({ open: true, editing: o })}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn danger small"
-                            onClick={() => setConfirmDelete({ type: 'owner', id: o.id })}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="settings-owner-card">
+            {owners.map((o) => (
+              <div className="settings-owner-row" key={o.id}>
+                <div className="settings-owner-info">
+                  <strong>{o.name}</strong>
+                  {o.phone && <span>{o.phone}</span>}
+                  {o.address && <span>{o.address}</span>}
+                </div>
+                {confirmDelete?.type === 'owner' && confirmDelete.id === o.id ? (
+                  <span className="confirm-bar">
+                    <button className="btn danger small" onClick={() => void handleDelete()}>
+                      Confirm
+                    </button>
+                    <button className="btn ghost small" onClick={() => setConfirmDelete(null)}>
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <span className="actions-col">
+                    <button
+                      className="btn ghost small"
+                      onClick={() => setOwnerModal({ open: true, editing: o })}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn danger small"
+                      onClick={() => setConfirmDelete({ type: 'owner', id: o.id })}
+                    >
+                      Delete
+                    </button>
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         )}
-        <div className="form-actions">
-          <button
-            className="btn ghost"
-            onClick={() => setOwnerModal({ open: true, editing: null })}
-          >
-            + Add Project Owner
-          </button>
-        </div>
       </div>
 
       <div className="settings-section">

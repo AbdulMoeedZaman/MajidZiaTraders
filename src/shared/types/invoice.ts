@@ -54,7 +54,6 @@ export interface CreateInvoiceItemDTO {
 
 export interface CreateInvoiceDTO {
   customerId: number
-  ownerId: number
   brokerId: number
   date: string
   filerStatus: FilerStatus

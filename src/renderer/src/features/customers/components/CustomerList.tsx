@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { api } from '../../../lib/api'
 import { useCustomers } from '../hooks/useCustomers'
 import { CustomerForm } from './CustomerForm'
+import { RouteNamesModal } from './RouteNamesModal'
 import type { CustomerFormData } from './CustomerForm'
 import type { CustomerWithRoute } from '@shared/types/customer'
 
@@ -14,6 +16,7 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
     useCustomers()
   const [query, setQuery] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showRouteNames, setShowRouteNames] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
 
@@ -51,6 +54,13 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
     }
   }
 
+  const saveRouteNames = async (updates: Array<{ id: number; name: string }>) => {
+    for (const u of updates) {
+      await api.routes.rename(u.id, u.name)
+    }
+    await reload()
+  }
+
   if (loading && routes.length === 0)
     return <div className="placeholder"><h3>Loading customers…</h3></div>
   if (error) return <div className="error-screen">{error}</div>
@@ -70,6 +80,9 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
             ↻
           </button>
         </div>
+        <button className="btn ghost" onClick={() => setShowRouteNames(true)} title="Set or edit the name of each delivery day's route">
+          Route names
+        </button>
         <button className="btn primary" onClick={() => setShowAdd(true)} disabled={routes.length === 0}>
           + Add Customer
         </button>
@@ -151,6 +164,14 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
           initialRouteId={activeRouteId}
           onSave={handleSave}
           onCancel={() => setShowAdd(false)}
+        />
+      )}
+
+      {showRouteNames && (
+        <RouteNamesModal
+          routes={routes}
+          onSave={saveRouteNames}
+          onCancel={() => setShowRouteNames(false)}
         />
       )}
     </div>

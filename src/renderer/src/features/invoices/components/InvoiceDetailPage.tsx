@@ -67,9 +67,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
   return (
     <div className="feature">
       <div className="toolbar">
-        <button className="btn ghost" onClick={onBack}>
-          ← Back
-        </button>
         <div className="spacer" />
         <button className="btn primary" onClick={() => window.print()}>
           🖨 Print

@@ -1,6 +1,7 @@
 import { runInTransaction, type AppDatabase } from '../sqlite'
 import { up as initialSchema } from './001_initial_schema'
 import { up as futureExtensionPoints } from './002_future_extension_points'
+import { up as routeCustomNames } from './003_route_custom_names'
 
 interface Migration {
   version: number
@@ -20,6 +21,7 @@ interface Migration {
 const migrations: Migration[] = [
   { version: 1, name: '001_initial_schema', up: initialSchema },
   { version: 2, name: '002_future_extension_points', up: futureExtensionPoints },
+  { version: 3, name: '003_route_custom_names', up: routeCustomNames },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

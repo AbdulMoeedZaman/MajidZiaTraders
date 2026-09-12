@@ -4,7 +4,6 @@ import { moneyToCents } from '../../../lib/money'
 import { localDate } from '../../../lib/format'
 import { InvoiceForm } from './InvoiceForm'
 import type { InvoiceFormValues } from './InvoiceForm'
-import type { ProjectOwner } from '@shared/types/project-owner'
 import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
 import type { Customer } from '@shared/types/customer'
@@ -12,13 +11,11 @@ import type { CreateInvoiceDTO, FilerStatus } from '@shared/types/invoice'
 
 interface Props {
   preselectCustomerId?: number | null
-  onCancel: () => void
   onCreated: (invoiceId: number) => void
 }
 
-export function InvoiceFormPage({ preselectCustomerId, onCancel, onCreated }: Props) {
+export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [owners, setOwners] = useState<ProjectOwner[]>([])
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,14 +25,12 @@ export function InvoiceFormPage({ preselectCustomerId, onCancel, onCreated }: Pr
     setLoading(true)
     setError(null)
     try {
-      const [c, o, b, p] = await Promise.all([
+      const [c, b, p] = await Promise.all([
         api.customers.list(),
-        api.projectOwners.list(),
         api.brokers.list(),
         api.products.list(),
       ])
       setCustomers(c)
-      setOwners(o)
       setBrokers(b)
       setProducts(p)
     } catch (e) {
@@ -52,7 +47,6 @@ export function InvoiceFormPage({ preselectCustomerId, onCancel, onCreated }: Pr
   const submit = async (values: InvoiceFormValues) => {
     const dto: CreateInvoiceDTO = {
       customerId: values.customerId as number,
-      ownerId: values.ownerId as number,
       brokerId: values.brokerId as number,
       date: localDate(new Date()),
       filerStatus: values.filerStatus as FilerStatus,
@@ -74,20 +68,12 @@ export function InvoiceFormPage({ preselectCustomerId, onCancel, onCreated }: Pr
   if (error) return <div className="error-screen">{error}</div>
 
   return (
-    <div className="feature">
-      <div className="toolbar">
-        <button className="btn ghost" onClick={onCancel}>
-          ← Back
-        </button>
-      </div>
-      <InvoiceForm
-        customers={customers}
-        owners={owners}
-        brokers={brokers}
-        products={products}
-        preselectCustomerId={preselectCustomerId}
-        onSubmit={submit}
-      />
-    </div>
+    <InvoiceForm
+      customers={customers}
+      brokers={brokers}
+      products={products}
+      preselectCustomerId={preselectCustomerId}
+      onSubmit={submit}
+    />
   )
 }

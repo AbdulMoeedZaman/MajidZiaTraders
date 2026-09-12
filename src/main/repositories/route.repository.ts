@@ -26,4 +26,15 @@ export class RouteRepository extends BaseRepository {
   findByName(name: string): Route | null {
     return this.db.prepare('SELECT * FROM routes WHERE name = ?').get(name) as Route | null
   }
+
+  findByNameExcludingId(name: string, excludeId: number): Route | null {
+    return this.db
+      .prepare('SELECT * FROM routes WHERE name = ? AND id != ?')
+      .get(name, excludeId) as Route | null
+  }
+
+  update(id: number, name: string): Route {
+    this.db.prepare('UPDATE routes SET name = ? WHERE id = ?').run(name, id)
+    return this.findById(id)!
+  }
 }

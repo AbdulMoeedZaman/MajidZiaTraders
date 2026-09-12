@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import type { ProjectOwner } from '@shared/types/project-owner'
 import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
 import type { Customer } from '@shared/types/customer'
@@ -9,7 +8,6 @@ import { calculateLineAmount } from '@shared/calc/invoice-totals'
 
 export interface InvoiceFormValues {
   customerId: number | null
-  ownerId: number | null
   brokerId: number | null
   filerStatus: 'filer' | 'non_filer'
   remaining: string
@@ -25,7 +23,6 @@ export interface InvoiceFormValues {
 
 interface Props {
   customers: Customer[]
-  owners: ProjectOwner[]
   brokers: Broker[]
   products: Product[]
   preselectCustomerId?: number | null
@@ -36,9 +33,8 @@ function emptyLine() {
   return { productId: null as number | null, rate: '', cartonCount: '', boxCount: '' }
 }
 
-export function InvoiceForm({ customers, owners, brokers, products, preselectCustomerId, onSubmit }: Props) {
+export function InvoiceForm({ customers, brokers, products, preselectCustomerId, onSubmit }: Props) {
   const [customerId, setCustomerId] = useState<number | null>(preselectCustomerId ?? null)
-  const [ownerId, setOwnerId] = useState<number | null>(null)
   const [brokerId, setBrokerId] = useState<number | null>(null)
   const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('filer')
   const [items, setItems] = useState(() => [emptyLine()])
@@ -108,10 +104,6 @@ export function InvoiceForm({ customers, owners, brokers, products, preselectCus
       setError('Select a customer')
       return
     }
-    if (ownerId === null) {
-      setError('Select a project owner')
-      return
-    }
     if (brokerId === null) {
       setError('Select a booker')
       return
@@ -133,7 +125,6 @@ export function InvoiceForm({ customers, owners, brokers, products, preselectCus
     try {
       await onSubmit({
         customerId,
-        ownerId,
         brokerId,
         filerStatus,
         remaining,
@@ -170,17 +161,6 @@ export function InvoiceForm({ customers, owners, brokers, products, preselectCus
           </select>
         </label>
         <label className="field">
-          <span>Project owner</span>
-          <select value={ownerId ?? ''} onChange={(e) => setOwnerId(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">Select owner…</option>
-            {owners.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
           <span>Booker</span>
           <select
             value={brokerId ?? ''}
@@ -194,25 +174,19 @@ export function InvoiceForm({ customers, owners, brokers, products, preselectCus
             ))}
           </select>
         </label>
-        <fieldset className="field field-span-3">
-          <span>Status</span>
-          <div className="segmented">
-            <button
-              type="button"
-              className={filerStatus === 'filer' ? 'active' : ''}
-              onClick={() => setFilerStatus('filer')}
-            >
-              Filer
-            </button>
-            <button
-              type="button"
-              className={filerStatus === 'non_filer' ? 'active' : ''}
-              onClick={() => setFilerStatus('non_filer')}
-            >
-              Non Filer
-            </button>
-          </div>
-        </fieldset>
+        <div className="field toggle-field">
+          <span>Filer</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={filerStatus === 'filer'}
+            className={`toggle-switch ${filerStatus === 'filer' ? 'on' : ''}`}
+            onClick={() => setFilerStatus((prev) => (prev === 'filer' ? 'non_filer' : 'filer'))}
+          >
+            <span className="toggle-knob" />
+          </button>
+          <small className="toggle-hint">{filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</small>
+        </div>
       </div>
 
       <div className="section-title">Items</div>

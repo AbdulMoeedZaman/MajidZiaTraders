@@ -180,6 +180,81 @@ body {
   color: #fff;
 }
 
+/* Filer toggle switch (on = filer, off = non filer). */
+.toggle-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.toggle-switch.on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25);
+  transition: left 0.15s ease;
+}
+
+.toggle-switch.on .toggle-knob {
+  left: calc(100% - 22px);
+}
+
+.toggle-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Single project owner card on the settings page. */
+.settings-owner-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-owner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.settings-owner-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.settings-owner-info strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
 .btn {
   padding: 8px 14px;
   border: 1px solid var(--border);

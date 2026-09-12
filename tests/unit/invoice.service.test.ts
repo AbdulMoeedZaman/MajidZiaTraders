@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
-import { useTestDatabase, seedBasics } from './helpers'
+import { BrokerService } from '../../src/main/services/broker.service'
+import { useTestDatabase, seedBasics, routeIdFor } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 describe('InvoiceService', () => {
@@ -10,7 +11,6 @@ describe('InvoiceService', () => {
 
   const invoiceInput = (seed: ReturnType<typeof seedBasics>): CreateInvoiceDTO => ({
     customerId: seed.customerId,
-    ownerId: seed.ownerId,
     brokerId: seed.brokerId,
     date: '2026-09-10',
     filerStatus: 'filer',
@@ -37,7 +37,6 @@ describe('InvoiceService', () => {
     const seed = seedBasics()
     const created = service.create({
       customerId: seed.customerId,
-      ownerId: seed.ownerId,
       brokerId: seed.brokerId,
       date: '2026-09-10',
       filerStatus: 'non_filer',
@@ -106,5 +105,32 @@ describe('InvoiceService', () => {
     new CustomerService().delete(seed.customerId)
     new ProductService().delete(seed.product.id)
     expect(new ProductService().getById(seed.product.id)).toBeFalsy()
+  })
+
+  it('refuses to create an invoice before a project owner is set up', () => {
+    const routeId = routeIdFor('Monday')
+    const product = new ProductService().create({ name: 'Widget', rate: 500, boxesPerCarton: 12 })
+    const broker = new BrokerService().create({ name: 'Bashir', phone: '0301-7654321' })
+    const customer = new CustomerService().create({
+      code: 'C-001',
+      shopName: 'Bilal Auto Shop',
+      ownerName: 'Bilal',
+      routeId,
+    })
+
+    const service = new InvoiceService()
+    expect(() =>
+      service.create({
+        customerId: customer.id,
+        brokerId: broker.id,
+        date: '2026-09-10',
+        filerStatus: 'filer',
+        remaining: null,
+        tax: null,
+        grandTotal: null,
+        items: [{ productId: product.id, rate: 500, cartonCount: 1, boxCount: 0 }],
+      })
+    ).toThrow(/Set up the project owner/)
+    expect(service.count()).toBe(0)
   })
 })

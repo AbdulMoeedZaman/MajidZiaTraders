@@ -95,7 +95,7 @@ export class InvoiceRepository extends BaseRepository {
    * validated and snapshotted by the service; the subtotal is the sum of the
    * persisted line amounts so storage can never disagree with the lines.
    */
-  create(data: CreateInvoiceDTO, invoiceNumber: string, items: InvoiceItemRow[]): Invoice {
+  create(data: CreateInvoiceDTO, invoiceNumber: string, ownerId: number, items: InvoiceItemRow[]): Invoice {
     const subtotal = calculateInvoiceSubtotal(
       items.map<InvoiceLineInput>((item) => ({
         rate: item.rate,
@@ -114,7 +114,7 @@ export class InvoiceRepository extends BaseRepository {
       .run(
         invoiceNumber,
         data.customerId,
-        data.ownerId,
+        ownerId,
         data.brokerId,
         data.date,
         data.filerStatus,

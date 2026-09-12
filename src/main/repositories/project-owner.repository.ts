@@ -24,6 +24,10 @@ export class ProjectOwnerRepository extends BaseRepository {
       .get(name, excludeId) as ProjectOwner | null
   }
 
+  findFirst(): ProjectOwner | null {
+    return this.db.prepare('SELECT * FROM project_owners ORDER BY id LIMIT 1').get() as ProjectOwner | null
+  }
+
   create(data: CreateProjectOwnerDTO): ProjectOwner {
     const result = this.db
       .prepare('INSERT INTO project_owners (name, phone, address) VALUES (?, ?, ?)')

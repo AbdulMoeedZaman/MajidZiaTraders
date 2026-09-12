@@ -66,9 +66,9 @@ export class InvoiceService {
     if (!customer) {
       throw new Error('Customer not found')
     }
-    const owner = this.ownerRepo.findById(data.ownerId)
+    const owner = this.ownerRepo.findFirst()
     if (!owner) {
-      throw new Error('Project owner not found')
+      throw new Error('Set up the project owner (Settings → Project Owner) before creating invoices')
     }
     const broker = this.brokerRepo.findById(data.brokerId)
     if (!broker) {
@@ -84,7 +84,7 @@ export class InvoiceService {
     return this.invoiceRepo.runInTransaction(() => {
       const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
       const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
-      return this.invoiceRepo.create(data, invoiceNumber, items)
+      return this.invoiceRepo.create(data, invoiceNumber, owner.id, items)
     })
   }
 

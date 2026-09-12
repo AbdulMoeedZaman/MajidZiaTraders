@@ -79,7 +79,6 @@ export default function App() {
           ) : invoiceDraft.open ? (
             <InvoiceFormPage
               preselectCustomerId={invoiceDraft.customerId}
-              onCancel={() => setInvoiceDraft({ open: false, customerId: null })}
               onCreated={(id) => {
                 setInvoiceDraft({ open: false, customerId: null })
                 setSelectedInvoiceId(id)

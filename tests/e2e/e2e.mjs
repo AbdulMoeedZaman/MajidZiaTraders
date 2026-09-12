@@ -94,15 +94,23 @@ try {
   check('V-3', 'Customer codes are unique across routes', !dupCode.ok, dupCode.e ?? 'accepted')
   const C2 = must(await inv('customers:create', { code: 'WK-001', shopName: 'Emerald Parts', ownerName: 'Imran', phone: '0322-0000003', address: 'Water Pump Chowk', routeId: tueRouteId }), 'C2')
 
+  const noOwner = await inv('invoices:create', {
+    customerId: C1.id, brokerId: 9999, date: TODAY, filerStatus: 'filer',
+    remaining: null, tax: null, grandTotal: null,
+    items: [{ productId: P1.id, rate: 65000, cartonCount: 1, boxCount: 0 }],
+  })
+  check('EO-1', 'Creating an invoice before a project owner is set up is rejected',
+    !noOwner.ok && /Set up the project owner/.test(noOwner.e), noOwner.e ?? 'accepted')
+
   const O1 = must(await inv('project-owners:create', { name: 'Majid Zia Motors', phone: '0300-1234567', address: 'Main Bazaar, Multan' }), 'O1')
   const ownerDup = await inv('project-owners:create', { name: 'Majid Zia Motors', phone: 'x' })
-  check('V-4', 'Project owner names are unique', !ownerDup.ok, ownerDup.e ?? 'accepted')
+  check('V-4', 'Only one project owner can be set up (and its name is unique)', !ownerDup.ok, ownerDup.e ?? 'accepted')
   const B1 = must(await inv('brokers:create', { name: 'Bashir Ahmad', phone: '0322-1112223' }), 'B1')
 
   // =============== Invoice ring & maths ===============
   const item = (productId, rate, cartonCount, boxCount) => ({ productId, rate, cartonCount, boxCount })
   const I1 = must(await inv('invoices:create', {
-    customerId: C1.id, ownerId: O1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
+    customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     remaining: null, tax: null, grandTotal: null,
     items: [item(P1.id, 65000, 2, 5)],
   }), 'I1')
@@ -110,7 +118,7 @@ try {
   check('I-1', `Invoice #1 subtotal = rate×cartons + rounded rate×boxes/bpc (${I1.subtotal})`, I1.invoiceNumber === 'INV-000001' && I1.subtotal === 162500, { number: I1.invoiceNumber, subtotal: I1.subtotal })
 
   const I2 = must(await inv('invoices:create', {
-    customerId: C2.id, ownerId: O1.id, brokerId: B1.id, date: TODAY, filerStatus: 'non_filer',
+    customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'non_filer',
     remaining: 10000, tax: 5000, grandTotal: 200000,
     items: [item(P2.id, 15000, 4, 0)],
   }), 'I2')
@@ -120,13 +128,13 @@ try {
     { number: I2.invoiceNumber, remaining: i2.invoice.remaining, tax: i2.invoice.tax, grand: i2.invoice.grandTotal })
 
   const belowMin = await inv('invoices:create', {
-    customerId: C1.id, ownerId: O1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
+    customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     remaining: null, tax: null, grandTotal: null,
     items: [item(P1.id, 64999, 1, 0)],
   })
-  const noItems = await inv('invoices:create', { customerId: C1.id, ownerId: O1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [] })
-  const badDate = await inv('invoices:create', { customerId: C1.id, ownerId: O1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
-  const badCust = await inv('invoices:create', { customerId: 9999, ownerId: O1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
+  const noItems = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [] })
+  const badDate = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
+  const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
   check('I-3', 'Invoice guards: below-min rate, empty items, invalid date, unknown customer all rejected',
     !belowMin.ok && !noItems.ok && !badDate.ok && !badCust.ok, [belowMin.e, noItems.e, badDate.e, badCust.e])
 
@@ -140,7 +148,7 @@ try {
 
   // =============== UI-2: Settings (project owners + bookers) ===============
   await nav('Settings'); await wait(900)
-  const ownersSection = await ev(`document.body.innerText.includes('Project Owners') && document.body.innerText.includes('Majid Zia Motors')`)
+  const ownersSection = await ev(`document.body.innerText.includes('Project Owner') && document.body.innerText.includes('Majid Zia Motors')`)
   const bookersSection = await ev(`document.body.innerText.includes('Bookers (Brokers)') && document.body.innerText.includes('Bashir Ahmad')`)
   await clickBtn('+ Add Booker'); await wait(500)
   const brokerModalOpened = await ev(`!!document.querySelector('.modal') && document.querySelector('.modal')?.innerText.includes('Booker')`)
@@ -176,14 +184,30 @@ try {
   check('UI-4', 'Adding a customer via UI puts it on Monday (count updates); switching to Tuesday shows its customer',
     mondayTab && newCustRow && tueShowsEmerald, { newCustomerRow: newCustRow, mondayCount, switchedToTuesday: routeSwitch, tuesdayShowsEmerald: tueShowsEmerald })
 
+  // =============== UI-6: rename a delivery route through the Route names modal ===============
+  await nav('Customers'); await wait(900)
+  await clickBtn('Route names'); await wait(700)
+  await ev(`(()=>{
+    const set=(name,val)=>{const i=[...document.querySelectorAll('.modal label.field input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
+    return set('Tuesday','Tuesday Market')
+  })()`)
+  await wait(600)
+  await clickBtn('Save Route Names'); await wait(1500)
+  const renamedTab = await ev(`[...document.querySelectorAll('.route-tabs button')].some((b)=>b.innerText.includes('Tuesday Market'))`)
+  const routesAfter = must(await inv('routes:list'), 'routes after rename')
+  const tueRoute = routesAfter.find((r) => r.day === 'Tuesday')
+  check('UI-6', 'Route names modal renames Tuesday\'s route; the fixed day label is preserved',
+    renamedTab && tueRoute?.name === 'Tuesday Market' && tueRoute.day === 'Tuesday',
+    { renamedTab, name: tueRoute?.name, day: tueRoute?.day })
+
   // =============== UI-5: create an invoice through the UI form and inspect the print sheet ===============
-  const ownerId = O1.id, brokerId = B1.id
+  const brokerId = B1.id
   await nav('Invoices'); await wait(900)
   await clickBtn('+ New Invoice'); await wait(700)
   await ev(`(()=>{
     const sel=(name,val)=>{const s=[...document.querySelectorAll('label.field select')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!s) return false; Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(s,String(val)); s.dispatchEvent(new Event('change',{bubbles:true})); return true};
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
-    sel('Customer', ${C1.id}); sel('Project owner', ${ownerId}); sel('Booker', ${brokerId}); sel('Product', ${gauge.id});
+    sel('Customer', ${C1.id}); sel('Booker', ${brokerId}); sel('Product', ${gauge.id});
     num('Rate (Rs.)','2.00'); num('Carton no.','3'); return true
   })()`)
   await wait(400)

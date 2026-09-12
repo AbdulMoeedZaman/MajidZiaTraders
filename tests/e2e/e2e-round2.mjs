@@ -53,12 +53,10 @@ try {
     { invoices: invoices.length, products: products.length, customers: customers.length })
 
   // X-2: the invoice numbering counter carried on in the same session after UI-created invoices
-  const O = must(await inv('project-owners:list'), 'owners')
   const B = must(await inv('brokers:list'), 'brokers')
   const customerId = invoices[0].customerId
   const next = must(await inv('invoices:create', {
     customerId,
-    ownerId: O[0].id,
     brokerId: B[0].id,
     date: TODAY,
     filerStatus: 'filer',
@@ -84,7 +82,6 @@ try {
   if (!gauge) throw new Error('GAUGE 2026 product from round 1 missing')
   const lowRate = await inv('invoices:create', {
     customerId,
-    ownerId: O[0].id,
     brokerId: B[0].id,
     date: TODAY,
     filerStatus: 'filer',

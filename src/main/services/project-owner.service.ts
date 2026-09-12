@@ -18,13 +18,17 @@ export class ProjectOwnerService {
     return this.ownerRepo.findById(id)
   }
 
+  findFirst(): ProjectOwner | null {
+    return this.ownerRepo.findFirst()
+  }
+
   create(data: CreateProjectOwnerDTO): ProjectOwner {
+    if (this.ownerRepo.count() > 0) {
+      throw new Error('Only one project owner is supported. Edit the existing owner instead.')
+    }
     const name = data.name?.trim()
     if (!name) {
       throw new Error('Owner name is required')
-    }
-    if (this.ownerRepo.findByName(name)) {
-      throw new Error('An owner with this name already exists')
     }
     return this.ownerRepo.create(data)
   }

@@ -41,9 +41,8 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   const d2 = shiftIsoDate(today, -1)
   const d3 = shiftIsoDate(today, -2)
 
-  // ---- Project owners & bookers ----
+  // ---- Project owner & bookers ----
   const majid = ownerService.create({ name: 'Majid Zia Motors', phone: '0300-1234567', address: 'Main Bazaar, Multan' })
-  const ownerB = ownerService.create({ name: 'Zia Traders', phone: '0301-7654321', address: 'Qasim Road' })
   const bashir = brokerService.create({ name: 'Bashir Ahmad', phone: '0322-1112223' })
   const rafiq = brokerService.create({ name: 'Rafiq Sons', phone: '0333-4445556' })
 
@@ -71,7 +70,7 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   )
 
   // ---- Invoices ----
-  const base = (customerId: number): Omit<CreateInvoiceDTO, 'items' | 'ownerId' | 'brokerId'> => ({
+  const base = (customerId: number): Omit<CreateInvoiceDTO, 'items' | 'brokerId'> => ({
     customerId,
     date: d2,
     filerStatus: 'filer',
@@ -84,7 +83,6 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   //   10000*5 + 10000*6/12 = 55000 ; 65000*2 = 130000 → subtotal 185000
   const invA = invoiceService.create({
     ...base(bilal.id),
-    ownerId: majid.id,
     brokerId: bashir.id,
     date: d1,
     items: [
@@ -95,7 +93,6 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   // INV-2 Wazir: piston rings + clutch plate.
   const invB = invoiceService.create({
     ...base(wazir.id),
-    ownerId: majid.id,
     brokerId: rafiq.id,
     date: d2,
     items: [
@@ -106,7 +103,6 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   // INV-3 Emerald: gasket kits with 3 loose boxes of 6/carton.
   const invC = invoiceService.create({
     ...base(emerald.id),
-    ownerId: ownerB.id,
     brokerId: bashir.id,
     date: d3,
     items: [{ productId: gasket.id, rate: 45000, cartonCount: 0, boxCount: 3 }],
@@ -114,7 +110,6 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   // INV-4 Metro: valve springs, one rate held exactly at the minimum.
   const invD = invoiceService.create({
     ...base(metro.id),
-    ownerId: ownerB.id,
     brokerId: rafiq.id,
     items: [{ productId: valve.id, rate: 15000, cartonCount: 4, boxCount: 0 }],
   })
@@ -122,7 +117,7 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   // ---- Self checks: the seeded data must be internally consistent ----
   expect(productService.list()).toHaveLength(6)
   expect(customerService.list()).toHaveLength(5)
-  expect(ownerService.list()).toHaveLength(2)
+  expect(ownerService.list()).toHaveLength(1)
   expect(brokerService.list()).toHaveLength(2)
   expect(invoiceService.count()).toBe(4)
   expect(settingsService.getValue('invoice_description')).toContain('Payment due')

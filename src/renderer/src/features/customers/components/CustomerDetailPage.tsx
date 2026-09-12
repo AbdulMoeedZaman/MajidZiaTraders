@@ -46,9 +46,6 @@ export function CustomerDetailPage({ customerId, onBack, onNewInvoice, onOpenInv
   return (
     <div className="feature">
       <div className="toolbar">
-        <button className="btn ghost" onClick={onBack}>
-          ← Back
-        </button>
         <div className="spacer" />
         <button className="btn primary" onClick={() => onNewInvoice(customer.id)}>
           + New Invoice

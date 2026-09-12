@@ -15,6 +15,7 @@ export const IPC_CHANNELS = {
 
   ROUTES_LIST: 'routes:list',
   ROUTES_LIST_WITH_COUNTS: 'routes:list-with-counts',
+  ROUTES_RENAME: 'routes:rename',
 
   PRODUCTS_LIST: 'products:list',
   PRODUCTS_SEARCH: 'products:search',
