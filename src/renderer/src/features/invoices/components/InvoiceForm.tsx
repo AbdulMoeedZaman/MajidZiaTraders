@@ -216,7 +216,7 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
               </select>
             </label>
             <label className="field line-qty">
-              <span>Rate (₹)</span>
+              <span>Rate (Rs.)</span>
               <input
                 type="number"
                 min="0"

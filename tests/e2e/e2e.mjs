@@ -160,7 +160,7 @@ try {
   await clickBtn('+ Add Product'); await wait(700)
   await ev(`(()=>{
     const set=(name,val)=>{const i=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}};
-    set('Product name','GAUGE 2026'); set('Minimum rate (₹)','1.50'); set('Boxes per carton','12'); return true
+    set('Product name','GAUGE 2026'); set('Minimum rate (Rs.)','1.50'); set('Boxes per carton','12'); return true
   })()`)
   await clickBtn('Save'); await wait(1200)
   const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE 2026'))`)
@@ -208,7 +208,7 @@ try {
     const sel=(name,val)=>{const s=[...document.querySelectorAll('label.field select')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!s) return false; Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(s,String(val)); s.dispatchEvent(new Event('change',{bubbles:true})); return true};
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
     sel('Customer', ${C1.id}); sel('Booker', ${brokerId}); sel('Product', ${gauge.id});
-    num('Rate (₹)','2.00'); num('Carton no.','3'); return true
+    num('Rate (Rs.)','2.00'); num('Carton no.','3'); return true
   })()`)
   await wait(400)
   const lineAmountShown = await ev(`[...document.querySelectorAll('.invoice-line .line-total strong')].map((n)=>n.textContent.trim()).join('|')`)
@@ -230,8 +230,8 @@ try {
     detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Description,Qty.,Unit,Rate,Amount' && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
-    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('₹') && sheetText.includes('All amounts in Indian Rupees (₹)'),
-    { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('₹') })
+    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('Rs.') && sheetText.includes('All amounts in Pakistani Rupees (Rs.)'),
+    { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('Rs.') })
 
   const headerCentered = await ev(`(()=>{const h=document.querySelector('.invoice-sheet .sheet-head'); if(!h) return false; const s=getComputedStyle(h); return s.textAlign==='center'})()`)
   const boxHeadings = await ev(`[...document.querySelectorAll('.invoice-sheet .ip-box-heading')].map((h)=>h.textContent.trim()).join(',')`)
@@ -271,7 +271,7 @@ try {
   const lfGrandTotal = await ev(`document.querySelector('.invoice-sheet tfoot')?.innerText.trim() ?? ''`)
   const lfCoversInvoices = lfText.includes('INV-000001') && lfText.includes('INV-000002')
   check('UI-7', 'Load form: checkboxes select invoices and the printable report aggregates products + customers + grand total',
-    loadBtnShown && checkboxesShown >= 2 && boxesAfterCancel === 0 && !enabledBefore && enabledAfter && lfHasProducts && lfHasCustomers && /Grand total.*₹/.test(lfGrandTotal) && lfCoversInvoices,
+    loadBtnShown && checkboxesShown >= 2 && boxesAfterCancel === 0 && !enabledBefore && enabledAfter && lfHasProducts && lfHasCustomers && /Grand total.*Rs\./.test(lfGrandTotal) && lfCoversInvoices,
     { loadButton: loadBtnShown, checkboxCount: checkboxesShown, afterCancel: boxesAfterCancel, disabledBeforeSelection: !enabledBefore, enabledAfterSelection: enabledAfter, products: lfHasProducts, customers: lfHasCustomers, grandTotal: lfGrandTotal, invoiceNumbers: lfCoversInvoices })
   const lfData = must(await inv('invoices:build-load-form', [I1.id, I2.id]), 'load form data')
   check('UI-7b', 'Load form IPC aggregates quantities and rupee customer totals for the same invoices',

@@ -76,7 +76,7 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
             />
           </label>
           <label className="field">
-            <span>Minimum rate (₹)</span>
+            <span>Minimum rate (Rs.)</span>
             <input
               type="number"
               min="0"

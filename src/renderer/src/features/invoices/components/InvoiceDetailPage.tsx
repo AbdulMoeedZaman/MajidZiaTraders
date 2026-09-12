@@ -14,7 +14,7 @@ function printDate(iso: string): string {
 
 function printMoney(cents: number | null | undefined): string {
   return (
-    '₹' +
+    'Rs.' +
     ((cents ?? 0) / 100).toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -239,7 +239,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           />
         )}
 
-        <div className="ip-currency-note">All amounts in Indian Rupees (₹)</div>
+        <div className="ip-currency-note">All amounts in Pakistani Rupees (Rs.)</div>
       </div>
     </div>
   )

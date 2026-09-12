@@ -1,11 +1,11 @@
 import { localDate } from '@shared/date'
 
-const CURRENCY = 'INR'
+const CURRENCY = 'PKR'
 
 const RUPEE_SYMBOLS: Record<string, string> = {
-  PKR: '₹',
-  INR: '₹',
-  NPR: '₹',
+  PKR: 'Rs.',
+  INR: 'Rs.',
+  NPR: 'Rs.',
 }
 
 export function formatMoney(cents: number | null | undefined): string {
