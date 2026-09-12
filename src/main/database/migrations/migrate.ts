@@ -2,6 +2,7 @@ import { runInTransaction, type AppDatabase } from '../sqlite'
 import { up as initialSchema } from './001_initial_schema'
 import { up as futureExtensionPoints } from './002_future_extension_points'
 import { up as routeCustomNames } from './003_route_custom_names'
+import { up as stockMovementDisplayFields } from './004_stock_movement_display_fields'
 
 interface Migration {
   version: number
@@ -22,6 +23,7 @@ const migrations: Migration[] = [
   { version: 1, name: '001_initial_schema', up: initialSchema },
   { version: 2, name: '002_future_extension_points', up: futureExtensionPoints },
   { version: 3, name: '003_route_custom_names', up: routeCustomNames },
+  { version: 4, name: '004_stock_movement_display_fields', up: stockMovementDisplayFields },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

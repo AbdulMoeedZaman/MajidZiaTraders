@@ -4,6 +4,7 @@ import type { Route, RouteWithCount } from '@shared/types/route'
 import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
 import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
+import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 
 declare global {
@@ -47,6 +48,7 @@ export const api = {
   products: {
     list: () => ipc<Product[]>('products:list'),
     search: (query: string) => ipc<Product[]>('products:search', query),
+    getById: (id: number) => ipc<Product | null>('products:get-by-id', id),
     create: (data: CreateProductDTO) => ipc<Product>('products:create', data),
     update: (id: number, data: UpdateProductDTO) => ipc<Product>('products:update', id, data),
     delete: (id: number) => ipc<{ success: boolean }>('products:delete', id),
@@ -74,6 +76,12 @@ export const api = {
     buildLoadForm: (invoiceIds: number[]) => ipc<LoadFormSummary>('invoices:build-load-form', invoiceIds),
     delete: (id: number) => ipc<{ success: boolean }>('invoices:delete', id),
     count: () => ipc<number>('invoices:count'),
+  },
+
+  stock: {
+    list: () => ipc<StockMovementWithProduct[]>('stock:list'),
+    listByProduct: (productId: number) => ipc<StockMovementWithProduct[]>('stock:list-by-product', productId),
+    restock: (data: CreateRestockDTO) => ipc<StockMovement>('stock:restock', data),
   },
 
   settings: {

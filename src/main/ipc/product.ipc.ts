@@ -7,6 +7,7 @@ const productService = new ProductService()
 export function registerProductIpc(): void {
   ipcMain.handle('products:list', () => productService.list())
   ipcMain.handle('products:search', (_, query: string) => productService.search(query))
+  ipcMain.handle('products:get-by-id', (_, id: number) => productService.getById(id))
   ipcMain.handle('products:create', (_, data: CreateProductDTO) => productService.create(data))
   ipcMain.handle('products:update', (_, id: number, data: UpdateProductDTO) =>
     productService.update(id, data)

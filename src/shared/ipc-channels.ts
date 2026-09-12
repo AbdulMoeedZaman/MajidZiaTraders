@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
 
   PRODUCTS_LIST: 'products:list',
   PRODUCTS_SEARCH: 'products:search',
+  PRODUCTS_GET_BY_ID: 'products:get-by-id',
   PRODUCTS_CREATE: 'products:create',
   PRODUCTS_UPDATE: 'products:update',
   PRODUCTS_DELETE: 'products:delete',
@@ -41,6 +42,10 @@ export const IPC_CHANNELS = {
   INVOICES_BUILD_LOAD_FORM: 'invoices:build-load-form',
   INVOICES_DELETE: 'invoices:delete',
   INVOICES_COUNT: 'invoices:count',
+
+  STOCK_LIST: 'stock:list',
+  STOCK_LIST_BY_PRODUCT: 'stock:list-by-product',
+  STOCK_RESTOCK: 'stock:restock',
 
   SETTINGS_LIST: 'settings:list',
   SETTINGS_GET: 'settings:get',

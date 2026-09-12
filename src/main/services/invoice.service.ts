@@ -1,6 +1,7 @@
 import { InvoiceRepository } from '../repositories/invoice.repository'
 import type { InvoiceItemRow } from '../repositories/invoice.repository'
 import { CustomerRepository } from '../repositories/customer.repository'
+import { StockService } from './stock.service'
 import { ProjectOwnerRepository } from '../repositories/project-owner.repository'
 import { BrokerRepository } from '../repositories/broker.repository'
 import { ProductRepository } from '../repositories/product.repository'
@@ -30,6 +31,7 @@ export class InvoiceService {
   private brokerRepo = new BrokerRepository()
   private productRepo = new ProductRepository()
   private settingsRepo = new SettingsRepository()
+  private stockService = new StockService()
 
   list(): InvoiceWithCustomer[] {
     return this.invoiceRepo.findAllWithCustomer()
@@ -87,7 +89,17 @@ export class InvoiceService {
     return this.invoiceRepo.runInTransaction(() => {
       const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
       const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
-      return this.invoiceRepo.create(data, invoiceNumber, owner.id, items)
+      const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items)
+      this.stockService.recordSalesForInvoice(
+        invoice.id,
+        invoice.date,
+        items.map((item) => ({
+          productId: item.productId,
+          quantity: item.cartonCount + item.boxCount,
+          rate: item.rate,
+        }))
+      )
+      return invoice
     })
   }
 
@@ -95,9 +107,13 @@ export class InvoiceService {
     if (!this.invoiceRepo.findById(id)) {
       throw new Error('Invoice not found')
     }
-    // Future phase: refuse to delete when the invoice has payments or stock-linked
-    // movements against it. For now the invoice is deleted outright (items cascade).
-    this.invoiceRepo.delete(id)
+    // The invoice's stock movements are removed in the same transaction so the
+    // ledger never references a deleted invoice (future phase: a separate
+    // reversal movement per line to restore balances exactly).
+    this.invoiceRepo.runInTransaction(() => {
+      this.stockService.removeForInvoice(id)
+      this.invoiceRepo.delete(id)
+    })
   }
 
   /**
