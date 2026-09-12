@@ -7,10 +7,15 @@ import { AppDatabase } from './sqlite'
 let db: AppDatabase | null = null
 let dbPath: string | null = null
 
+// The database file is named after this (rebuilt) app so an old-version database from
+// the previous application shape (userData/inventory.db) is never opened, migrated or
+// corrupted — it simply stays untouched on disk.
+const DB_FILENAME = 'majidzia.db'
+
 export function getDatabase(): AppDatabase {
   if (db) return db
 
-  dbPath = path.join(app.getPath('userData'), 'inventory.db')
+  dbPath = path.join(app.getPath('userData'), DB_FILENAME)
   const connection = new AppDatabase(dbPath)
   connection.exec('PRAGMA journal_mode = WAL')
   connection.exec('PRAGMA foreign_keys = ON')
@@ -21,7 +26,7 @@ export function getDatabase(): AppDatabase {
 
 export function getDatabasePath(): string {
   if (!dbPath) {
-    dbPath = path.join(app.getPath('userData'), 'inventory.db')
+    dbPath = path.join(app.getPath('userData'), DB_FILENAME)
   }
   return dbPath
 }
@@ -52,7 +57,7 @@ function removeWalSidecars(filePath: string): void {
  */
 export function replaceDatabaseFromFile(sourcePath: string, fallbackPath?: string): void {
   closeDatabase()
-  if (!dbPath) dbPath = path.join(app.getPath('userData'), 'inventory.db')
+  if (!dbPath) dbPath = path.join(app.getPath('userData'), DB_FILENAME)
   removeWalSidecars(dbPath)
   fs.copyFileSync(sourcePath, dbPath)
   try {

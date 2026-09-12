@@ -1,7 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { getDatabase, closeDatabase } from './database/connection'
-import { InvoiceRepository } from './repositories/invoice.repository'
 import { registerAllIpc } from './ipc'
 
 app.setName('MZTraders')
@@ -62,7 +61,6 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     getDatabase()
-    new InvoiceRepository().markOverdue()
     registerAllIpc()
     createWindow()
 

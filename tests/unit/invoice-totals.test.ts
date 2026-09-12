@@ -1,63 +1,44 @@
 import { describe, expect, it } from 'vitest'
-import { allocateDiscount, calculateInvoiceTotals, computeInvoiceStatus } from '../../src/shared/calc/invoice-totals'
+import {
+  calculateLineAmount,
+  calculateInvoiceSubtotal,
+} from '../../src/shared/calc/invoice-totals'
 
-describe('calculateInvoiceTotals', () => {
-  it('subtracts the discount from the subtotal and keeps tax out of the maths', () => {
-    const t = calculateInvoiceTotals([{ quantity: 10, unitPrice: 1500, unitCost: 1000 }], 1000)
-    expect(t).toMatchObject({
-      subtotal: 15000,
-      discount: 1000,
-      total: 14000,
-      totalCost: 10000,
-      profit: 4000,
-    })
+describe('calculateLineAmount', () => {
+  it('computes cartons at the full rate and boxes at the per-box rate', () => {
+    // Rs. 100 per carton, 12 boxes per carton → per box ≈ Rs. 8.33
+    const amount = calculateLineAmount({ rate: 10000, boxesPerCarton: 12, cartonCount: 3, boxCount: 6 })
+    expect(amount).toBe(30000 + Math.round((10000 * 6) / 12)) // 30000 + 5000
   })
 
-  it('spreads the discount over the lines so line figures add up to the invoice', () => {
-    const t = calculateInvoiceTotals(
-      [
-        { quantity: 3, unitPrice: 333, unitCost: 100 },
-        { quantity: 1, unitPrice: 1001, unitCost: 500 },
-        { quantity: 7, unitPrice: 13, unitCost: 5 },
-      ],
-      457
-    )
-    expect(t.lines.reduce((s, l) => s + l.lineDiscount, 0)).toBe(457)
-    expect(t.lines.reduce((s, l) => s + l.lineProfit, 0)).toBe(t.profit)
+  it('rounds the box portion to the nearest paisa', () => {
+    // 17 boxes at Rs. 100/carton with 12/carton → 170000/12 = 14166.67 → 14167
+    expect(calculateLineAmount({ rate: 10000, boxesPerCarton: 12, cartonCount: 0, boxCount: 17 })).toBe(14167)
+    // 5 boxes * 10000 / 12 = 4166.67 → 4167
+    expect(calculateLineAmount({ rate: 10000, boxesPerCarton: 12, cartonCount: 0, boxCount: 5 })).toBe(4167)
   })
 
-  it('never applies more discount than the subtotal', () => {
-    const t = calculateInvoiceTotals([{ quantity: 1, unitPrice: 1000, unitCost: 0 }], 999999)
-    expect(t.discount).toBe(1000)
-    expect(t.total).toBe(0)
+  it('guards against a zero or negative boxes-per-carton divisor', () => {
+    expect(calculateLineAmount({ rate: 10000, boxesPerCarton: 0, cartonCount: 2, boxCount: 0 })).toBe(20000)
   })
 
-  it('treats unusable form input as zero instead of NaN', () => {
-    const t = calculateInvoiceTotals([{ quantity: Number.NaN, unitPrice: 500, unitCost: 100 }], 0)
-    expect(t.total).toBe(0)
+  it('treats NaN counts as zero instead of producing NaN', () => {
+    const amount = calculateLineAmount({ rate: 10000, boxesPerCarton: 12, cartonCount: Number.NaN, boxCount: 0 })
+    expect(amount).toBe(0)
   })
 })
 
-describe('allocateDiscount', () => {
-  it('always hands out exactly the discount (capped at the total)', () => {
-    for (const discount of [1, 2, 3, 7, 50, 99, 100, 101]) {
-      const parts = allocateDiscount([1, 1, 1, 97], discount)
-      expect(parts.reduce((s, v) => s + v, 0)).toBe(Math.min(discount, 100))
-      parts.forEach((p, i) => expect(p).toBeLessThanOrEqual([1, 1, 1, 97][i]))
-    }
+describe('calculateInvoiceSubtotal', () => {
+  it('sums the line amounts', () => {
+    const subtotal = calculateInvoiceSubtotal([
+      { rate: 10000, boxesPerCarton: 12, cartonCount: 1, boxCount: 0 },
+      { rate: 5000, boxesPerCarton: 10, cartonCount: 0, boxCount: 5 },
+    ])
+    expect(subtotal).toBe(10000 + 2500)
   })
-})
 
-describe('computeInvoiceStatus', () => {
-  const today = '2026-09-10'
-  it.each([
-    [{ status: 'sent', dueDate: null, paid: 0, outstanding: 100 }, 'sent'],
-    [{ status: 'sent', dueDate: null, paid: 50, outstanding: 50 }, 'partial'],
-    [{ status: 'partial', dueDate: null, paid: 100, outstanding: 0 }, 'paid'],
-    [{ status: 'sent', dueDate: '2026-09-09', paid: 0, outstanding: 100 }, 'overdue'],
-    [{ status: 'overdue', dueDate: '2026-09-11', paid: 0, outstanding: 100 }, 'sent'],
-    [{ status: 'cancelled', dueDate: '2020-01-01', paid: 0, outstanding: 100 }, 'cancelled'],
-  ] as const)('%o → %s', (invoice, expected) => {
-    expect(computeInvoiceStatus(invoice, today)).toBe(expected)
+  it('returns zero for an empty or all-null invoice', () => {
+    expect(calculateInvoiceSubtotal([])).toBe(0)
+    expect(calculateInvoiceSubtotal([{ rate: 0, boxesPerCarton: 12, cartonCount: 0, boxCount: 0 }])).toBe(0)
   })
 })

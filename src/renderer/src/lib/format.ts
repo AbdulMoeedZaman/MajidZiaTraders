@@ -1,15 +1,6 @@
 import { localDate } from '@shared/date'
 
-let currency = 'PKR'
-
-export function setCurrency(code: string): boolean {
-  const next = (code || 'PKR').toUpperCase()
-  if (next === currency) return false
-  currency = next
-  return true
-}
-
-export const CURRENCY_DEFAULT = 'PKR'
+const CURRENCY = 'PKR'
 
 const RUPEE_SYMBOLS: Record<string, string> = {
   PKR: 'Rs.',
@@ -17,27 +8,10 @@ const RUPEE_SYMBOLS: Record<string, string> = {
   NPR: 'Rs.',
 }
 
-const formatters = new Map<string, Intl.NumberFormat | null>()
-
-function currencyFormatter(code: string): Intl.NumberFormat | null {
-  if (!formatters.has(code)) {
-    try {
-      formatters.set(code, new Intl.NumberFormat(undefined, { style: 'currency', currency: code }))
-    } catch {
-      formatters.set(code, null) // not a valid ISO currency code
-    }
-  }
-  return formatters.get(code) ?? null
-}
-
 export function formatMoney(cents: number | null | undefined): string {
   const value = (cents ?? 0) / 100
   const number = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const symbol = RUPEE_SYMBOLS[currency]
-  if (symbol) return `${symbol} ${number}`
-  const formatter = currencyFormatter(currency)
-  if (formatter) return formatter.format(value)
-  return `${currency} ${number}`
+  return `${RUPEE_SYMBOLS[CURRENCY] ?? CURRENCY} ${number}`
 }
 
 function parseDateValue(iso: string): Date {

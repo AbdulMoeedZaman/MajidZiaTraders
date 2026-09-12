@@ -1,18 +1,26 @@
+import type { ProjectOwner } from './project-owner'
+import type { Broker } from './broker'
+import type { Customer } from './customer'
+
+export type FilerStatus = 'filer' | 'non_filer'
+
 export interface Invoice {
   id: number
   invoiceNumber: string
   customerId: number
+  ownerId: number
+  brokerId: number
   date: string
-  dueDate: string | null
+  /** Customer filer status: filer or non filer. */
+  filerStatus: FilerStatus
+  /** Sum of all line amounts (system calculated). */
   subtotal: number
-  discount: number
-  total: number
-  totalCost: number
-  totalProfit: number
-  paid: number
-  outstanding: number
-  status: 'sent' | 'paid' | 'partial' | 'overdue' | 'cancelled'
-  notes: string | null
+  /** Manually entered "remaining amount" (minor units). Blank when null. */
+  remaining: number | null
+  /** Manually entered tax (minor units). Blank when null. */
+  tax: number | null
+  /** Manually entered grand total (minor units). Blank when null. */
+  grandTotal: number | null
   createdAt: string
   updatedAt: string
 }
@@ -21,56 +29,55 @@ export interface InvoiceItem {
   id: number
   invoiceId: number
   productId: number
+  /** Snapshot of the product name at sale time. */
   productName: string
-  productSku: string
-  unit: string
-  quantity: number
-  costPriceAtSale: number
-  minSellingPriceAtSale: number
-  actualSellingPrice: number
-  lineSubtotal: number
-  lineDiscount: number
-  lineCost: number
-  lineProfit: number
+  /** Entered rate per carton (minor units), >= the product floor. */
+  rate: number
+  /** The product's minimum rate snapshot (the floor this line respected). */
+  minRate: number
+  /** Snapshot of the product's boxes-per-carton. */
+  boxesPerCarton: number
+  cartonCount: number
+  boxCount: number
+  /** Computed line amount (minor units). */
+  amount: number
   createdAt: string
-}
-
-export interface CreateInvoiceDTO {
-  customerId: number
-  date: string
-  dueDate?: string
-  discount?: number
-  status?: Invoice['status']
-  notes?: string
-  items: CreateInvoiceItemDTO[]
 }
 
 export interface CreateInvoiceItemDTO {
   productId: number
-  productName: string
-  productSku: string
-  unit?: string
-  quantity: number
-  costPriceAtSale: number
-  minSellingPriceAtSale: number
-  actualSellingPrice: number
-  lineDiscount?: number
+  /** Rate per carton in minor units, must be >= the product's minimum rate. */
+  rate: number
+  cartonCount: number
+  boxCount: number
 }
 
-export interface UpdateInvoiceDTO {
-  customerId?: number
-  date?: string
-  dueDate?: string
-  discount?: number
-  status?: Invoice['status']
-  notes?: string
-  items?: CreateInvoiceItemDTO[]
+export interface CreateInvoiceDTO {
+  customerId: number
+  ownerId: number
+  brokerId: number
+  date: string
+  filerStatus: FilerStatus
+  remaining?: number | null
+  tax?: number | null
+  grandTotal?: number | null
+  items: CreateInvoiceItemDTO[]
 }
 
 export interface InvoiceWithCustomer extends Invoice {
+  /** Customer shop name. */
   customerName: string
+  customerCode: string
 }
 
 export interface InvoiceWithItems extends InvoiceWithCustomer {
   items: InvoiceItem[]
+}
+
+/** Everything the invoice detail / print view needs, resolved in one call. */
+export interface InvoiceDetails {
+  invoice: InvoiceWithItems
+  customer: Customer | null
+  owner: ProjectOwner | null
+  broker: Broker | null
 }

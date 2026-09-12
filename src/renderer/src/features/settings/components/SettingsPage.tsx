@@ -1,310 +1,461 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { BusinessProfile } from '@shared/types/business-profile'
-import type { BackupMetadata } from '@shared/types/backup'
 import { api } from '../../../lib/api'
-import { formatDateTime, localDate } from '../../../lib/format'
-import { setCurrency } from '../../../lib/format'
+import type { ProjectOwner } from '@shared/types/project-owner'
+import type { Broker } from '@shared/types/broker'
 
-const EMPTY_PROFILE: BusinessProfile = {
-  id: 0,
-  name: '',
-  ownerName: null,
-  phone: null,
-  email: null,
-  address: null,
-  city: null,
-  country: null,
-  logoPath: null,
-  currency: 'PKR',
-  invoiceFooter: null,
-  invoicePrefix: 'INV-',
-  invoiceNextNumber: 1,
-  createdAt: '',
-  updatedAt: '',
+interface OwnerFormData {
+  name: string
+  phone: string
+  address: string
+}
+
+interface BrokerFormData {
+  name: string
+  phone: string
+}
+
+interface Props {
+  initial?: ProjectOwner | null
+  onSave: (data: OwnerFormData) => Promise<void>
+  onCancel: () => void
+}
+
+function OwnerForm({ initial, onSave, onCancel }: Props) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [phone, setPhone] = useState(initial?.phone ?? '')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    setError(null)
+    if (!name.trim()) {
+      setError('Owner name is required')
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave({ name: name.trim(), phone: phone.trim(), address: address.trim() })
+      onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save owner')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="overlay">
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{initial ? 'Edit Project Owner' : 'Add Project Owner'}</h3>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field field-span-2">
+            <span>Name</span>
+            <input type="text" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Phone</span>
+            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Address</span>
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={() => void submit()} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface BrokerProps {
+  initial?: Broker | null
+  onSave: (data: BrokerFormData) => Promise<void>
+  onCancel: () => void
+}
+
+function BrokerForm({ initial, onSave, onCancel }: BrokerProps) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [phone, setPhone] = useState(initial?.phone ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    setError(null)
+    if (!name.trim()) {
+      setError('Booker name is required')
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave({ name: name.trim(), phone: phone.trim() })
+      onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save booker')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="overlay">
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{initial ? 'Edit Booker' : 'Add Booker'}</h3>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field">
+            <span>Name</span>
+            <input type="text" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Phone</span>
+            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={() => void submit()} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  const execCmd = (cmd: string, arg?: string) => {
+    document.execCommand('styleWithCSS', false, 'true')
+    document.execCommand(cmd, false, arg)
+  }
+
+  return (
+    <div className="richtext-editor">
+      <div className="richtext-toolbar">
+        <button type="button" className="btn ghost small" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('bold')}>
+          <b>B</b>
+        </button>
+        <button type="button" className="btn ghost small" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('italic')}>
+          <i>I</i>
+        </button>
+        <button type="button" className="btn ghost small" onMouseDown={(e) => e.preventDefault()} onClick={() => execCmd('underline')}>
+          <u>U</u>
+        </button>
+        <button
+          type="button"
+          className="btn ghost small"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCmd('insertUnorderedList')}
+        >
+          • List
+        </button>
+        <button
+          type="button"
+          className="btn ghost small"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCmd('insertOrderedList')}
+        >
+          1. List
+        </button>
+        <button
+          type="button"
+          className="btn ghost small"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCmd('removeFormat')}
+        >
+          Clear
+        </button>
+      </div>
+      <div
+        className="richtext-area"
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+        onKeyUp={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+        data-placeholder="Invoice description / terms printed under the signature…"
+      />
+    </div>
+  )
 }
 
 export function SettingsPage() {
-  const [profile, setProfile] = useState<BusinessProfile | null>(null)
+  const [owners, setOwners] = useState<ProjectOwner[]>([])
+  const [brokers, setBrokers] = useState<Broker[]>([])
+  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [backupInfo, setBackupInfo] = useState<BackupMetadata | null>(null)
-  const [restoreBusy, setRestoreBusy] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+  const [ownerModal, setOwnerModal] = useState<{ open: boolean; editing: ProjectOwner | null }>({
+    open: false,
+    editing: null,
+  })
+  const [brokerModal, setBrokerModal] = useState<{ open: boolean; editing: Broker | null }>({
+    open: false,
+    editing: null,
+  })
+  const [confirmDelete, setConfirmDelete] = useState<{
+    type: 'owner' | 'broker'
+    id: number
+  } | null>(null)
+  const [descSaving, setDescSaving] = useState(false)
+  const [descMessage, setDescMessage] = useState<string | null>(null)
+  const [descError, setDescError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setProfile(await api.businessProfile.get())
+      const [o, b, d] = await Promise.all([
+        api.projectOwners.list(),
+        api.brokers.list(),
+        api.settings.getValue('invoice_description'),
+      ])
+      setOwners(o)
+      setBrokers(b)
+      setDescription(d ?? '')
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : 'Failed to load settings')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  const handleBackup = async () => {
-    setActionError(null)
-    setActionSuccess(null)
-    const result = await api.dialogs.saveFile({
-      defaultPath: `MZTraders-backup-${localDate()}.db`,
-      filters: [{ name: 'SQLite database', extensions: ['db'] }],
-    })
-    if (result.canceled || !result.filePath) return
+  const saveOwner = async (data: OwnerFormData) => {
+    if (ownerModal.editing) {
+      await api.projectOwners.update(ownerModal.editing.id, data)
+    } else {
+      await api.projectOwners.create(data)
+    }
+    await load()
+    setOwnerModal({ open: false, editing: null })
+  }
+
+  const saveBroker = async (data: BrokerFormData) => {
+    if (brokerModal.editing) {
+      await api.brokers.update(brokerModal.editing.id, data)
+    } else {
+      await api.brokers.create(data)
+    }
+    await load()
+    setBrokerModal({ open: false, editing: null })
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return
     try {
-      const meta = await api.backup.create(result.filePath)
-      setBackupInfo(meta)
-      setActionSuccess(`Backup created: ${result.filePath}`)
+      if (confirmDelete.type === 'owner') {
+        await api.projectOwners.delete(confirmDelete.id)
+      } else {
+        await api.brokers.delete(confirmDelete.id)
+      }
+      setConfirmDelete(null)
+      await load()
     } catch (e) {
-      setActionError(String(e))
+      setError(e instanceof Error ? e.message : 'Failed to delete')
+      setConfirmDelete(null)
     }
   }
 
-  const handleRestore = async () => {
-    setActionError(null)
-    setActionSuccess(null)
-    const file = await api.dialogs.selectFile({
-      filters: [{ name: 'SQLite database', extensions: ['db'] }],
-    })
-    if (file.canceled || !file.filePath) return
+  const saveDescription = async () => {
+    setDescSaving(true)
+    setDescMessage(null)
+    setDescError(null)
     try {
-      const validation = await api.backup.validate(file.filePath)
-      if (!validation.valid) {
-        setActionError(`Invalid backup: ${validation.message}`)
-        return
-      }
-      const confirmed = window.confirm(
-        `${validation.message}\n\nRestoring will replace all current data. A copy of your current data is saved first. Continue?`
-      )
-      if (!confirmed) return
-      setRestoreBusy(true)
-      const result = await api.backup.restore(file.filePath)
-      if (result.success) {
-        // Reload so every screen (and the currency) reflects the restored data.
-        window.alert(result.message)
-        window.location.reload()
-        return
-      }
-      setActionError(result.message)
+      await api.settings.set('invoice_description', description, 'richtext')
+      setDescMessage('Description saved')
     } catch (e) {
-      setActionError(String(e))
+      setDescError(e instanceof Error ? e.message : 'Failed to save description')
     } finally {
-      setRestoreBusy(false)
+      setDescSaving(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="feature">
-        <div className="muted">Loading settings…</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="placeholder"><h3>Loading settings…</h3></div>
+  if (error) return <div className="error-screen">{error}</div>
 
   return (
     <div className="feature">
-      <h3 className="toolbar-title">Settings</h3>
-
-      {renderError(error, actionError)}
-      {actionSuccess && <div className="form-success">{actionSuccess}</div>}
-
-      <section className="settings-section">
-        <div className="settings-header">
-          <h4 className="section-title">Business profile</h4>
-          <button className="btn" onClick={() => setFormOpen(true)}>
-            {profile ? 'Edit' : 'Create'}
-          </button>
+      <div className="settings-section">
+        <div className="section-title">Project Owners</div>
+        <div className="settings-intro">
+          Project owners appear at the top of the printed invoice (name, phone, address).
         </div>
-        {profile ? (
-          <div className="profile-grid">
-            <div className="kv">
-              <span className="muted">Business name</span>
-              <strong>{profile.name}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Owner</span>
-              <strong>{profile.ownerName ?? '—'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Phone</span>
-              <strong>{profile.phone ?? '—'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Email</span>
-              <strong>{profile.email ?? '—'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Address</span>
-              <strong>{[profile.address, profile.city, profile.country].filter(Boolean).join(', ') || '—'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Currency</span>
-              <strong>{profile.currency}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Invoice prefix</span>
-              <strong>{profile.invoicePrefix || 'INV-'}</strong>
-            </div>
-            <div className="kv">
-              <span className="muted">Invoice footer</span>
-              <strong>{profile.invoiceFooter ?? '—'}</strong>
-            </div>
+        {owners.length === 0 ? (
+          <div className="empty-state">
+            <p>No project owners yet.</p>
           </div>
         ) : (
-          <div className="muted">
-            No business profile configured. Click <button className="btn small" onClick={() => setFormOpen(true)}>Create</button> to set it up.
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th className="actions-col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {owners.map((o) => (
+                  <tr key={o.id}>
+                    <td>{o.name}</td>
+                    <td>{o.phone || '—'}</td>
+                    <td>{o.address || '—'}</td>
+                    <td className="actions-col">
+                      {confirmDelete?.type === 'owner' && confirmDelete.id === o.id ? (
+                        <span className="confirm-bar">
+                          <button className="btn danger small" onClick={() => void handleDelete()}>
+                            Confirm
+                          </button>
+                          <button className="btn ghost small" onClick={() => setConfirmDelete(null)}>
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            className="btn ghost small"
+                            onClick={() => setOwnerModal({ open: true, editing: o })}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn danger small"
+                            onClick={() => setConfirmDelete({ type: 'owner', id: o.id })}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </section>
-
-      <section className="settings-section">
-        <h4 className="section-title">Backup & restore</h4>
-        <p className="muted fine-text">
-          Backups create a single offline .db file containing all your data. Restoring replaces
-          everything with the selected backup.
-        </p>
-        <div className="settings-actions">
-          <button className="btn primary" onClick={() => void handleBackup()}>
-            Create backup…
-          </button>
-          <button className="btn" onClick={() => void handleRestore()} disabled={restoreBusy}>
-            {restoreBusy ? 'Restoring…' : 'Restore from backup…'}
+        <div className="form-actions">
+          <button
+            className="btn ghost"
+            onClick={() => setOwnerModal({ open: true, editing: null })}
+          >
+            + Add Project Owner
           </button>
         </div>
-        {backupInfo && (
-          <div className="muted fine-text">
-            Last backup: {backupInfo.fileName} · {formatDateTime(backupInfo.createdAt)} ·{' '}
-            {Math.round(backupInfo.size / 1024)} KB
+      </div>
+
+      <div className="settings-section">
+        <div className="section-title">Bookers (Brokers)</div>
+        <div className="settings-intro">
+          The booker is selected on every invoice and printed next to the invoice number.
+        </div>
+        {brokers.length === 0 ? (
+          <div className="empty-state">
+            <p>No bookers yet.</p>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th className="actions-col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {brokers.map((b) => (
+                  <tr key={b.id}>
+                    <td>{b.name}</td>
+                    <td>{b.phone || '—'}</td>
+                    <td className="actions-col">
+                      {confirmDelete?.type === 'broker' && confirmDelete.id === b.id ? (
+                        <span className="confirm-bar">
+                          <button className="btn danger small" onClick={() => void handleDelete()}>
+                            Confirm
+                          </button>
+                          <button className="btn ghost small" onClick={() => setConfirmDelete(null)}>
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            className="btn ghost small"
+                            onClick={() => setBrokerModal({ open: true, editing: b })}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn danger small"
+                            onClick={() => setConfirmDelete({ type: 'broker', id: b.id })}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </section>
+        <div className="form-actions">
+          <button
+            className="btn ghost"
+            onClick={() => setBrokerModal({ open: true, editing: null })}
+          >
+            + Add Booker
+          </button>
+        </div>
+      </div>
 
-      {formOpen && (
-        <ProfileForm
-          initial={profile ?? EMPTY_PROFILE}
-          onClose={() => setFormOpen(false)}
-          onSaved={async () => {
-            setFormOpen(false)
-            await load()
-          }}
+      <div className="settings-section">
+        <div className="section-title">Invoice Description</div>
+        <div className="settings-intro">
+          Centered below the signature on every printed invoice. Use it for payment notes,
+          policy terms, or contact details.
+        </div>
+        <RichTextEditor value={description} onChange={setDescription} />
+        {descError && <div className="form-error">{descError}</div>}
+        {descMessage && <div className="text-ok fine-text">{descMessage}</div>}
+        <div className="form-actions">
+          <button className="btn primary" onClick={() => void saveDescription()} disabled={descSaving}>
+            {descSaving ? 'Saving…' : 'Save Description'}
+          </button>
+        </div>
+      </div>
+
+      {ownerModal.open && (
+        <OwnerForm
+          initial={ownerModal.editing}
+          onSave={saveOwner}
+          onCancel={() => setOwnerModal({ open: false, editing: null })}
         />
       )}
-    </div>
-  )
-}
-
-function renderError(error: string | null, actionError: string | null) {
-  if (actionError)
-    return (
-      <div className="form-error">{actionError}</div>
-    )
-  if (error) return <div className="form-error">{error}</div>
-  return null
-}
-
-function ProfileForm({
-  initial,
-  onClose,
-  onSaved,
-}: {
-  initial: BusinessProfile
-  onClose: () => void
-  onSaved: () => Promise<void>
-}) {
-  const [state, setState] = useState({
-    name: initial.name,
-    ownerName: initial.ownerName ?? '',
-    phone: initial.phone ?? '',
-    email: initial.email ?? '',
-    address: initial.address ?? '',
-    city: initial.city ?? '',
-    country: initial.country ?? '',
-    currency: initial.currency || 'PKR',
-    invoicePrefix: initial.invoicePrefix || 'INV-',
-    invoiceFooter: initial.invoiceFooter ?? '',
-  })
-  const [serverError, setServerError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setServerError(null)
-    if (!state.name.trim()) {
-      setServerError('Business name is required')
-      return
-    }
-    setSaving(true)
-    try {
-      await api.businessProfile.update({
-        name: state.name.trim(),
-        ownerName: state.ownerName.trim() || null,
-        phone: state.phone.trim() || null,
-        email: state.email.trim() || null,
-        address: state.address.trim() || null,
-        city: state.city.trim() || null,
-        country: state.country.trim() || null,
-        currency: state.currency.trim() || 'PKR',
-        invoicePrefix: state.invoicePrefix.trim() || 'INV-',
-        invoiceFooter: state.invoiceFooter.trim() || null,
-      })
-      setCurrency(state.currency.trim() || 'PKR')
-      await onSaved()
-    } catch (err) {
-      setServerError(String(err))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const fields: Array<{ key: keyof typeof state; label: string; span?: boolean }> = [
-    { key: 'name', label: 'Business name *' },
-    { key: 'ownerName', label: 'Owner' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
-    { key: 'address', label: 'Address', span: true },
-    { key: 'city', label: 'City' },
-    { key: 'country', label: 'Country' },
-    { key: 'currency', label: 'Currency (PKR shows as Rs.)' },
-    { key: 'invoicePrefix', label: 'Invoice prefix' },
-    { key: 'invoiceFooter', label: 'Invoice footer', span: true },
-  ]
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <form className="modal profile-form" onClick={(e) => e.stopPropagation()} onSubmit={submit} noValidate>
-        <div className="modal-header">
-          <h3>Edit business profile</h3>
-          <button type="button" className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
-            ✕
-          </button>
-        </div>
-        <div className="form-grid">
-          {fields.map((f) => (
-            <label key={f.key} className={`field${f.span ? ' field-span-2' : ''}`}>
-              <span>{f.label}</span>
-              <input
-                value={state[f.key]}
-                onChange={(e) => setState((s) => ({ ...s, [f.key]: e.target.value }))}
-              />
-            </label>
-          ))}
-        </div>
-        {serverError && <div className="form-error">{serverError}</div>}
-        <div className="form-actions">
-          <button type="button" className="btn ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn primary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </form>
+      {brokerModal.open && (
+        <BrokerForm
+          initial={brokerModal.editing}
+          onSave={saveBroker}
+          onCancel={() => setBrokerModal({ open: false, editing: null })}
+        />
+      )}
     </div>
   )
 }

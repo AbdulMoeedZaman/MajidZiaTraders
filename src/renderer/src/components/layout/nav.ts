@@ -1,9 +1,7 @@
 export type AppView =
-  | 'dashboard'
-  | 'products'
   | 'invoices'
   | 'customers'
-  | 'payments'
+  | 'products'
   | 'settings'
 
 export interface NavItem {
@@ -14,19 +12,15 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: '▦', enabled: true },
   { key: 'invoices', label: 'Invoices', icon: '≡', enabled: true },
   { key: 'customers', label: 'Customers', icon: '◉', enabled: true },
   { key: 'products', label: 'Products', icon: '▤', enabled: true },
-  { key: 'payments', label: 'Payments', icon: '◈', enabled: true },
   { key: 'settings', label: 'Settings', icon: '⌘', enabled: true },
 ]
 
 export const VIEW_TITLES: Record<AppView, string> = {
-  dashboard: 'Dashboard',
-  products: 'Products',
   invoices: 'Invoices',
   customers: 'Customers',
-  payments: 'Payments',
+  products: 'Products',
   settings: 'Settings',
 }

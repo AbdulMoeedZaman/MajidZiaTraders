@@ -1,220 +1,117 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
-import type { Customer, CustomerWithBalance } from '@shared/types/customer'
 import { formatDate, formatMoney } from '../../../lib/format'
-import { useCustomerLedger } from '../hooks/useCustomerLedger'
-import { CustomerLedgerTable } from './CustomerLedgerTable'
-import { CustomerForm } from './CustomerForm'
-import { DateRangePicker } from '../../../components/DateRangePicker'
-import type { CustomerFormMode } from '../types/customer-form'
+import type { CustomerWithRoute } from '@shared/types/customer'
+import type { InvoiceWithCustomer } from '@shared/types/invoice'
 
-interface CustomerDetailPageProps {
+interface Props {
   customerId: number
   onBack: () => void
+  onNewInvoice: (customerId: number) => void
+  onOpenInvoice: (invoiceId: number) => void
 }
 
-const deleteArmed = new WeakSet<CustomerWithBalance>()
-
-function confirmDelete(customer: CustomerWithBalance): boolean {
-  if (deleteArmed.has(customer)) {
-    deleteArmed.delete(customer)
-    return true
-  }
-  deleteArmed.add(customer)
-  window.setTimeout(() => deleteArmed.delete(customer), 3000)
-  return false
-}
-
-export function CustomerDetailPage({ customerId, onBack }: CustomerDetailPageProps) {
-  const ledger = useCustomerLedger(customerId)
-  const [customer, setCustomer] = useState<CustomerWithBalance | null>(null)
+export function CustomerDetailPage({ customerId, onBack, onNewInvoice, onOpenInvoice }: Props) {
+  const [customer, setCustomer] = useState<CustomerWithRoute | null>(null)
+  const [invoices, setInvoices] = useState<InvoiceWithCustomer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState<{ mode: CustomerFormMode; customer: Customer | null } | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setCustomer(await api.customers.getWithBalance(customerId))
+      const [c, inv] = await Promise.all([
+        api.customers.getById(customerId),
+        api.invoices.listByCustomer(customerId),
+      ])
+      setCustomer(c)
+      setInvoices(inv)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : 'Failed to load customer')
     } finally {
       setLoading(false)
     }
   }, [customerId])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  if (loading) {
-    return (
-      <div className="feature">
-        <div className="muted">Loading customer…</div>
-      </div>
-    )
-  }
-
-  if (error || !customer) {
-    return (
-      <div className="feature">
-        <div className="form-error">{error ?? 'Customer not found'}</div>
-      </div>
-    )
-  }
-
-  const handleFormSubmit = async (payload: Parameters<typeof api.customers.update>[1]): Promise<string | null> => {
-    if (!form) return null
-    try {
-      await api.customers.update(customerId, payload)
-      await load()
-      setForm(null)
-      return null
-    } catch (e) {
-      return String(e)
-    }
-  }
-
-  const handleDelete = () => {
-    setActionError(null)
-    api.customers
-      .delete(customerId)
-      .then(() => onBack())
-      .catch((e) => setActionError(String(e)))
-  }
-
-  const summary = ledger.summary
+  if (loading) return <div className="placeholder"><h3>Loading customer…</h3></div>
+  if (error) return <div className="error-screen">{error}</div>
+  if (!customer)
+    return <div className="error-screen">This customer does not exist anymore.</div>
 
   return (
     <div className="feature">
-      {actionError && <div className="form-error">{actionError}</div>}
+      <div className="toolbar">
+        <button className="btn ghost" onClick={onBack}>
+          ← Back
+        </button>
+        <div className="spacer" />
+        <button className="btn primary" onClick={() => onNewInvoice(customer.id)}>
+          + New Invoice
+        </button>
+      </div>
 
-      <div className="detail customer-detail">
-        <div className="detail-header">
-          <div>
-            <h3>{customer.name}</h3>
-            <span className="muted">
-              customer · since{' '}
-              {formatDate(customer.createdAt)}
-            </span>
-          </div>
-        </div>
-
-        {customer.address && (
-          <dl className="detail-rows">
+      <div className="detail detail-rows">
+        <div>
+          <h3>
+            {customer.shopName || customer.ownerName}
+            {' · '}
+            <span className="mono">{customer.code}</span>
+          </h3>
+          <div className="customer-meta">
+            <div>
+              <dt>Route</dt>
+              <dd>{customer.routeName}</dd>
+            </div>
+            <div>
+              <dt>Owner</dt>
+              <dd>{customer.ownerName || '—'}</dd>
+            </div>
+            <div>
+              <dt>Phone</dt>
+              <dd>{customer.phone || '—'}</dd>
+            </div>
             <div>
               <dt>Address</dt>
-              <dd>{customer.address}</dd>
+              <dd>{customer.address || '—'}</dd>
             </div>
-          </dl>
-        )}
-
-        <div className="balance-cards">
-          <div className="balance-card">
-            <span className="muted">Balance</span>
-            <strong
-              className={customer.balance > 0 ? 'text-warn' : customer.balance < 0 ? 'text-ok' : ''}
-            >
-              {formatMoney(customer.balance)}
-            </strong>
-            <span className="muted fine-text">
-              {customer.balance > 0
-                ? 'owes us'
-                : customer.balance < 0
-                  ? 'credit on account'
-                  : 'settled'}
-            </span>
           </div>
-          <div className="balance-card">
-            <span className="muted">Outstanding</span>
-            <strong className={customer.outstanding > 0 ? 'text-danger' : ''}>
-              {formatMoney(customer.outstanding)}
-            </strong>
-            <span className="muted fine-text">
-              {summary ? `${summary.entryCount} ledger entries` : '…'}
-            </span>
-          </div>
-          <div className="balance-card">
-            <span className="muted">Total billed</span>
-            <strong>{formatMoney(summary?.totalDebit ?? customer.totalDebit)}</strong>
-            <span className="muted fine-text">total debit</span>
-          </div>
-          <div className="balance-card">
-            <span className="muted">Total paid</span>
-            <strong>{formatMoney(summary?.totalCredit ?? customer.totalCredit)}</strong>
-            <span className="muted fine-text">total credit</span>
-          </div>
-        </div>
-
-        <div className="detail-actions">
-          <button className="btn" onClick={() => setForm({ mode: 'edit', customer })}>
-            Edit
-          </button>
-          <button
-            className="btn danger"
-            onClick={() => {
-              if (confirmDelete(customer)) handleDelete()
-            }}
-          >
-            Delete
-          </button>
         </div>
       </div>
 
-      <div className="ledger-block">
-        <div className="ledger-toolbar">
-          <h3 className="ledger-title">Ledger / Transaction history</h3>
-          <div className="ledger-dates">
-            <DateRangePicker
-              from={ledger.from}
-              to={ledger.to}
-              onChange={(r) => {
-                ledger.setFrom(r.from)
-                ledger.setTo(r.to)
-              }}
-              placeholder="All dates"
-            />
-          </div>
+      <div className="section-title">Invoices</div>
+      {invoices.length === 0 ? (
+        <div className="empty-state">
+          <p>No invoices for this customer yet.</p>
         </div>
-        <CustomerLedgerTable entries={ledger.entries} loading={ledger.loading} error={ledger.error} />
-      </div>
-
-      {form && (
-        <Modal title="Edit customer" onClose={() => setForm(null)}>
-          <CustomerForm
-            mode={form.mode}
-            customer={form.customer}
-            onSubmit={handleFormSubmit}
-            onCancel={() => setForm(null)}
-          />
-        </Modal>
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Invoice no.</th>
+                <th>Date</th>
+                <th className="num">Subtotal</th>
+                <th className="num">Grand total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((inv) => (
+                <tr key={inv.id} onClick={() => onOpenInvoice(inv.id)}>
+                  <td className="mono">{inv.invoiceNumber}</td>
+                  <td>{formatDate(inv.date)}</td>
+                  <td className="num mono">{formatMoney(inv.subtotal)}</td>
+                  <td className="num mono">{formatMoney(inv.grandTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
-  )
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-}) {
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
-            ✕
-          </button>
-        </div>
-        {children}
-      </div>
     </div>
   )
 }

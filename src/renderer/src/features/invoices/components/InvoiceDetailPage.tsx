@@ -1,374 +1,193 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { InvoiceWithItems } from '@shared/types/invoice'
-import type { CustomerPaymentWithCustomer } from '@shared/types/customer-payment'
-import type { CustomerWithBalance } from '@shared/types/customer'
-import type { BusinessProfile } from '@shared/types/business-profile'
 import { api } from '../../../lib/api'
-import { useInvoices } from '../hooks/useInvoices'
-import { usePayments } from '../../payments/hooks/usePayments'
-import { PaymentForm } from '../../payments/components/PaymentForm'
-import { statusBadgeTone } from './InvoiceList'
-import { INVOICE_STATUS_LABELS } from '../types/invoice-form'
-import { PAYMENT_METHOD_LABELS } from '../../payments/types/payment-form'
-import { formatDate, formatMoney } from '../../../lib/format'
+import type { InvoiceDetails } from '@shared/types/invoice'
 
-interface InvoiceDetailPageProps {
+interface Props {
   invoiceId: number
   onBack: () => void
 }
 
-export function InvoiceDetailPage({ invoiceId, onBack }: InvoiceDetailPageProps) {
-  const { cancelInvoice, deleteInvoice } = useInvoices()
-  const { deletePayment } = usePayments()
-  const [invoice, setInvoice] = useState<InvoiceWithItems | null>(null)
-  const [payments, setPayments] = useState<CustomerPaymentWithCustomer[]>([])
-  const [customers, setCustomers] = useState<CustomerWithBalance[]>([])
-  const [profile, setProfile] = useState<BusinessProfile | null>(null)
+function printDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso
+}
+
+function printMoney(cents: number | null | undefined): string {
+  return ((cents ?? 0) / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
+  const [data, setData] = useState<InvoiceDetails | null>(null)
+  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [paymentOpen, setPaymentOpen] = useState(false)
-  const [confirmPaymentDelete, setConfirmPaymentDelete] = useState<number | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.invoices.getWithItems(invoiceId)
-      if (!data) setError('Invoice not found')
-      else setInvoice(data)
-      setPayments(await api.payments.listByInvoice(invoiceId))
+      const [details, desc] = await Promise.all([
+        api.invoices.getWithDetails(invoiceId),
+        api.settings.getValue('invoice_description'),
+      ])
+      setData(details)
+      setDescription(desc ?? '')
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : 'Failed to load invoice')
     } finally {
       setLoading(false)
     }
   }, [invoiceId])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  useEffect(() => {
-    api.customers
-      .listWithBalance()
-      .then(setCustomers)
-      .catch(() => setCustomers([]))
-    api.businessProfile
-      .get()
-      .then(setProfile)
-      .catch(() => setProfile(null))
-  }, [])
-
-  const run = async (fn: () => Promise<string | null>) => {
-    setActionError(null)
-    const err = await fn()
-    if (err) setActionError(err)
-    else {
-      setConfirmCancel(false)
-      setConfirmDelete(false)
-      await load()
+  const handleDelete = async () => {
+    setDeleteError(null)
+    try {
+      await api.invoices.delete(invoiceId)
+      onBack()
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete invoice')
     }
   }
 
-  const handleDelete = async () => {
-    setActionError(null)
-    const err = await deleteInvoice(invoiceId)
-    if (err) setActionError(err)
-    else onBack()
-  }
+  if (loading) return <div className="placeholder"><h3>Loading invoice…</h3></div>
+  if (error) return <div className="error-screen">{error}</div>
+  if (!data) return <div className="error-screen">This invoice does not exist anymore.</div>
 
-  const handlePaymentDelete = async (id: number) => {
-    setActionError(null)
-    const err = await deletePayment(id)
-    if (err) setActionError(err)
-    else await load()
-    setConfirmPaymentDelete(null)
-  }
-
-  if (loading) {
-    return (
-      <div className="feature">
-        <div className="muted">Loading invoice…</div>
-      </div>
-    )
-  }
-
-  if (error || !invoice) {
-    return (
-      <div className="feature">
-        <div className="form-error">{error ?? 'Invoice not found'}</div>
-        <button className="btn" onClick={onBack}>
-          Back
-        </button>
-      </div>
-    )
-  }
-
-  // Payments recorded against this invoice block cancelling; automatically applied customer
-  // credit does not (it goes back to the customer when the invoice is cancelled).
-  const hasDirectPayments = payments.some((p) => p.invoiceId === invoice.id)
-  const canModify = !hasDirectPayments && invoice.status !== 'cancelled'
-  const canRecordPayment = invoice.status !== 'cancelled' && invoice.outstanding > 0
-  const address = profile ? [profile.address, profile.city, profile.country].filter(Boolean).join(', ') : ''
-  const contact = profile ? [profile.phone, profile.email].filter(Boolean).join(' · ') : ''
+  const { invoice, customer, owner, broker } = data
 
   return (
     <div className="feature">
-      {actionError && <div className="form-error">{actionError}</div>}
-
-      {profile && (
-        <div className="print-only print-header">
-          <h2>{profile.name}</h2>
-          {address && <div>{address}</div>}
-          {contact && <div>{contact}</div>}
-        </div>
-      )}
-
-      <div className="detail">
-        <div className="detail-header">
-          <div>
-            <h3>Invoice {invoice.invoiceNumber}</h3>
-            <span className="muted">
-              {invoice.customerName} · {formatDate(invoice.date)}
-              {invoice.dueDate ? ` · due ${formatDate(invoice.dueDate)}` : ''}
-              {invoice.notes ?? ''}
-            </span>
-          </div>
-          <span className={`badge ${statusBadgeTone(invoice.status)}`}>
-            {INVOICE_STATUS_LABELS[invoice.status]}
+      <div className="toolbar">
+        <button className="btn ghost" onClick={onBack}>
+          ← Back
+        </button>
+        <div className="spacer" />
+        <button className="btn primary" onClick={() => window.print()}>
+          🖨 Print
+        </button>
+        {confirmDelete ? (
+          <span className="confirm-bar">
+            <button className="btn danger small" onClick={() => void handleDelete()}>
+              Confirm delete
+            </button>
+            <button className="btn ghost small" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </button>
           </span>
-        </div>
+        ) : (
+          <button className="btn danger" onClick={() => setConfirmDelete(true)}>
+            Delete
+          </button>
+        )}
       </div>
 
-      <div className="table-wrap">
-        <table className="data-table">
+      {deleteError && <div className="form-error">{deleteError}</div>}
+
+      <div className="invoice-sheet">
+        {owner && (
+          <>
+            <div className="ip-owner">{owner.name}</div>
+            <div className="ip-band">
+              <div className="ip-phone">{owner.phone || ''}</div>
+              <div className="ip-address">{owner.address || ''}</div>
+            </div>
+          </>
+        )}
+
+        <div className="ip-details">
+          <div className="ip-customer">
+            {customer && (
+              <>
+                <div>Shop name: <strong>{customer.shopName}</strong></div>
+                <div>Owner name: <strong>{customer.ownerName}</strong></div>
+                <div>Phone: {customer.phone}</div>
+                <div>Address: {customer.address}</div>
+                <div>
+                  Status: {invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="ip-right">
+            <div>Date: {printDate(invoice.date)}</div>
+            {broker && (
+              <>
+                <div>Booker: {broker.name}</div>
+                <div>Phone: {broker.phone}</div>
+              </>
+            )}
+            <div>Invoice No: <strong>{invoice.invoiceNumber}</strong></div>
+          </div>
+        </div>
+
+        <table className="ip-table">
           <thead>
             <tr>
               <th>Product</th>
-              <th>SKU</th>
-              <th className="num">Qty</th>
-              <th className="num">Unit price</th>
-              <th className="num">Line total</th>
+              <th>Rate</th>
+              <th>Carton no</th>
+              <th>Box no</th>
+              <th>Scheme</th>
+              <th>Amount</th>
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item) => (
-              <tr key={item.id}>
+            {invoice.items.map((item, i) => (
+              <tr key={item.id ?? i}>
                 <td>{item.productName}</td>
-                <td className="mono">{item.productSku}</td>
-                <td className="num">{item.quantity}</td>
-                <td className="num">{formatMoney(item.actualSellingPrice)}</td>
-                <td className="num">{formatMoney(item.lineSubtotal)}</td>
+                <td className="ip-num">{printMoney(item.rate)}</td>
+                <td className="ip-num">{item.cartonCount}</td>
+                <td className="ip-num">{item.boxCount}</td>
+                <td className="ip-scheme"></td>
+                <td className="ip-num">{printMoney(item.amount)}</td>
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="ip-total-row">
+              <td colSpan={5} className="ip-total-label">
+                Total / Subtotal
+              </td>
+              <td className="ip-num">{printMoney(invoice.subtotal)}</td>
+            </tr>
+          </tfoot>
         </table>
-      </div>
 
-      <div className="summary-grid">
-        <div className="totals-column">
-          <div className="totals-row">
-            <span>Subtotal</span>
-            <span>{formatMoney(invoice.subtotal)}</span>
+        <div className="ip-totals">
+          <div className="ip-totals-row">
+            <span>Remaining amount</span>
+            <strong>{printMoney(invoice.remaining)}</strong>
           </div>
-          {invoice.discount > 0 && (
-            <div className="totals-row">
-              <span>Discount</span>
-              <span>−{formatMoney(invoice.discount)}</span>
-            </div>
-          )}
-          <div className="totals-row strong">
-            <span>Total</span>
-            <span>{formatMoney(invoice.total)}</span>
+          <div className="ip-totals-row">
+            <span>Tax</span>
+            <strong>{printMoney(invoice.tax)}</strong>
           </div>
-          {invoice.status !== 'cancelled' && (
-            <>
-              <div className="totals-row">
-                <span>Paid{invoice.paid > 0 && !hasDirectPayments ? ' (customer credit)' : ''}</span>
-                <span>{formatMoney(invoice.paid)}</span>
-              </div>
-              <div className="totals-row">
-                <span>Outstanding</span>
-                <span>{formatMoney(invoice.outstanding)}</span>
-              </div>
-            </>
-          )}
-          <div className="totals-row no-print">
-            <span>Profit</span>
-            <span>{formatMoney(invoice.totalProfit)}</span>
+          <div className="ip-totals-row ip-grand">
+            <span>Grand total</span>
+            <strong>{printMoney(invoice.grandTotal)}</strong>
           </div>
         </div>
-      </div>
 
-      <div className="detail-actions">
-        {canRecordPayment && (
-          <button className="btn primary" onClick={() => setPaymentOpen(true)}>
-            + Record payment
-          </button>
-        )}
-        {canModify && (
-          <button
-            className="btn"
-            onClick={() => {
-              setConfirmCancel(true)
-              setConfirmDelete(false)
-            }}
-          >
-            Cancel invoice
-          </button>
-        )}
-        {(canModify || invoice.status === 'cancelled') && (
-          <button
-            className="btn danger"
-            onClick={() => {
-              setConfirmDelete(true)
-              setConfirmCancel(false)
-            }}
-          >
-            Delete invoice
-          </button>
-        )}
-        <button className="btn" onClick={() => window.print()}>
-          Print
-        </button>
-      </div>
-
-      {invoice.status !== 'cancelled' && (
-        <>
-          <h4 className="section-title">Payments</h4>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Method</th>
-                  <th>Reference</th>
-                  <th className="num">Amount</th>
-                  <th className="actions-col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="muted">
-                      No payments yet.
-                    </td>
-                  </tr>
-                )}
-                {payments.map((p) => (
-                  <tr key={p.id}>
-                    <td>{formatDate(p.paymentDate)}</td>
-                    <td>{PAYMENT_METHOD_LABELS[p.method]}</td>
-                    <td>
-                      {p.reference ?? ''}
-                      {p.invoiceId !== invoice.id && <div className="fine-text muted">Applied automatically (customer credit)</div>}
-                    </td>
-                    <td className="num">
-                      {formatMoney(p.appliedAmount ?? p.amount)}
-                      {p.appliedAmount !== undefined && p.appliedAmount !== p.amount && (
-                        <div className="fine-text muted">of {formatMoney(p.amount)} payment</div>
-                      )}
-                    </td>
-                    <td className="actions-col">
-                      <button
-                        className="btn small danger"
-                        onClick={() => {
-                          if (confirmPaymentDelete === p.id) void handlePaymentDelete(p.id)
-                          else {
-                            setConfirmPaymentDelete(p.id)
-                            window.setTimeout(
-                              () => setConfirmPaymentDelete((cur) => (cur === p.id ? null : cur)),
-                              3000
-                            )
-                          }
-                        }}
-                      >
-                        {confirmPaymentDelete === p.id ? 'Confirm' : 'Delete'}
-                      </button>
-                      {confirmPaymentDelete === p.id && (p.allocationCount ?? 1) > 1 && (
-                        <div className="fine-text text-warn">
-                          Also removes it from {(p.allocationCount ?? 1) - 1} other invoice(s)
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {profile?.invoiceFooter && <div className="print-only print-footer">{profile.invoiceFooter}</div>}
-
-      {canModify && confirmCancel && (
-        <div className="confirm-bar">
-          <span>
-            This reverses stock and removes the customer ledger entry
-            {invoice.paid > 0 ? '. Customer credit applied to it goes back to the customer' : ''}.
-          </span>
-          <button className="btn primary" onClick={() => void run(() => cancelInvoice(invoiceId))}>
-            Confirm cancel
-          </button>
-          <button className="btn ghost" onClick={() => setConfirmCancel(false)}>
-            Keep
-          </button>
+        <div className="ip-signature">
+          <div className="ip-signature-line"></div>
+          <span>Signature</span>
         </div>
-      )}
-      {confirmDelete && (canModify || invoice.status === 'cancelled') && (
-        <div className="confirm-bar">
-          <span>
-            This permanently deletes the invoice
-            {invoice.status !== 'cancelled' ? ', restores stock, and removes the ledger entry' : ''}.
-          </span>
-          <button className="btn danger" onClick={() => void handleDelete()}>
-            Confirm delete
-          </button>
-          <button className="btn ghost" onClick={() => setConfirmDelete(false)}>
-            Keep
-          </button>
-        </div>
-      )}
 
-      {paymentOpen && (
-        <Modal title={`Payment for ${invoice.invoiceNumber}`} onClose={() => setPaymentOpen(false)}>
-          <PaymentForm
-            customers={customers}
-            invoice={invoice}
-            onSuccess={() => {
-              setPaymentOpen(false)
-              void load()
-            }}
-            onCancel={() => setPaymentOpen(false)}
+        {description && (
+          <div
+            className="ip-description"
+            dangerouslySetInnerHTML={{ __html: description }}
           />
-        </Modal>
-      )}
-    </div>
-  )
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-}) {
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
-            ✕
-          </button>
-        </div>
-        {children}
+        )}
       </div>
     </div>
   )

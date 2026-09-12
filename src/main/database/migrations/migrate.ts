@@ -1,10 +1,6 @@
 import { runInTransaction, type AppDatabase } from '../sqlite'
 import { up as initialSchema } from './001_initial_schema'
-import { up as businessModules } from './002_business_modules'
-import { up as completeBusinessSchema } from './003_complete_business_schema'
-import { up as invoiceDiscountsAndIntegrity } from './004_invoice_discounts_payment_allocations_and_integrity'
-import { up as ledgerSyncAndReversals } from './005_ledger_sync_allocation_repair_and_reversals'
-import { up as productPurchaseStructure } from './006_product_purchase_structure'
+import { up as futureExtensionPoints } from './002_future_extension_points'
 
 interface Migration {
   version: number
@@ -19,16 +15,11 @@ interface Migration {
  * - Each migration runs inside its own transaction (see runMigrations). SQLite silently
  *   ignores `PRAGMA foreign_keys = OFF` inside a transaction, so for a table rebuild use
  *   `PRAGMA defer_foreign_keys = ON`, copy the rows, and check `PRAGMA foreign_key_check`
- *   is empty before the migration returns. Never drop a table that other tables reference
- *   without that check.
+ *   is empty before the migration returns.
  */
 const migrations: Migration[] = [
   { version: 1, name: '001_initial_schema', up: initialSchema },
-  { version: 2, name: '002_business_modules', up: businessModules },
-  { version: 3, name: '003_complete_business_schema', up: completeBusinessSchema },
-  { version: 4, name: '004_invoice_discounts_payment_allocations_and_integrity', up: invoiceDiscountsAndIntegrity },
-  { version: 5, name: '005_ledger_sync_allocation_repair_and_reversals', up: ledgerSyncAndReversals },
-  { version: 6, name: '006_product_purchase_structure', up: productPurchaseStructure },
+  { version: 2, name: '002_future_extension_points', up: futureExtensionPoints },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

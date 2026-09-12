@@ -1,106 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
-import type { ProductWithStock } from '@shared/types/inventory'
-import type { CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
-import type { AddStockDTO } from '@shared/types/restock'
+import type { Product, CreateProductDTO, UpdateProductDTO } from '@shared/types/product'
 
 export function useProducts() {
-  const [products, setProducts] = useState<ProductWithStock[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const list = await api.products.listWithStock()
-      setProducts(list)
+      setProducts(await api.products.list())
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : 'Failed to load products')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  const visible = useMemo(() => {
-    let list = products
-    const q = query.trim().toLowerCase()
-    if (q) {
-      list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-      )
-    }
-    return list
-  }, [products, query])
-
-  const createProduct = useCallback(
-    async (data: CreateProductDTO): Promise<string | null> => {
-      try {
-        await api.products.create(data)
-        await load()
-        return null
-      } catch (e) {
-        return String(e)
-      }
-    },
-    [load]
-  )
-
-  const updateProduct = useCallback(
-    async (id: number, data: UpdateProductDTO): Promise<string | null> => {
-      try {
-        await api.products.update(id, data)
-        await load()
-        return null
-      } catch (e) {
-        return String(e)
-      }
-    },
-    [load]
-  )
-
-  const deleteProduct = useCallback(
-    async (id: number): Promise<string | null> => {
-      try {
-        await api.products.delete(id)
-        await load()
-        return null
-      } catch (e) {
-        return String(e)
-      }
-    },
-    [load]
-  )
-
-  const addStock = useCallback(
-    async (data: AddStockDTO): Promise<string | null> => {
-      try {
-        await api.products.addStock(data)
-        await load()
-        return null
-      } catch (e) {
-        return String(e)
-      }
-    },
-    [load]
-  )
-
-  return {
-    products,
-    visible,
-    loading,
-    error,
-    query,
-    setQuery,
-    createProduct,
-    updateProduct,
-    deleteProduct,
-    addStock,
-    reload: load,
+  const create = async (data: CreateProductDTO) => {
+    await api.products.create(data)
+    await load()
   }
+
+  const update = async (id: number, data: UpdateProductDTO) => {
+    await api.products.update(id, data)
+    await load()
+  }
+
+  const remove = async (id: number) => {
+    await api.products.delete(id)
+    await load()
+  }
+
+  return { products, loading, error, reload: load, create, update, remove }
 }

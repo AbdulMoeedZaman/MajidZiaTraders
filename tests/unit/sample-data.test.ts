@@ -10,13 +10,13 @@ import { expect, it } from 'vitest'
 import { closeDatabase } from '../../src/main/database/connection'
 import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
-import { InventoryService } from '../../src/main/services/inventory.service'
 import { InvoiceService } from '../../src/main/services/invoice.service'
-import { PaymentService } from '../../src/main/services/payment.service'
-import { RestockService } from '../../src/main/services/restock.service'
-import { StockAdjustmentService } from '../../src/main/services/stock-adjustment.service'
+import { ProjectOwnerService } from '../../src/main/services/project-owner.service'
+import { BrokerService } from '../../src/main/services/broker.service'
+import { SettingsService } from '../../src/main/services/settings.service'
 import { localDate } from '../../src/shared/date'
-import { useTestDatabase, line } from './helpers'
+import { useTestDatabase, routeIdFor } from './helpers'
+import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 function shiftIsoDate(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`)
@@ -31,143 +31,121 @@ const { dir } = useTestDatabase()
 it('seeds a realistic MZTraders sample dataset and (optionally) writes the portable DB', () => {
   const productService = new ProductService()
   const customerService = new CustomerService()
-  const inventoryService = new InventoryService()
   const invoiceService = new InvoiceService()
-  const paymentService = new PaymentService()
-  const restockService = new RestockService()
-  const adjustmentService = new StockAdjustmentService()
+  const ownerService = new ProjectOwnerService()
+  const brokerService = new BrokerService()
+  const settingsService = new SettingsService()
 
   const today = localDate()
   const d1 = today
   const d2 = shiftIsoDate(today, -1)
   const d3 = shiftIsoDate(today, -2)
-  const d4 = shiftIsoDate(today, -3)
-  const d5 = shiftIsoDate(today, -4)
-  const d8 = shiftIsoDate(today, -8)
 
-  // ---- Products (wholesale groceries, prices in paisa: 32000 = Rs. 320.00) ----
-  const basmati = productService.create({ sku: 'BAS-001', name: 'Basmati Rice 5kg', minSellingPrice: 28000, sellingPrice: 32000 })
-  const sugar = productService.create({ sku: 'SUG-001', name: 'White Sugar 1kg', minSellingPrice: 15500, sellingPrice: 17000 })
-  const oil = productService.create({ sku: 'OIL-001', name: 'Cooking Oil 5L', minSellingPrice: 24500, sellingPrice: 27000 })
-  const tea = productService.create({ sku: 'TEA-001', name: 'Black Tea 250g', minSellingPrice: 6500, sellingPrice: 7500 })
-  const soap = productService.create({ sku: 'SPL-001', name: 'Washing Soap', minSellingPrice: 9500, sellingPrice: 11000 })
-  const flour = productService.create({ sku: 'FLR-001', name: 'Wheat Flour 10kg', minSellingPrice: 32000, sellingPrice: 35000 })
-  const ghee = productService.create({ sku: 'GHE-001', name: 'Desi Ghee 1kg', minSellingPrice: 18200, sellingPrice: 20000 })
-  const biscuit = productService.create({ sku: 'BIS-001', name: 'Assorted Biscuits', minSellingPrice: 8900, sellingPrice: 9800 })
+  // ---- Project owners & bookers ----
+  const majid = ownerService.create({ name: 'Majid Zia Motors', phone: '0300-1234567', address: 'Main Bazaar, Multan' })
+  const ownerB = ownerService.create({ name: 'Zia Traders', phone: '0301-7654321', address: 'Qasim Road' })
+  const bashir = brokerService.create({ name: 'Bashir Ahmad', phone: '0322-1112223' })
+  const rafiq = brokerService.create({ name: 'Rafiq Sons', phone: '0333-4445556' })
 
-  // ---- Opening stock (pieces in hand at the start) ----
-  const opening: Array<[typeof basmati, number]> = [
-    [basmati, 1440],
-    [sugar, 600],
-    [oil, 180],
-    [tea, 480],
-    [soap, 750],
-    [flour, 300],
-    [ghee, 480],
-    [biscuit, 400],
-  ]
-  for (const [product, quantity] of opening) {
-    inventoryService.setOpeningStock({ productId: product.id, quantity })
-  }
+  // ---- Products (wholesale parts; prices in paisa 10000 = Rs. 100.00) ----
+  const market = productService.create({ name: 'Market Bearings', rate: 10000, boxesPerCarton: 12 })
+  const axle = productService.create({ name: 'Axle Bearing 6204', rate: 65000, boxesPerCarton: 10 })
+  const rings = productService.create({ name: 'Piston Rings Set', rate: 80000, boxesPerCarton: 8 })
+  const gasket = productService.create({ name: 'Gasket Kit', rate: 45000, boxesPerCarton: 6 })
+  const valve = productService.create({ name: 'Valve Spring', rate: 15000, boxesPerCarton: 20 })
+  const clutch = productService.create({ name: 'Clutch Plate 240mm', rate: 320000, boxesPerCarton: 5 })
 
-  // ---- Customers ----
-  const abdul = customerService.create({ name: 'Abdul Rehman Store', address: 'Shop 4, Saddar, Karachi' })
-  const faisal = customerService.create({ name: 'Faisal Traders', address: 'Ghall Mandi, Faisalabad' })
-  const madina = customerService.create({ name: 'Al-Madina General Store', address: 'University Road, Peshawar' })
-  const zainab = customerService.create({ name: 'Zainab Suppliers', address: 'Sanda Road, Lahore' })
-  const noor = customerService.create({ name: 'Noor Bakery', address: 'G-9 Markaz, Islamabad' })
+  // ---- Customers spread across the six delivery routes ----
+  const routes = ['Monday', 'Tuesday', 'Wednesday', 'Thursday']
+  const bilal = customerService.create({ code: 'MK-001', shopName: 'Bilal Auto Shop', ownerName: 'Bilal', phone: '0322-0000001', address: 'Liaquat Road', routeId: routeIdFor(routes[0]) })
+  const wazir = customerService.create({ code: 'MK-002', shopName: 'Wazir & Sons', ownerName: 'Wazir Ahmad', phone: '0322-0000002', address: 'Bokhari Market', routeId: routeIdFor(routes[0]) })
+  const emerald = customerService.create({ code: 'WK-001', shopName: 'Emerald Parts', ownerName: 'Imran', phone: '0322-0000003', address: 'Water Pump Chowk', routeId: routeIdFor(routes[1]) })
+  const metro = customerService.create({ code: 'WK-002', shopName: 'Metro Auto', ownerName: 'Metro Group', phone: '0322-0000004', address: 'Canal Road', routeId: routeIdFor(routes[2]) })
+  const shahzad = customerService.create({ code: 'TH-001', shopName: 'Shahzad Spares', ownerName: 'Shahzad', phone: '0322-0000005', address: 'Rice Market', routeId: routeIdFor(routes[3]) })
 
-  // ---- Restocks ----
-  // Direct stock-in (immediately received) raises oil cost basis to 24500.
-  restockService.addStock({ productId: oil.id, quantity: 30, costPerUnit: 24500, supplierName: 'Habib Oil Mills' })
-  // A purchase order received later; new cost basis for sugar = 16000/piece.
-  const sugarRestock = restockService.create({
-    supplierName: 'Punjab Sugar Mills',
-    date: d2,
-    notes: 'Monthly sugar order',
-    items: [{ productId: sugar.id, qtyCartons: 10, piecesPerCarton: 24, netSalesValueExcl: 3840000, tradeDiscountValue: 0 }],
-  })
-  restockService.markReceived(sugarRestock.id)
+  // ---- Invoice description used at the bottom of the printed sheet ----
+  settingsService.set(
+    'invoice_description',
+    'Goods once sold will not be taken back.<br>Payment due within 7 days.<br>Thank you for your business.',
+    'richtext'
+  )
 
   // ---- Invoices ----
-  // INV-1 Faisal: rice + oil, Rs. 20.00 discount. Large outstanding.
+  const base = (customerId: number): Omit<CreateInvoiceDTO, 'items' | 'ownerId' | 'brokerId'> => ({
+    customerId,
+    date: d2,
+    filerStatus: 'filer',
+    remaining: null,
+    tax: null,
+    grandTotal: null,
+  })
+
+  // INV-1 Bilal: market bearings + axle bearings, 5 cartons + 6 loose boxes.
+  //   10000*5 + 10000*6/12 = 55000 ; 65000*2 = 130000 → subtotal 185000
   const invA = invoiceService.create({
-    customerId: faisal.id,
+    ...base(bilal.id),
+    ownerId: majid.id,
+    brokerId: bashir.id,
     date: d1,
-    dueDate: shiftIsoDate(d1, 14),
-    discount: 2000,
-    items: [line(basmati, 10), line(oil, 6)],
+    items: [
+      { productId: market.id, rate: 10000, cartonCount: 5, boxCount: 6 },
+      { productId: axle.id, rate: 65000, cartonCount: 2, boxCount: 0 },
+    ],
   })
-  // INV-2 Abdul: tea, partially paid.
-  const invB = invoiceService.create({ customerId: abdul.id, date: d2, items: [line(tea, 20)] })
-  // INV-3 Zainab: flour + ghee, paid in full.
-  const invC = invoiceService.create({ customerId: zainab.id, date: d5, items: [line(flour, 6), line(ghee, 10)] })
-  // INV-4 Noor: sugar + soap, due date has passed -> overdue.
+  // INV-2 Wazir: piston rings + clutch plate.
+  const invB = invoiceService.create({
+    ...base(wazir.id),
+    ownerId: majid.id,
+    brokerId: rafiq.id,
+    date: d2,
+    items: [
+      { productId: rings.id, rate: 80000, cartonCount: 2, boxCount: 0 },
+      { productId: clutch.id, rate: 320000, cartonCount: 1, boxCount: 0 },
+    ],
+  })
+  // INV-3 Emerald: gasket kits with 3 loose boxes of 6/carton.
+  const invC = invoiceService.create({
+    ...base(emerald.id),
+    ownerId: ownerB.id,
+    brokerId: bashir.id,
+    date: d3,
+    items: [{ productId: gasket.id, rate: 45000, cartonCount: 0, boxCount: 3 }],
+  })
+  // INV-4 Metro: valve springs, one rate held exactly at the minimum.
   const invD = invoiceService.create({
-    customerId: noor.id,
-    date: d8,
-    dueDate: shiftIsoDate(today, -6),
-    items: [line(sugar, 10), line(soap, 12)],
+    ...base(metro.id),
+    ownerId: ownerB.id,
+    brokerId: rafiq.id,
+    items: [{ productId: valve.id, rate: 15000, cartonCount: 4, boxCount: 0 }],
   })
-  // INV-5 Al-Madina: biscuits, then cancelled (stock restored).
-  const invE = invoiceService.create({ customerId: madina.id, date: d4, items: [line(biscuit, 15)] })
-  invoiceService.cancel(invE.id)
-  // INV-6 Abdul: sugar (customer credit from a later payment applies to this debt).
-  const invG = invoiceService.create({ customerId: abdul.id, date: d1, items: [line(sugar, 5)] })
-  // INV-7 Al-Madina: soap, left unpaid.
-  const invF = invoiceService.create({ customerId: madina.id, date: d1, items: [line(soap, 8)] })
-
-  // ---- Payments ----
-  paymentService.create({ customerId: abdul.id, invoiceId: invB.id, amount: 50000, method: 'cash', paymentDate: d2 })
-  paymentService.create({ customerId: zainab.id, invoiceId: invC.id, amount: 410000, method: 'bank_transfer', paymentDate: d5 })
-  paymentService.create({ customerId: abdul.id, amount: 20000, method: 'cash', paymentDate: d1, notes: 'Advance against next order' })
-
-  // ---- Stock adjustment ----
-  adjustmentService.create({ productId: soap.id, type: 'damage', quantityAdjustment: -5, reason: 'Two boxes damaged in transit' })
-  void d3
 
   // ---- Self checks: the seeded data must be internally consistent ----
-  expect(productService.list()).toHaveLength(8)
+  expect(productService.list()).toHaveLength(6)
   expect(customerService.list()).toHaveLength(5)
-  expect(invoiceService.count()).toBe(7)
-  expect(restockService.count()).toBe(2)
-  expect(adjustmentService.count()).toBe(1)
+  expect(ownerService.list()).toHaveLength(2)
+  expect(brokerService.list()).toHaveLength(2)
+  expect(invoiceService.count()).toBe(4)
+  expect(settingsService.getValue('invoice_description')).toContain('Payment due')
 
-  // Stock = opening + restocks + adjustments - sales (cancelled invoice nets out).
-  const stock = (id: number) => inventoryService.getCurrentQuantity(id)
-  expect(stock(basmati.id)).toBe(1430)
-  expect(stock(sugar.id)).toBe(825)
-  expect(stock(oil.id)).toBe(204)
-  expect(stock(tea.id)).toBe(460)
-  expect(stock(soap.id)).toBe(725)
-  expect(stock(flour.id)).toBe(294)
-  expect(stock(ghee.id)).toBe(470)
-  expect(stock(biscuit.id)).toBe(400)
+  expect(invA.invoiceNumber).toBe('INV-000001')
+  expect(invA.subtotal).toBe(185000)
+  expect(invB.subtotal).toBe(480000)
+  expect(invC.subtotal).toBe(22500)
+  expect(invD.subtotal).toBe(60000)
 
-  // Sugar restock at 16000/piece became the new cost basis.
-  expect(productService.getById(sugar.id)!.minSellingPrice).toBe(16000)
-
-  // INV-1: Rs. 20.00 discount and a profit of sales minus cost.
-  expect(invA.total).toBe(480000)
-  expect(invA.discount).toBe(2000)
-  expect(invA.totalProfit).toBe(53000)
-
-  // Oldest unpaid invoice is overdue once the list is refreshed.
-  const overdue = invoiceService.list().find((i) => i.id === invD.id)!
-  expect(overdue.status).toBe('overdue')
-
-  // Customer outstanding: debits (invoices) minus credits (payments), cancelled invoices count as nothing.
-  expect(customerService.getWithBalance(faisal.id)!.outstanding).toBe(480000)
-  expect(customerService.getWithBalance(zainab.id)!.outstanding).toBe(0)
-  expect(customerService.getWithBalance(noor.id)!.outstanding).toBe(302000)
-  expect(customerService.getWithBalance(madina.id)!.outstanding).toBe(88000)
-  expect(customerService.getWithBalance(abdul.id)!.outstanding).toBe(165000)
+  const detailsB = invoiceService.getWithDetails(invB.id)!
+  expect(detailsB.invoice.items).toHaveLength(2)
+  expect(detailsB.invoice.items[0].productName).toBe('Piston Rings Set')
+  expect(detailsB.invoice.items[0].amount).toBe(160000)
+  expect(detailsB.customer!.code).toBe('MK-002')
+  expect(detailsB.owner!.name).toBe('Majid Zia Motors')
+  expect(detailsB.broker!.name).toBe('Rafiq Sons')
 
   // ---- Optional: write the finished database out as a portable sample ----
   const out = process.env.SAMPLE_DATA_OUT
   if (out) {
     closeDatabase()
     fs.mkdirSync(path.dirname(out), { recursive: true })
-    fs.copyFileSync(path.join(dir(), 'inventory.db'), out)
+    fs.copyFileSync(path.join(dir(), 'majidzia.db'), out)
   }
 })

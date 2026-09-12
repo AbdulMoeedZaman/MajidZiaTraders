@@ -1,181 +1,135 @@
-import { useState } from 'react'
-import type { ProductWithStock } from '@shared/types/inventory'
-import type { Product } from '@shared/types/product'
+import { useMemo, useState } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import { ProductForm } from './ProductForm'
-import { ProductDetail } from './ProductDetail'
-import { AddStockModal } from './AddStockModal'
-import { StockHistoryModal } from './StockHistoryModal'
 import { formatMoney } from '../../../lib/format'
-import { ProductFormMode } from '../types/product-form'
+import type { Product } from '@shared/types/product'
 
 export function ProductList() {
-  const {
-    products,
-    visible,
-    loading,
-    error,
-    query,
-    setQuery,
-    createProduct,
-    updateProduct,
-    deleteProduct,
-    addStock,
-  } = useProducts()
+  const { products, loading, error, reload, create, update, remove } = useProducts()
+  const [query, setQuery] = useState('')
+  const [editing, setEditing] = useState<Product | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<number | null>(null)
 
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [form, setForm] = useState<{ mode: ProductFormMode; product: Product | null } | null>(null)
-  const [addStockFor, setAddStockFor] = useState<ProductWithStock | null>(null)
-  const [historyFor, setHistoryFor] = useState<ProductWithStock | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return products
+    return products.filter((p) => p.name.toLowerCase().includes(q))
+  }, [products, query])
 
-  const selected = selectedId === null ? null : (products.find((p) => p.id === selectedId) ?? null)
-
-  const handleFormSubmit = async (payload: Record<string, unknown>): Promise<string | null> => {
-    if (!form) return null
-    const err =
-      form.mode === 'create'
-        ? await createProduct(payload as unknown as Parameters<typeof createProduct>[0])
-        : await updateProduct(form.product!.id, payload as unknown as Parameters<typeof updateProduct>[1])
-    if (!err) setForm(null)
-    return err
+  const handleSave = async (data: { name: string; rate: number; boxesPerCarton: number }) => {
+    setFormError(null)
+    try {
+      if (editing) {
+        await update(editing.id, data)
+      } else {
+        await create(data)
+      }
+      setEditing(null)
+      setShowAdd(false)
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to save product')
+      throw e
+    }
   }
 
-  const handleDelete = async (p: ProductWithStock) => {
-    setActionError(null)
-    const err = await deleteProduct(p.id)
-    if (err) setActionError(err)
-    else setSelectedId(null)
+  const handleDelete = async (id: number) => {
+    setFormError(null)
+    try {
+      await remove(id)
+      setConfirmId(null)
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to delete product')
+      setConfirmId(null)
+    }
   }
+
+  if (loading) return <div className="placeholder"><h3>Loading products…</h3></div>
+  if (error) return <div className="error-screen">{error}</div>
 
   return (
     <div className="feature">
       <div className="toolbar">
         <input
           className="search-input"
-          placeholder="Search by name or SKU…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search products…"
         />
         <div className="spacer" />
-        <button
-          className="btn primary"
-          onClick={() => setForm({ mode: 'create', product: null })}
-        >
-          + Add product
+        <div className="icon-cluster">
+          <button className="btn ghost icon" onClick={() => void reload()} title="Refresh">
+            ↻
+          </button>
+        </div>
+        <button className="btn primary" onClick={() => setShowAdd(true)}>
+          + Add Product
         </button>
       </div>
 
-      {actionError && <div className="form-error">{actionError}</div>}
-      {loading ? (
-        <div className="muted">Loading…</div>
-      ) : error ? (
-        <div className="form-error">{error}</div>
+      {formError && <div className="form-error">{formError}</div>}
+
+      {visible.length === 0 ? (
+        <div className="empty-state">
+          <h3>No products yet</h3>
+          <p>Add a product to start creating invoices.</p>
+        </div>
       ) : (
-        <div className="split">
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th className="num">Selling price</th>
-                  <th className="num">Stock</th>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th className="num">Minimum rate</th>
+                <th className="num">Boxes / carton</th>
+                <th className="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.name}</td>
+                  <td className="num mono">{formatMoney(p.rate)}</td>
+                  <td className="num">{p.boxesPerCarton}</td>
+                  <td className="actions-col">
+                    {confirmId === p.id ? (
+                      <span className="confirm-bar">
+                        <button className="btn danger small" onClick={() => void handleDelete(p.id)}>
+                          Confirm
+                        </button>
+                        <button className="btn ghost small" onClick={() => setConfirmId(null)}>
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <>
+                        <button className="btn ghost small" onClick={() => setEditing(p)}>
+                          Edit
+                        </button>
+                        <button className="btn danger small" onClick={() => setConfirmId(p.id)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {visible.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="muted">
-                      No products found.
-                    </td>
-                  </tr>
-                )}
-                {visible.map((p) => (
-                  <tr
-                    key={p.id}
-                    className={selectedId === p.id ? 'selected' : ''}
-                    onClick={() => setSelectedId(p.id)}
-                  >
-                    <td className="mono">{p.sku}</td>
-                    <td>{p.name}</td>
-                    <td className="num">{formatMoney(p.sellingPrice)}</td>
-                    <td className="num">
-                      <span className={p.isOutOfStock ? 'text-danger' : ''}>{p.currentStock}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {selected && (
-            <ProductDetail
-              product={selected}
-              onEdit={() => setForm({ mode: 'edit', product: selected })}
-              onDelete={handleDelete}
-              onAddStock={(p) => setAddStockFor(p)}
-              onViewHistory={(p) => setHistoryFor(p)}
-              onClose={() => setSelectedId(null)}
-            />
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {form && (
-        <Modal title={form.mode === 'create' ? 'Add product' : 'Edit product'} onClose={() => setForm(null)}>
-          <ProductForm
-            mode={form.mode}
-            product={form.product}
-            onSubmit={handleFormSubmit}
-            onCancel={() => setForm(null)}
-          />
-        </Modal>
+      {(showAdd || editing) && (
+        <ProductForm
+          initial={editing}
+          onSave={handleSave}
+          onCancel={() => {
+            setShowAdd(false)
+            setEditing(null)
+          }}
+        />
       )}
-
-      {addStockFor && (
-        <Modal title={`Add stock · ${addStockFor.name}`} onClose={() => setAddStockFor(null)}>
-          <AddStockModal
-            product={addStockFor}
-            onSubmit={addStock}
-            onClose={() => setAddStockFor(null)}
-          />
-        </Modal>
-      )}
-
-      {historyFor && (
-        <Modal title="Stock history" onClose={() => setHistoryFor(null)}>
-          <StockHistoryModal
-            productId={historyFor.id}
-            productName={historyFor.name}
-            onClose={() => setHistoryFor(null)}
-          />
-        </Modal>
-      )}
-    </div>
-  )
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-}) {
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="btn ghost icon" onClick={onClose} aria-label="Close" title="Close">
-            ✕
-          </button>
-        </div>
-        {children}
-      </div>
     </div>
   )
 }

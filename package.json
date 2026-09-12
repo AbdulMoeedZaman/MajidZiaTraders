@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "private": true,
   "author": "MZTraders",
-  "description": "MZTraders — desktop inventory, invoicing and customer-ledger app (Electron + SQLite)",
+  "description": "MZTraders — parts-sales invoicing app (Electron + SQLite)",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -31,9 +31,6 @@
       "package.json"
     ],
     "asar": true,
-    "asarUnpack": [
-      "**/node_modules/better-sqlite3/**"
-    ],
     "npmRebuild": false,
     "win": {
       "target": [
@@ -58,7 +55,6 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.9.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -1,72 +1,147 @@
-import { useState } from 'react'
-import type { Customer, CreateCustomerDTO } from '@shared/types/customer'
-import { CustomerFormMode, fromCustomerFormState, toCustomerFormState } from '../types/customer-form'
+import { useEffect, useState } from 'react'
+import type { Route } from '@shared/types/route'
+import type { Customer } from '@shared/types/customer'
 
-interface CustomerFormProps {
-  mode: CustomerFormMode
-  customer: Customer | null
-  onSubmit: (payload: CreateCustomerDTO) => Promise<string | null>
+export interface CustomerFormData {
+  code: string
+  shopName: string
+  ownerName: string
+  phone: string
+  address: string
+  routeId: number
+}
+
+interface Props {
+  routes: Route[]
+  initialRouteId: number
+  initial?: Customer | null
+  onSave: (data: CustomerFormData) => Promise<void>
   onCancel: () => void
 }
 
-export function CustomerForm({ mode, customer, onSubmit, onCancel }: CustomerFormProps) {
-  const [state, setState] = useState(() => toCustomerFormState(customer))
-  const [errors, setErrors] = useState<Record<string, string>>({})
+export function CustomerForm({ routes, initialRouteId, initial, onSave, onCancel }: Props) {
+  const [code, setCode] = useState(initial?.code ?? '')
+  const [shopName, setShopName] = useState(initial?.shopName ?? '')
+  const [ownerName, setOwnerName] = useState(initial?.ownerName ?? '')
+  const [phone, setPhone] = useState(initial?.phone ?? '')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [routeId, setRouteId] = useState(initial?.routeId ?? initialRouteId)
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [serverError, setServerError] = useState<string | null>(null)
 
-  const set =
-    (field: keyof typeof state) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setState((s) => ({ ...s, [field]: e.target.value }))
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
 
-  const validate = (): boolean => {
-    const next: Record<string, string> = {}
-    if (!state.name.trim()) next.name = 'Name is required'
-    setErrors(next)
-    return Object.keys(next).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setServerError(null)
-    if (!validate()) return
-
+  const submit = async () => {
+    setError(null)
+    if (!code.trim()) {
+      setError('Customer code is required')
+      return
+    }
+    if (!(shopName.trim() || ownerName.trim())) {
+      setError('Provide a shop name or an owner name')
+      return
+    }
+    if (!routes.some((r) => r.id === routeId)) {
+      setError('Select a delivery route')
+      return
+    }
     setSaving(true)
     try {
-      const payload = fromCustomerFormState(state)
-      const err = await onSubmit(payload)
-      if (err) setServerError(err)
-    } finally {
+      await onSave({
+        code: code.trim(),
+        shopName: shopName.trim(),
+        ownerName: ownerName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        routeId,
+      })
+      onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save customer')
       setSaving(false)
     }
   }
 
   return (
-    <form className="customer-form" onSubmit={handleSubmit} noValidate>
-      <div className="form-grid">
-        <label className="field">
-          <span>Name *</span>
-          <input value={state.name} onChange={set('name')} placeholder="Customer name" autoFocus />
-          {errors.name && <em className="field-error">{errors.name}</em>}
-        </label>
-
-        <label className="field">
-          <span>Address</span>
-          <input value={state.address} onChange={set('address')} placeholder="Street, city, area…" />
-        </label>
+    <div className="overlay">
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{initial ? 'Edit Customer' : 'Add Customer'}</h3>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field">
+            <span>Customer code</span>
+            <input
+              type="text"
+              value={code}
+              autoFocus
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. MK-001"
+            />
+          </label>
+          <label className="field">
+            <span>Route</span>
+            <select value={routeId} onChange={(e) => setRouteId(Number(e.target.value))}>
+              {routes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Shop name</span>
+            <input
+              type="text"
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              placeholder="Shop / business name"
+            />
+          </label>
+          <label className="field">
+            <span>Owner name</span>
+            <input
+              type="text"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+              placeholder="Customer / owner name"
+            />
+          </label>
+          <label className="field">
+            <span>Phone</span>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone number"
+            />
+          </label>
+          <label className="field field-span-2">
+            <span>Address</span>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Address"
+              rows={2}
+            />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
-
-      {serverError && <div className="form-error">{serverError}</div>}
-
-      <div className="form-actions">
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn primary" disabled={saving}>
-          {saving ? 'Saving…' : mode === 'create' ? 'Create customer' : 'Save changes'}
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }

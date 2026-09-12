@@ -5,18 +5,17 @@ import { afterEach, beforeEach } from 'vitest'
 import { closeDatabase, getDatabase } from '../../src/main/database/connection'
 import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
-import { InventoryService } from '../../src/main/services/inventory.service'
+import { ProjectOwnerService } from '../../src/main/services/project-owner.service'
+import { BrokerService } from '../../src/main/services/broker.service'
+import { RouteRepository } from '../../src/main/repositories/route.repository'
 import type { Product } from '../../src/shared/types/product'
-import type { CreateInvoiceItemDTO } from '../../src/shared/types/invoice'
-
-export const FIXTURE_V3_BACKUP = path.resolve(__dirname, '../e2e/fixtures/v3-empty-backup.db')
 
 /** Gives every test its own empty database (all migrations applied) in a temp folder. */
 export function useTestDatabase(): { dir: () => string } {
   let current = ''
   beforeEach(() => {
     closeDatabase()
-    current = fs.mkdtempSync(path.join(os.tmpdir(), 'inventory-unit-'))
+    current = fs.mkdtempSync(path.join(os.tmpdir(), 'mztraders-unit-'))
     process.env.TEST_USER_DATA = current
     getDatabase()
   })
@@ -27,27 +26,36 @@ export function useTestDatabase(): { dir: () => string } {
   return { dir: () => current }
 }
 
-/** A product with 100 in stock and one active customer. */
-export function seedBasics(sku = 'W1'): { product: Product; customerId: number } {
-  const product = new ProductService().create({
-    sku,
-    name: `Widget ${sku}`,
-    minSellingPrice: 800,
-    sellingPrice: 1000,
-  })
-  new InventoryService().setOpeningStock({ productId: product.id, quantity: 100 })
-  const customer = new CustomerService().create({ name: `Customer ${sku}` })
-  return { product, customerId: customer.id }
+/** Returns the id of the route seeded by the migration for a delivery day. */
+export function routeIdFor(name: string): number {
+  const route = new RouteRepository().findByName(name)
+  if (!route) throw new Error(`Route "${name}" not seeded`)
+  return route.id
 }
 
-export function line(product: Product, quantity: number, price = product.sellingPrice): CreateInvoiceItemDTO {
-  return {
-    productId: product.id,
-    productName: product.name,
-    productSku: product.sku,
-    quantity,
-    costPriceAtSale: product.minSellingPrice,
-    minSellingPriceAtSale: product.minSellingPrice,
-    actualSellingPrice: price,
-  }
+/** A product, project owner, broker, and a customer on the given route. */
+export function seedBasics(routeName = 'Monday'): {
+  product: Product
+  customerId: number
+  ownerId: number
+  brokerId: number
+  routeId: number
+} {
+  const product = new ProductService().create({
+    name: 'Widget 1',
+    rate: 500,
+    boxesPerCarton: 12,
+  })
+  const owner = new ProjectOwnerService().create({ name: 'Majid Zia', phone: '0300-1234567', address: 'Main Bazaar' })
+  const broker = new BrokerService().create({ name: 'Bashir', phone: '0301-7654321' })
+  const routeId = routeIdFor(routeName)
+  const customer = new CustomerService().create({
+    code: 'C-001',
+    shopName: 'Bilal Auto Shop',
+    ownerName: 'Bilal',
+    phone: '0322-0000000',
+    address: 'Liaquat Road',
+    routeId,
+  })
+  return { product, customerId: customer.id, ownerId: owner.id, brokerId: broker.id, routeId }
 }

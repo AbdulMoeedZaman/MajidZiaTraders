@@ -1,305 +1,158 @@
 import { InvoiceRepository } from '../repositories/invoice.repository'
+import type { InvoiceItemRow } from '../repositories/invoice.repository'
 import { CustomerRepository } from '../repositories/customer.repository'
+import { ProjectOwnerRepository } from '../repositories/project-owner.repository'
+import { BrokerRepository } from '../repositories/broker.repository'
 import { ProductRepository } from '../repositories/product.repository'
-import { BusinessProfileRepository } from '../repositories/business-profile.repository'
-import { CustomerLedgerRepository } from '../repositories/customer-ledger.repository'
-import { InventoryRepository } from '../repositories/inventory.repository'
-import { PaymentRepository } from '../repositories/payment.repository'
-import { AllocationService } from './allocation.service'
-import type { Invoice, InvoiceWithCustomer, InvoiceWithItems, CreateInvoiceDTO, CreateInvoiceItemDTO, UpdateInvoiceDTO } from '@shared/types/invoice'
+import { SettingsRepository } from '../repositories/settings.repository'
 import { assertIsoDate } from '@shared/date'
+import { calculateLineAmount } from '@shared/calc/invoice-totals'
+import type {
+  Invoice,
+  InvoiceWithCustomer,
+  InvoiceWithItems,
+  InvoiceDetails,
+  CreateInvoiceDTO,
+  CreateInvoiceItemDTO,
+  FilerStatus,
+} from '@shared/types/invoice'
 
-const UPDATABLE_FIELDS = ['notes', 'dueDate'] as const
+const FILER_STATUSES: FilerStatus[] = ['filer', 'non_filer']
+const INVOICE_COUNTER_KEY = 'invoice_next_number'
 
 export class InvoiceService {
   private invoiceRepo = new InvoiceRepository()
   private customerRepo = new CustomerRepository()
+  private ownerRepo = new ProjectOwnerRepository()
+  private brokerRepo = new BrokerRepository()
   private productRepo = new ProductRepository()
-  private profileRepo = new BusinessProfileRepository()
-  private ledgerRepo = new CustomerLedgerRepository()
-  private inventoryRepo = new InventoryRepository()
-  private paymentRepo = new PaymentRepository()
-  private allocationService = new AllocationService()
+  private settingsRepo = new SettingsRepository()
 
   list(): InvoiceWithCustomer[] {
-    this.invoiceRepo.markOverdue()
     return this.invoiceRepo.findAllWithCustomer()
   }
 
   getById(id: number): Invoice | null {
-    this.invoiceRepo.markOverdue()
     return this.invoiceRepo.findById(id)
   }
 
-  getWithItems(id: number): InvoiceWithItems | null {
-    this.invoiceRepo.markOverdue()
-    const invoice = this.invoiceRepo.findById(id)
+  getWithDetails(id: number): InvoiceDetails | null {
+    const invoice = this.invoiceRepo.findByIdWithCustomer(id)
     if (!invoice) return null
-    const customer = this.customerRepo.findById(invoice.customerId)
+    const items = this.invoiceRepo.getItems(id)
+    const withItems: InvoiceWithItems = { ...invoice, items }
     return {
-      ...invoice,
-      customerName: customer?.name ?? 'Unknown',
-      items: this.invoiceRepo.getItems(id),
+      invoice: withItems,
+      customer: this.customerRepo.findById(invoice.customerId),
+      owner: this.ownerRepo.findById(invoice.ownerId),
+      broker: this.brokerRepo.findById(invoice.brokerId),
     }
-  }
-
-  getItems(invoiceId: number) {
-    return this.invoiceRepo.getItems(invoiceId)
   }
 
   listByCustomer(customerId: number): InvoiceWithCustomer[] {
-    this.invoiceRepo.markOverdue()
-    return this.invoiceRepo.findAllWithCustomer({ customerId })
-  }
-
-  listByStatus(status: Invoice['status']): InvoiceWithCustomer[] {
-    this.invoiceRepo.markOverdue()
-    return this.invoiceRepo.findAllWithCustomer({ status })
-  }
-
-  listBetween(from: string, to: string): InvoiceWithCustomer[] {
-    this.validateDate(from, 'From date')
-    this.validateDate(to, 'To date')
-    if (from > to) throw new Error('From date cannot be after to date')
-    this.invoiceRepo.markOverdue()
-    return this.invoiceRepo.findAllWithCustomer({ from, to })
+    return this.invoiceRepo.findByCustomerId(customerId)
   }
 
   create(data: CreateInvoiceDTO): Invoice {
-    this.validateDate(data.date, 'Date')
-    if (data.dueDate !== undefined && data.dueDate !== null && data.dueDate !== '') {
-      this.validateDate(data.dueDate, 'Due date')
-    }
-    const discount = data.discount ?? 0
-    if (!Number.isInteger(discount) || discount < 0) {
-      throw new Error('Discount must be a non-negative whole number of cents')
+    assertIsoDate(data.date, 'Date')
+    if (!FILER_STATUSES.includes(data.filerStatus)) {
+      throw new Error('Filer status must be "filer" or "non filer"')
     }
     if (!data.items || data.items.length === 0) {
-      throw new Error('Invoice must have at least one item')
+      throw new Error('Invoice must have at least one product line')
     }
 
     const customer = this.customerRepo.findById(data.customerId)
     if (!customer) {
       throw new Error('Customer not found')
     }
+    const owner = this.ownerRepo.findById(data.ownerId)
+    if (!owner) {
+      throw new Error('Project owner not found')
+    }
+    const broker = this.brokerRepo.findById(data.brokerId)
+    if (!broker) {
+      throw new Error('Booker (broker) not found')
+    }
+
+    this.assertOptionalMoney(data.remaining, 'Remaining amount')
+    this.assertOptionalMoney(data.tax, 'Tax')
+    this.assertOptionalMoney(data.grandTotal, 'Grand total')
 
     const items = this.buildItems(data.items)
-    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.actualSellingPrice, 0)
-    if (discount > subtotal) {
-      throw new Error('Discount cannot be larger than the invoice subtotal')
-    }
-    this.assertStock(items)
-
-    let profile = this.profileRepo.get()
-    if (!profile) {
-      profile = this.profileRepo.create({
-        name: 'MZTraders',
-        currency: 'PKR',
-        invoicePrefix: 'INV-',
-        invoiceNextNumber: 1,
-      })
-    }
 
     return this.invoiceRepo.runInTransaction(() => {
-      const nextNumber = this.profileRepo.incrementInvoiceNumber()
-      const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(profile.invoicePrefix, nextNumber)
-      const invoice = this.invoiceRepo.create(
-        { ...data, dueDate: data.dueDate || undefined, discount, items, status: 'sent' },
-        invoiceNumber
-      )
-
-      for (const item of items) {
-        this.inventoryRepo.create({
-          productId: item.productId,
-          type: 'sale',
-          quantity: -item.quantity,
-          referenceType: 'invoice',
-          referenceId: invoice.id,
-          reason: `Invoice ${invoice.invoiceNumber}`,
-          cost: item.costPriceAtSale,
-        })
-      }
-
-      this.ledgerRepo.create({
-        customerId: data.customerId,
-        type: 'invoice',
-        referenceType: 'invoice',
-        referenceId: invoice.id,
-        debit: invoice.total,
-        description: `Invoice ${invoice.invoiceNumber}`,
-        transactionDate: data.date,
-      })
-
-      // Correct status straight away (e.g. a past due date means overdue), then use any customer credit.
-      this.invoiceRepo.recomputePaymentState(invoice.id)
-      this.allocationService.applyCreditToInvoice(invoice.id, data.customerId)
-      this.invoiceRepo.assertConsistency(invoice.id)
-
-      return this.invoiceRepo.findById(invoice.id)!
-    })
-  }
-
-  /** Only notes and the due date can change after an invoice is issued. */
-  update(id: number, data: UpdateInvoiceDTO): Invoice {
-    const existing = this.invoiceRepo.findById(id)
-    if (!existing) {
-      throw new Error('Invoice not found')
-    }
-    if (existing.status === 'cancelled') {
-      throw new Error('Cannot modify a cancelled invoice')
-    }
-    const blocked = Object.entries(data)
-      .filter(([key, value]) => value !== undefined && !(UPDATABLE_FIELDS as readonly string[]).includes(key))
-      .map(([key]) => key)
-    if (blocked.length > 0) {
-      throw new Error(
-        `Only the notes and due date of an invoice can be changed (tried to change: ${blocked.join(', ')}). ` +
-          'Cancel the invoice and create a new one to change amounts, items or the customer.'
-      )
-    }
-    if (data.dueDate) {
-      this.validateDate(data.dueDate, 'Due date')
-    }
-
-    return this.invoiceRepo.runInTransaction(() => {
-      this.invoiceRepo.update(id, { notes: data.notes, dueDate: data.dueDate })
-      this.invoiceRepo.recomputePaymentState(id)
-      return this.invoiceRepo.findById(id)!
-    })
-  }
-
-  cancel(id: number): Invoice {
-    const existing = this.invoiceRepo.findById(id)
-    if (!existing) {
-      throw new Error('Invoice not found')
-    }
-    if (existing.status === 'cancelled') {
-      throw new Error('Invoice is already cancelled')
-    }
-    if (this.paymentRepo.countDirectPaymentsForInvoice(id) > 0) {
-      throw new Error('Cannot cancel an invoice that has payments recorded against it. Delete those payments first.')
-    }
-
-    return this.invoiceRepo.runInTransaction(() => {
-      const released = this.paymentRepo.releaseAllocationsForInvoice(id)
-      this.ledgerRepo.deleteByReference('invoice', id)
-      this.restoreStock(id, `Invoice ${existing.invoiceNumber} cancelled`)
-      this.invoiceRepo.update(id, { status: 'cancelled' })
-      this.invoiceRepo.recomputePaymentState(id)
-      this.reapplyCredit(released)
-      return this.invoiceRepo.findById(id)!
+      const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
+      const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
+      return this.invoiceRepo.create(data, invoiceNumber, items)
     })
   }
 
   delete(id: number): void {
-    const existing = this.invoiceRepo.findById(id)
-    if (!existing) {
+    if (!this.invoiceRepo.findById(id)) {
       throw new Error('Invoice not found')
     }
-    if (this.paymentRepo.countDirectPaymentsForInvoice(id) > 0) {
-      throw new Error('Cannot delete an invoice that has payments recorded against it. Delete those payments first.')
-    }
-    if (existing.status === 'cancelled') {
-      this.invoiceRepo.delete(id)
-      return
-    }
-
-    this.invoiceRepo.runInTransaction(() => {
-      const released = this.paymentRepo.releaseAllocationsForInvoice(id)
-      this.ledgerRepo.deleteByReference('invoice', id)
-      this.restoreStock(id, `Invoice ${existing.invoiceNumber} deleted`)
-      this.invoiceRepo.delete(id)
-      this.reapplyCredit(released)
-    })
-  }
-
-  refreshOverdue(): number {
-    return this.invoiceRepo.markOverdue()
+    // Future phase: refuse to delete when the invoice has payments or stock-linked
+    // movements against it. For now the invoice is deleted outright (items cascade).
+    this.invoiceRepo.delete(id)
   }
 
   count(): number {
     return this.invoiceRepo.count()
   }
 
-  /** Credit freed from a cancelled/deleted invoice goes to the customer's other open invoices. */
-  private reapplyCredit(paymentIds: number[]): void {
-    for (const paymentId of paymentIds) {
-      const payment = this.paymentRepo.findById(paymentId)
-      if (payment) this.allocationService.applyUnallocated(payment.id, payment.customerId)
-    }
-  }
-
-  private buildItems(items: CreateInvoiceItemDTO[]): CreateInvoiceItemDTO[] {
-    const built: CreateInvoiceItemDTO[] = []
-    for (const item of items) {
+  private buildItems(items: CreateInvoiceItemDTO[]): InvoiceItemRow[] {
+    return items.map((item) => {
       if (!Number.isInteger(item.productId) || item.productId < 1) {
-        throw new Error('Each invoice item requires a valid product')
+        throw new Error('Each invoice line requires a valid product')
       }
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new Error('Invoice quantity must be a positive whole number')
-      }
-
       const product = this.productRepo.findById(item.productId)
       if (!product) {
         throw new Error('Invoice references an unknown product')
       }
 
-      const price = item.actualSellingPrice
-      if (!Number.isInteger(price) || price < 0) {
-        throw new Error(`Selling price for "${product.name}" must be a non-negative whole number of cents`)
+      if (!Number.isInteger(item.rate) || item.rate < 0) {
+        throw new Error(`Rate for "${product.name}" must be a whole number of cents and cannot be negative`)
       }
-      if (product.minSellingPrice > 0 && price < product.minSellingPrice) {
+      if (item.rate < product.rate) {
         throw new Error(
-          `Cannot sell "${product.name}" below its minimum selling price (${product.minSellingPrice} cents)`
+          `Rate for "${product.name}" cannot be lower than its minimum rate (${product.rate} cents)`
         )
       }
+      if (!Number.isInteger(item.cartonCount) || item.cartonCount < 0) {
+        throw new Error(`Carton count for "${product.name}" must be a whole number`)
+      }
+      if (!Number.isInteger(item.boxCount) || item.boxCount < 0) {
+        throw new Error(`Box count for "${product.name}" must be a whole number`)
+      }
+      if (item.cartonCount + item.boxCount <= 0) {
+        throw new Error(`Line for "${product.name}" needs at least one carton or box`)
+      }
 
-      built.push({
+      const amount = calculateLineAmount({
+        rate: item.rate,
+        boxesPerCarton: product.boxesPerCarton,
+        cartonCount: item.cartonCount,
+        boxCount: item.boxCount,
+      })
+
+      return {
         productId: product.id,
         productName: product.name,
-        productSku: product.sku,
-        unit: item.unit ?? 'piece',
-        quantity: item.quantity,
-        costPriceAtSale: product.minSellingPrice,
-        minSellingPriceAtSale: product.minSellingPrice,
-        actualSellingPrice: price,
-      })
-    }
-    return built
-  }
-
-  private assertStock(items: CreateInvoiceItemDTO[]): void {
-    const required = new Map<number, number>()
-    for (const item of items) {
-      required.set(item.productId, (required.get(item.productId) ?? 0) + item.quantity)
-    }
-    for (const [productId, quantity] of required) {
-      const current = this.inventoryRepo.getCurrentQuantity(productId)
-      const product = this.productRepo.findById(productId)
-      if (current < quantity) {
-        throw new Error(
-          `Insufficient stock for "${product?.name ?? 'product'}". Available: ${current}, requested: ${quantity}`
-        )
+        rate: item.rate,
+        minRate: product.rate,
+        boxesPerCarton: product.boxesPerCarton,
+        cartonCount: item.cartonCount,
+        boxCount: item.boxCount,
+        amount,
       }
-    }
+    })
   }
 
-  private restoreStock(invoiceId: number, reason: string): void {
-    const items = this.invoiceRepo.getItems(invoiceId)
-    for (const item of items) {
-      this.inventoryRepo.create({
-        productId: item.productId,
-        type: 'return',
-        quantity: item.quantity,
-        referenceType: 'invoice',
-        referenceId: invoiceId,
-        reason,
-        cost: item.costPriceAtSale,
-      })
+  private assertOptionalMoney(value: number | null | undefined, label: string): void {
+    if (value === null || value === undefined) return
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`${label} must be a whole number of cents and cannot be negative`)
     }
-  }
-
-  private validateDate(date: string, label: string): void {
-    assertIsoDate(date, label)
   }
 }

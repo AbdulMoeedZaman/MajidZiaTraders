@@ -1,106 +1,112 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Product } from '@shared/types/product'
-import {
-  ProductFormMode,
-  ProductFormState,
-  fromProductFormState,
-  toProductFormState,
-} from '../types/product-form'
+import { countToInt, moneyToCents } from '../../../lib/money'
 
-interface ProductFormProps {
-  mode: ProductFormMode
-  product: Product | null
-  onSubmit: (payload: Record<string, unknown>) => Promise<string | null>
+export interface ProductFormData {
+  name: string
+  rate: string
+  boxesPerCarton: string
+}
+
+interface Props {
+  initial?: Product | null
+  onSave: (data: { name: string; rate: number; boxesPerCarton: number }) => Promise<void>
   onCancel: () => void
 }
 
-export function ProductForm({ mode, product, onSubmit, onCancel }: ProductFormProps) {
-  const [state, setState] = useState<ProductFormState>(() => toProductFormState(product))
-  const [errors, setErrors] = useState<Record<string, string>>({})
+export function ProductForm({ initial, onSave, onCancel }: Props) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [rate, setRate] = useState(initial ? (initial.rate / 100).toFixed(2) : '')
+  const [boxesPerCarton, setBoxesPerCarton] = useState(
+    initial ? String(initial.boxesPerCarton) : '12'
+  )
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [serverError, setServerError] = useState<string | null>(null)
 
-  const set = (field: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setState((s) => ({ ...s, [field]: e.target.value }))
-
-  const validate = (): boolean => {
-    const next: Record<string, string> = {}
-    if (!state.name.trim()) next.name = 'Name is required'
-    if (mode === 'create' && !state.sku.trim()) next.sku = 'SKU is required'
-
-    const min = parseFloat(state.minSellingPrice)
-    const sell = parseFloat(state.sellingPrice)
-
-    if (Number.isNaN(min) || min < 0) next.minSellingPrice = 'Must be 0 or more'
-    if (Number.isNaN(sell) || sell < 0) next.sellingPrice = 'Must be 0 or more'
-    if (!Number.isNaN(sell) && !Number.isNaN(min) && sell < min) {
-      next.sellingPrice = 'Cannot be lower than the minimum selling price'
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
     }
-    const pieces = parseInt(state.piecesPerCarton, 10)
-    if (Number.isNaN(pieces) || pieces < 1) next.piecesPerCarton = 'Must be at least 1'
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
 
-    setErrors(next)
-    return Object.keys(next).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setServerError(null)
-    if (!validate()) return
-
+  const submit = async () => {
+    setError(null)
+    if (!name.trim()) {
+      setError('Product name is required')
+      return
+    }
+    const rateCents = moneyToCents(rate)
+    if (rateCents <= 0) {
+      setError('Minimum rate must be greater than zero')
+      return
+    }
+    const boxes = countToInt(boxesPerCarton)
+    if (boxes < 1) {
+      setError('Boxes per carton must be at least 1')
+      return
+    }
     setSaving(true)
     try {
-      const err = await onSubmit(fromProductFormState(state, mode))
-      if (err) setServerError(err)
-    } finally {
+      await onSave({ name: name.trim(), rate: rateCents, boxesPerCarton: boxes })
+      onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save product')
       setSaving(false)
     }
   }
 
   return (
-    <form className="product-form" onSubmit={handleSubmit} noValidate>
-      <div className="form-grid">
-        <label className="field">
-          <span>Name *</span>
-          <input value={state.name} onChange={set('name')} placeholder="e.g. Acme Widget" />
-          {errors.name && <em className="field-error">{errors.name}</em>}
-        </label>
-
-        <label className="field">
-          <span>SKU *</span>
-          <input value={state.sku} onChange={set('sku')} placeholder="Unique SKU" disabled={mode === 'edit'} />
-          {errors.sku && <em className="field-error">{errors.sku}</em>}
-        </label>
-
-        <label className="field">
-          <span>Pieces per carton</span>
-          <input type="number" min={1} value={state.piecesPerCarton} onChange={set('piecesPerCarton')} />
-          {errors.piecesPerCarton && <em className="field-error">{errors.piecesPerCarton}</em>}
-        </label>
-
-        <label className="field">
-          <span>Min selling price</span>
-          <input type="number" step="0.01" min={0} value={state.minSellingPrice} onChange={set('minSellingPrice')} />
-          {errors.minSellingPrice && <em className="field-error">{errors.minSellingPrice}</em>}
-        </label>
-
-        <label className="field">
-          <span>Selling price</span>
-          <input type="number" step="0.01" min={0} value={state.sellingPrice} onChange={set('sellingPrice')} />
-          {errors.sellingPrice && <em className="field-error">{errors.sellingPrice}</em>}
-        </label>
+    <div className="overlay">
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{initial ? 'Edit Product' : 'Add Product'}</h3>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field field-span-2">
+            <span>Product name</span>
+            <input
+              type="text"
+              value={name}
+              autoFocus
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Axle bearing 6204"
+            />
+          </label>
+          <label className="field">
+            <span>Minimum rate (Rs.)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+          <label className="field">
+            <span>Boxes per carton</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={boxesPerCarton}
+              onChange={(e) => setBoxesPerCarton(e.target.value)}
+              placeholder="12"
+            />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
-
-      {serverError && <div className="form-error">{serverError}</div>}
-
-      <div className="form-actions">
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn primary" disabled={saving}>
-          {saving ? 'Saving…' : mode === 'create' ? 'Create product' : 'Save changes'}
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }

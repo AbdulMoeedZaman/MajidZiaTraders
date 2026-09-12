@@ -1,27 +1,22 @@
 export interface Product {
   id: number
-  sku: string
   name: string
-  piecesPerCarton: number
-  /** Floor price and cost basis for profit calculations, minor units. */
-  minSellingPrice: number
-  sellingPrice: number
+  /** Minimum allowable rate per carton, in integer minor units (paisa / cents). */
+  rate: number
+  /** Number of boxes per carton. */
+  boxesPerCarton: number
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateProductDTO {
-  sku: string
   name: string
-  piecesPerCarton?: number
-  minSellingPrice?: number
-  sellingPrice?: number
+  rate: number
+  boxesPerCarton: number
 }
 
 export interface UpdateProductDTO {
-  sku?: string
   name?: string
-  piecesPerCarton?: number
-  minSellingPrice?: number
-  sellingPrice?: number
+  rate?: number
+  boxesPerCarton?: number
 }

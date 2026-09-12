@@ -1,308 +1,350 @@
 import { useMemo, useState } from 'react'
-import type { ProductWithStock } from '@shared/types/inventory'
-import type { CustomerWithBalance } from '@shared/types/customer'
-import type { CreateInvoiceDTO } from '@shared/types/invoice'
-import { calculateInvoiceTotals } from '@shared/calc/invoice-totals'
-import { InvoiceFormState, InvoiceItemInput, defaultInvoiceFormState, moneyToCents } from '../types/invoice-form'
+import type { ProjectOwner } from '@shared/types/project-owner'
+import type { Broker } from '@shared/types/broker'
+import type { Product } from '@shared/types/product'
+import type { Customer } from '@shared/types/customer'
 import { formatMoney } from '../../../lib/format'
+import { countToInt, moneyToCents } from '../../../lib/money'
+import { calculateLineAmount } from '@shared/calc/invoice-totals'
 
-interface InvoiceFormProps {
-  customers: CustomerWithBalance[]
-  products: ProductWithStock[]
-  onCustomerChange?: (customer: CustomerWithBalance | undefined) => void
-  onSubmit: (payload: CreateInvoiceDTO) => Promise<string | null>
-  onCancel: () => void
+export interface InvoiceFormValues {
+  customerId: number | null
+  ownerId: number | null
+  brokerId: number | null
+  filerStatus: 'filer' | 'non_filer'
+  remaining: string
+  tax: string
+  grandTotal: string
+  items: Array<{
+    productId: number | null
+    rate: string
+    cartonCount: string
+    boxCount: string
+  }>
 }
 
-export function InvoiceForm({ customers, products, onCustomerChange, onSubmit, onCancel }: InvoiceFormProps) {
-  const [state, setState] = useState<InvoiceFormState>(defaultInvoiceFormState())
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [serverError, setServerError] = useState<string | null>(null)
+interface Props {
+  customers: Customer[]
+  owners: ProjectOwner[]
+  brokers: Broker[]
+  products: Product[]
+  preselectCustomerId?: number | null
+  onSubmit: (values: InvoiceFormValues) => Promise<void>
+}
+
+function emptyLine() {
+  return { productId: null as number | null, rate: '', cartonCount: '', boxCount: '' }
+}
+
+export function InvoiceForm({ customers, owners, brokers, products, preselectCustomerId, onSubmit }: Props) {
+  const [customerId, setCustomerId] = useState<number | null>(preselectCustomerId ?? null)
+  const [ownerId, setOwnerId] = useState<number | null>(null)
+  const [brokerId, setBrokerId] = useState<number | null>(null)
+  const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('filer')
+  const [items, setItems] = useState(() => [emptyLine()])
+  const [remaining, setRemaining] = useState('')
+  const [tax, setTax] = useState('')
+  const [grandTotal, setGrandTotal] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const selectedCustomer = customers.find((c) => c.id === parseInt(state.customerId, 10))
+  const productById = useMemo(() => {
+    const map = new Map<number, Product>()
+    for (const p of products) map.set(p.id, p)
+    return map
+  }, [products])
 
-  // Same calculation the backend uses when the invoice is saved (src/shared/calc/invoice-totals.ts).
-  const computed = useMemo(() => {
-    const lines = state.items.map((item) => {
-      const product = products.find((p) => p.id === parseInt(item.productId, 10))
-      const parsedQty = parseInt(item.quantity || '0', 10)
-      const qty = Number.isFinite(parsedQty) ? parsedQty : 0
-      const price = moneyToCents(item.sellingPrice)
-      return { product, qty, price }
+  const subtotal = useMemo(() => {
+    let total = 0
+    for (const line of items) {
+      if (line.productId === null) continue
+      const product = productById.get(line.productId)
+      if (!product) continue
+      total += calculateLineAmount({
+        rate: moneyToCents(line.rate),
+        boxesPerCarton: product.boxesPerCarton,
+        cartonCount: countToInt(line.cartonCount),
+        boxCount: countToInt(line.boxCount),
+      })
+    }
+    return total
+  }, [items, productById])
+
+  const setLine = (index: number, patch: Partial<InvoiceFormValues['items'][number]>) => {
+    setItems((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
+  }
+
+  const lineAmount = (index: number): number => {
+    const line = items[index]
+    if (line.productId === null) return 0
+    const product = productById.get(line.productId)
+    if (!product) return 0
+    return calculateLineAmount({
+      rate: moneyToCents(line.rate),
+      boxesPerCarton: product.boxesPerCarton,
+      cartonCount: countToInt(line.cartonCount),
+      boxCount: countToInt(line.boxCount),
     })
-    const requestedDiscount = moneyToCents(state.discount)
-    const totals = calculateInvoiceTotals(
-      lines.map((l) => ({ quantity: l.qty, unitPrice: l.price, unitCost: l.product?.minSellingPrice ?? 0 })),
-      requestedDiscount
-    )
-    return {
-      ...totals,
-      requestedDiscount,
-      lines: lines.map((l, i) => ({ ...l, ...totals.lines[i] })),
+  }
+
+  const lineError = (index: number): string | null => {
+    const line = items[index]
+    if (line.productId === null) return null
+    const product = productById.get(line.productId)
+    if (!product) return null
+    const rateCents = moneyToCents(line.rate)
+    if (rateCents < product.rate) {
+      return `Cannot go below minimum rate ${formatMoney(product.rate)}`
     }
-  }, [state.items, state.discount, products])
-
-  const hasStockWarning = computed.lines.some(
-    (l) => l.product != null && l.qty > l.product.currentStock
-  )
-
-  const setCustomer = (id: string) => {
-    setState((s) => ({ ...s, customerId: id }))
-    onCustomerChange?.(customers.find((c) => c.id === parseInt(id, 10)))
-  }
-
-  const addItem = () => {
-    setState((s) => ({ ...s, items: [...s.items, { productId: '', quantity: '1', sellingPrice: '' }] }))
-  }
-
-  const updateItem = (index: number, patch: Partial<InvoiceItemInput>) => {
-    setState((s) => ({
-      ...s,
-      items: s.items.map((item, i) => {
-        if (i !== index) return item
-        const next = { ...item, ...patch }
-        if (patch.productId) {
-          const product = products.find((p) => p.id === parseInt(patch.productId!, 10))
-          next.sellingPrice = product ? String(product.sellingPrice / 100) : item.sellingPrice
-        }
-        return next
-      }),
-    }))
-  }
-
-  const removeItem = (index: number) => {
-    setState((s) => ({ ...s, items: s.items.filter((_, i) => i !== index) }))
-  }
-
-  const validate = (): boolean => {
-    const next: Record<string, string> = {}
-    if (!state.customerId) next.customerId = 'Choose a customer'
-    if (!state.date) next.date = 'Date is required'
-    if (state.items.length === 0) next.items = 'Add at least one item'
-    state.items.forEach((item, i) => {
-      const key = `item-${i}`
-      if (!item.productId) {
-        next[key] = 'Choose a product'
-        return
-      }
-      const qty = parseInt(item.quantity || '0', 10)
-      if (!Number.isInteger(qty) || qty <= 0) {
-        next[key] = 'Quantity must be a positive whole number'
-        return
-      }
-      const product = products.find((p) => p.id === parseInt(item.productId, 10))
-      if (qty > (product?.currentStock ?? 0)) {
-        next[key] = `Only ${product?.currentStock ?? 0} in stock`
-        return
-      }
-      const priceText = item.sellingPrice.trim()
-      const parsedPrice = Number(priceText)
-      if (!priceText || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
-        next[key] = 'Enter a price'
-        return
-      }
-      if (product && moneyToCents(priceText) < product.minSellingPrice) {
-        next[key] = `Below min price (${formatMoney(product.minSellingPrice)})`
-      }
-    })
-    if (computed.requestedDiscount > computed.subtotal) {
-      next.discount = 'Discount cannot be more than the subtotal'
+    if (countToInt(line.cartonCount) + countToInt(line.boxCount) === 0) {
+      return 'Enter cartons or boxes'
     }
-    setErrors(next)
-    return Object.keys(next).length === 0
+    return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setServerError(null)
-    if (!validate()) return
-
-    const payload: CreateInvoiceDTO = {
-      customerId: parseInt(state.customerId, 10),
-      date: state.date,
-      dueDate: state.dueDate || undefined,
-      discount: moneyToCents(state.discount),
-      notes: state.notes.trim() || undefined,
-      items: state.items.map((item) => {
-        const product = products.find((p) => p.id === parseInt(item.productId, 10))
-        const qty = parseInt(item.quantity, 10)
-        const price = moneyToCents(item.sellingPrice)
-        return {
-          productId: parseInt(item.productId, 10),
-          productName: product?.name ?? '',
-          productSku: product?.sku ?? '',
-          quantity: qty,
-          costPriceAtSale: product?.minSellingPrice ?? 0,
-          minSellingPriceAtSale: product?.minSellingPrice ?? 0,
-          actualSellingPrice: price,
-        }
-      }),
+  const submit = async () => {
+    setError(null)
+    if (customerId === null) {
+      setError('Select a customer')
+      return
     }
-
+    if (ownerId === null) {
+      setError('Select a project owner')
+      return
+    }
+    if (brokerId === null) {
+      setError('Select a booker')
+      return
+    }
+    const validLines = items.filter((l) => l.productId !== null)
+    if (validLines.length === 0) {
+      setError('Add at least one product line')
+      return
+    }
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].productId === null) continue
+      const err = lineError(i)
+      if (err) {
+        setError(`Line ${i + 1}: ${err}`)
+        return
+      }
+    }
     setSaving(true)
     try {
-      const err = await onSubmit(payload)
-      if (err) setServerError(err)
-    } finally {
+      await onSubmit({
+        customerId,
+        ownerId,
+        brokerId,
+        filerStatus,
+        remaining,
+        tax,
+        grandTotal,
+        items: validLines.map((l) => ({
+          productId: l.productId,
+          rate: l.rate,
+          cartonCount: l.cartonCount,
+          boxCount: l.boxCount,
+        })),
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save invoice')
       setSaving(false)
     }
   }
 
   return (
-    <form className="product-form" onSubmit={handleSubmit} noValidate>
-      <div className="form-grid">
-        <label className="field field-span-2">
-          <span>Customer *</span>
-          <select value={state.customerId} onChange={(e) => setCustomer(e.target.value)}>
+    <div className="feature">
+      <div className="form-grid form-grid-3">
+        <label className="field">
+          <span>Customer</span>
+          <select
+            value={customerId ?? ''}
+            onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : null)}
+          >
             <option value="">Select customer…</option>
             {customers.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} — {formatMoney(c.balance)}
+                {c.code} — {c.shopName || c.ownerName}
               </option>
             ))}
           </select>
-          {errors.customerId && <em className="field-error">{errors.customerId}</em>}
-          {selectedCustomer && (
-            <span className="fine-text muted">
-              {selectedCustomer.balance < 0
-                ? `Credit on account: ${formatMoney(-selectedCustomer.balance)} (applied to this invoice automatically)`
-                : `Outstanding: ${formatMoney(selectedCustomer.outstanding)}`}
-            </span>
-          )}
         </label>
-
         <label className="field">
-          <span>Date *</span>
-          <input
-            type="date"
-            value={state.date}
-            onChange={(e) => setState((s) => ({ ...s, date: e.target.value }))}
-          />
-          {errors.date && <em className="field-error">{errors.date}</em>}
+          <span>Project owner</span>
+          <select value={ownerId ?? ''} onChange={(e) => setOwnerId(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">Select owner…</option>
+            {owners.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
         </label>
-
         <label className="field">
-          <span>Due date</span>
-          <input
-            type="date"
-            value={state.dueDate}
-            onChange={(e) => setState((s) => ({ ...s, dueDate: e.target.value }))}
-          />
+          <span>Booker</span>
+          <select
+            value={brokerId ?? ''}
+            onChange={(e) => setBrokerId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">Select booker…</option>
+            {brokers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </label>
-
-        <label className="field">
-          <span>Discount</span>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={state.discount}
-            onChange={(e) => setState((s) => ({ ...s, discount: e.target.value }))}
-          />
-          {errors.discount && <em className="field-error">{errors.discount}</em>}
-        </label>
-
-        <label className="field field-span-2">
-          <span>Notes</span>
-          <textarea
-            value={state.notes}
-            onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
-            rows={2}
-          />
-        </label>
+        <fieldset className="field field-span-3">
+          <span>Status</span>
+          <div className="segmented">
+            <button
+              type="button"
+              className={filerStatus === 'filer' ? 'active' : ''}
+              onClick={() => setFilerStatus('filer')}
+            >
+              Filer
+            </button>
+            <button
+              type="button"
+              className={filerStatus === 'non_filer' ? 'active' : ''}
+              onClick={() => setFilerStatus('non_filer')}
+            >
+              Non Filer
+            </button>
+          </div>
+        </fieldset>
       </div>
 
-      <div className="field">
-        <span>Items *</span>
-        {errors.items && <em className="field-error">{errors.items}</em>}
-        {hasStockWarning && <em className="field-error">One or more items exceed available stock.</em>}
-      </div>
-
-      <div className="item-lines">
-        {state.items.map((item, i) => {
-          const line = computed.lines[i]
-          return (
-            <div key={i} className="item-line">
+      <div className="section-title">Items</div>
+      {items.map((line, i) => {
+        const product = line.productId !== null ? productById.get(line.productId) : undefined
+        return (
+          <div className="invoice-line" key={i}>
+            <label className="field line-product">
+              <span>Product</span>
               <select
-                value={item.productId}
-                onChange={(e) => updateItem(i, { productId: e.target.value })}
+                value={line.productId ?? ''}
+                onChange={(e) => {
+                  const pid = e.target.value ? Number(e.target.value) : null
+                  const p = pid !== null ? productById.get(pid) : undefined
+                  setLine(i, {
+                    productId: pid,
+                    rate: p ? (p.rate / 100).toFixed(2) : line.rate,
+                  })
+                }}
               >
                 <option value="">Select product…</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.sku}) — {p.currentStock} in stock
+                    {p.name}
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="field line-qty">
+              <span>Rate (Rs.)</span>
               <input
-                className="qty-input"
                 type="number"
-                min={1}
-                value={item.quantity}
-                onChange={(e) => updateItem(i, { quantity: e.target.value })}
-                aria-label="Quantity"
-              />
-              <input
-                className="line-input money"
-                type="number"
+                min="0"
                 step="0.01"
-                min={0}
-                value={item.sellingPrice}
-                onChange={(e) => updateItem(i, { sellingPrice: e.target.value })}
-                aria-label="Selling price"
-                placeholder="Price"
+                value={line.rate}
+                onChange={(e) => setLine(i, { rate: e.target.value })}
+                placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
-              {line?.product && (
-                <span className="fine-text muted line-hint">
-                  Min {formatMoney(line.product.minSellingPrice)}
-                </span>
-              )}
-              <span className="line-total">{formatMoney(line?.lineSubtotal ?? 0)}</span>
-              <button type="button" className="btn ghost icon" onClick={() => removeItem(i)} title="Remove item">
-                ✕
-              </button>
-              {errors[`item-${i}`] && <em className="field-error">{errors[`item-${i}`]}</em>}
+            </label>
+            <label className="field line-qty">
+              <span>Carton no.</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={line.cartonCount}
+                onChange={(e) => setLine(i, { cartonCount: e.target.value })}
+              />
+            </label>
+            <label className="field line-qty">
+              <span>Box no.</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={line.boxCount}
+                onChange={(e) => setLine(i, { boxCount: e.target.value })}
+              />
+            </label>
+            <div className="line-total">
+              <span>Amount</span>
+              <strong className="mono">{formatMoney(lineAmount(i))}</strong>
             </div>
-          )
-        })}
-      </div>
-
-      {products.length > 0 && (
-        <button type="button" className="btn small ghost" onClick={addItem}>
-          + Add item
-        </button>
-      )}
-
-      <div className="totals-grid">
-        <div className="totals-row">
-          <span>Subtotal</span>
-          <span>{formatMoney(computed.subtotal)}</span>
-        </div>
-        <div className="totals-row">
-          <span>Discount</span>
-          <span>−{formatMoney(computed.discount)}</span>
-        </div>
-        <div className="totals-row strong">
-          <span>Total</span>
-          <span>{formatMoney(computed.total)}</span>
-        </div>
-        <div className="totals-row">
-          <span>Estimated profit</span>
-          <span>{formatMoney(computed.profit)}</span>
-        </div>
-      </div>
-
-      {serverError && <div className="form-error">{serverError}</div>}
-
+            <button
+              type="button"
+              className="btn danger ghost small line-remove"
+              onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+            >
+              ✕
+            </button>
+            {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}
+          </div>
+        )
+      })}
       <div className="form-actions">
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn primary" disabled={saving}>
-          {saving ? 'Saving…' : 'Save invoice'}
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => setItems((prev) => [...prev, emptyLine()])}
+        >
+          + Add line
         </button>
       </div>
-    </form>
+
+      <div className="section-title">Totals</div>
+      <div className="totals-card">
+        <div className="totals-row">
+          <span>Subtotal (automatic)</span>
+          <strong className="mono">{formatMoney(subtotal)}</strong>
+        </div>
+        <div className="totals-row">
+          <span>Remaining amount (manual)</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={remaining}
+            onChange={(e) => setRemaining(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div className="totals-row">
+          <span>Tax (manual)</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={tax}
+            onChange={(e) => setTax(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div className="totals-row">
+          <span>Grand total (manual)</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={grandTotal}
+            onChange={(e) => setGrandTotal(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+
+      {error && <div className="form-error">{error}</div>}
+
+      <div className="detail-actions">
+        <button className="btn primary" onClick={() => void submit()} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Invoice'}
+        </button>
+      </div>
+    </div>
   )
 }

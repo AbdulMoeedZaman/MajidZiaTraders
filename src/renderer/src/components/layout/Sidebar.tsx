@@ -26,7 +26,7 @@ export function Sidebar({ current, onNavigate }: SidebarProps) {
           </button>
         ))}
       </nav>
-      <div className="sidebar-footer muted">Phase 4 build</div>
+      <div className="sidebar-footer muted">Parts invoicing</div>
     </aside>
   )
 }

@@ -10,52 +10,36 @@ export class ProductRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM products WHERE id = ?').get(id) as Product | null
   }
 
-  findBySku(sku: string): Product | null {
-    return this.db.prepare('SELECT * FROM products WHERE sku = ?').get(sku) as Product | null
+  findByName(name: string): Product | null {
+    return this.db.prepare('SELECT * FROM products WHERE name = ?').get(name) as Product | null
   }
 
-  findBySkuExcludingId(sku: string, excludeId: number): Product | null {
-    return this.db.prepare('SELECT * FROM products WHERE sku = ? AND id != ?').get(sku, excludeId) as Product | null
+  findByNameExcludingId(name: string, excludeId: number): Product | null {
+    return this.db.prepare('SELECT * FROM products WHERE name = ? AND id != ?').get(name, excludeId) as Product | null
   }
 
   search(query: string): Product[] {
     return this.db
-      .prepare('SELECT * FROM products WHERE (name LIKE ? OR sku LIKE ?) ORDER BY name')
-      .all(`%${query}%`, `%${query}%`) as Product[]
+      .prepare('SELECT * FROM products WHERE name LIKE ? ORDER BY name')
+      .all(`%${query}%`) as Product[]
   }
 
   create(data: CreateProductDTO): Product {
     const result = this.db
-      .prepare(
-        `INSERT INTO products (sku, name, piecesPerCarton, minSellingPrice, sellingPrice)
-         VALUES (?, ?, ?, ?, ?)`
-      )
-      .run(
-        data.sku,
-        data.name,
-        data.piecesPerCarton ?? 1,
-        data.minSellingPrice ?? 0,
-        data.sellingPrice ?? 0
-      )
-
+      .prepare('INSERT INTO products (name, rate, boxesPerCarton) VALUES (?, ?, ?)')
+      .run(data.name.trim(), data.rate, data.boxesPerCarton)
     return this.findById(result.lastInsertRowid as number)!
   }
 
   update(id: number, data: UpdateProductDTO): Product {
     const fields: string[] = []
     const values: unknown[] = []
-
-    if (data.sku !== undefined) { fields.push('sku = ?'); values.push(data.sku) }
-    if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name) }
-    if (data.piecesPerCarton !== undefined) { fields.push('piecesPerCarton = ?'); values.push(data.piecesPerCarton) }
-    if (data.minSellingPrice !== undefined) { fields.push('minSellingPrice = ?'); values.push(data.minSellingPrice) }
-    if (data.sellingPrice !== undefined) { fields.push('sellingPrice = ?'); values.push(data.sellingPrice) }
-
+    if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name.trim()) }
+    if (data.rate !== undefined) { fields.push('rate = ?'); values.push(data.rate) }
+    if (data.boxesPerCarton !== undefined) { fields.push('boxesPerCarton = ?'); values.push(data.boxesPerCarton) }
     if (fields.length === 0) return this.findById(id)!
-
     fields.push("updatedAt = datetime('now')")
     values.push(id)
-
     this.db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).run(...values)
     return this.findById(id)!
   }
@@ -66,5 +50,21 @@ export class ProductRepository extends BaseRepository {
 
   count(): number {
     return (this.db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }).count
+  }
+
+  /** Invoice lines that reference this product (blocks deletion). */
+  countInvoiceReferences(productId: number): number {
+    const result = this.db
+      .prepare('SELECT COUNT(*) AS count FROM invoice_items WHERE productId = ?')
+      .get(productId) as { count: number }
+    return result.count
+  }
+
+  /** Rows in the (future) stock ledger for this product (blocks deletion). */
+  countStockLedger(productId: number): number {
+    const result = this.db
+      .prepare('SELECT COUNT(*) AS count FROM stock_movements WHERE productId = ?')
+      .get(productId) as { count: number }
+    return result.count
   }
 }

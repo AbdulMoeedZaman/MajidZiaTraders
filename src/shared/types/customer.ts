@@ -1,27 +1,39 @@
 export interface Customer {
   id: number
-  name: string
+  /** Unique customer code. */
+  code: string
+  shopName: string
+  ownerName: string
+  phone: string | null
   address: string | null
+  /** Assigned delivery route (one of the six fixed routes). */
+  routeId: number
+  /** Optional project owner association (not required). */
+  ownerId: number | null
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateCustomerDTO {
-  name: string
+  code: string
+  shopName?: string
+  ownerName?: string
+  phone?: string | null
   address?: string | null
+  routeId: number
+  ownerId?: number | null
 }
 
 export interface UpdateCustomerDTO {
-  name?: string
+  code?: string
+  shopName?: string
+  ownerName?: string
+  phone?: string | null
   address?: string | null
+  routeId?: number
+  ownerId?: number | null
 }
 
-export interface CustomerLedgerTotals {
-  totalDebit: number
-  totalCredit: number
-}
-
-export interface CustomerWithBalance extends Customer, CustomerLedgerTotals {
-  balance: number
-  outstanding: number
+export interface CustomerWithRoute extends Customer {
+  routeName: string
 }

@@ -1,94 +1,114 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Layout } from './components/layout/Layout'
 import type { AppView } from './components/layout/nav'
-import { Dashboard } from './features/dashboard/components/Dashboard'
-import { ProductList } from './features/products/components/ProductList'
 import { InvoiceList } from './features/invoices/components/InvoiceList'
 import { InvoiceDetailPage } from './features/invoices/components/InvoiceDetailPage'
+import { InvoiceFormPage } from './features/invoices/components/InvoiceFormPage'
 import { CustomerList } from './features/customers/components/CustomerList'
 import { CustomerDetailPage } from './features/customers/components/CustomerDetailPage'
-import { PaymentsList } from './features/payments/components/PaymentsList'
+import { ProductList } from './features/products/components/ProductList'
 import { SettingsPage } from './features/settings/components/SettingsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { api } from './lib/api'
-import { setCurrency } from './lib/format'
 
 export default function App() {
-  const [view, setView] = useState<AppView>('dashboard')
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
+  const [view, setView] = useState<AppView>('invoices')
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null)
-  const [currencyVersion, setCurrencyVersion] = useState(0)
-
-  // Re-read the currency whenever the screen changes, and re-render if it changed.
-  useEffect(() => {
-    api.businessProfile
-      .get()
-      .then((p) => {
-        if (p && setCurrency(p.currency)) setCurrencyVersion((v) => v + 1)
-      })
-      .catch(() => {})
-  }, [view])
+  const [customerDetailId, setCustomerDetailId] = useState<number | null>(null)
+  const [invoiceDraft, setInvoiceDraft] = useState<{ open: boolean; customerId: number | null }>({
+    open: false,
+    customerId: null,
+  })
 
   const navigate = (next: AppView) => {
     setView(next)
-    setSelectedCustomerId(null)
     setSelectedInvoiceId(null)
+    setCustomerDetailId(null)
+    setInvoiceDraft({ open: false, customerId: null })
+  }
+
+  const openNewInvoice = (customerId: number | null) => {
+    setSelectedInvoiceId(null)
+    setCustomerDetailId(null)
+    setView('invoices')
+    setInvoiceDraft({ open: true, customerId })
   }
 
   const title =
-    view === 'customers' && selectedCustomerId !== null
-      ? 'Customer Details'
-      : view === 'invoices' && selectedInvoiceId !== null
-        ? 'Invoice Details'
-        : undefined
+    view === 'invoices' && selectedInvoiceId !== null
+      ? 'Invoice'
+      : view === 'invoices' && invoiceDraft.open
+        ? 'New Invoice'
+        : view === 'customers' && customerDetailId !== null
+          ? 'Customer Details'
+          : undefined
 
-  const onBack =
-    view === 'customers' && selectedCustomerId !== null
-      ? () => setSelectedCustomerId(null)
-      : view === 'invoices' && selectedInvoiceId !== null
-        ? () => setSelectedInvoiceId(null)
-        : undefined
-
-  const backLabel =
-    view === 'customers' && selectedCustomerId !== null
-      ? 'Back to Customers'
-      : view === 'invoices' && selectedInvoiceId !== null
-        ? 'Back to Invoices'
-        : undefined
+  const headers: Array<{ cond: boolean; label: string; back: () => void }> = [
+    {
+      cond: view === 'invoices' && selectedInvoiceId !== null,
+      label: 'Back to Invoices',
+      back: () => setSelectedInvoiceId(null),
+    },
+    {
+      cond: view === 'invoices' && invoiceDraft.open,
+      label: 'Back to Invoices',
+      back: () => setInvoiceDraft({ open: false, customerId: null }),
+    },
+    {
+      cond: view === 'customers' && customerDetailId !== null,
+      label: 'Back to Customers',
+      back: () => setCustomerDetailId(null),
+    },
+  ]
+  const header = headers.find((h) => h.cond)
 
   return (
-    <Layout view={view} onNavigate={navigate} title={title} onBack={onBack} backLabel={backLabel}>
-      <ErrorBoundary key={view}>
-      {view === 'dashboard' && (
-        <Dashboard
-          onOpenInvoice={(id) => {
-            setSelectedInvoiceId(id)
-            setView('invoices')
-          }}
-          onOpenPayments={() => setView('payments')}
-        />
-      )}
-      {view === 'products' && <ProductList />}
-      {view === 'invoices' &&
-        (selectedInvoiceId !== null ? (
-          <InvoiceDetailPage
-            invoiceId={selectedInvoiceId}
-            onBack={() => setSelectedInvoiceId(null)}
-          />
-        ) : (
-          <InvoiceList onSelect={(i) => setSelectedInvoiceId(i.id)} />
-        ))}
-      {view === 'customers' &&
-        (selectedCustomerId !== null ? (
-          <CustomerDetailPage
-            customerId={selectedCustomerId}
-            onBack={() => setSelectedCustomerId(null)}
-          />
-        ) : (
-          <CustomerList onSelect={(c) => setSelectedCustomerId(c.id)} />
-        ))}
-      {view === 'payments' && <PaymentsList />}
-      {view === 'settings' && <SettingsPage />}
+    <Layout
+      view={view}
+      onNavigate={navigate}
+      title={title}
+      onBack={header?.back}
+      backLabel={header?.label}
+    >
+      <ErrorBoundary key={`${view}-${selectedInvoiceId}-${customerDetailId}-${invoiceDraft.open}`}>
+        {view === 'invoices' &&
+          (selectedInvoiceId !== null ? (
+            <InvoiceDetailPage
+              invoiceId={selectedInvoiceId}
+              onBack={() => setSelectedInvoiceId(null)}
+            />
+          ) : invoiceDraft.open ? (
+            <InvoiceFormPage
+              preselectCustomerId={invoiceDraft.customerId}
+              onCancel={() => setInvoiceDraft({ open: false, customerId: null })}
+              onCreated={(id) => {
+                setInvoiceDraft({ open: false, customerId: null })
+                setSelectedInvoiceId(id)
+              }}
+            />
+          ) : (
+            <InvoiceList
+              onOpen={(id) => setSelectedInvoiceId(id)}
+              onNewInvoice={() => setInvoiceDraft({ open: true, customerId: null })}
+            />
+          ))}
+
+        {view === 'customers' &&
+          (customerDetailId !== null ? (
+            <CustomerDetailPage
+              customerId={customerDetailId}
+              onBack={() => setCustomerDetailId(null)}
+              onNewInvoice={(customerId) => openNewInvoice(customerId)}
+              onOpenInvoice={(invoiceId) => { setCustomerDetailId(null); setView('invoices'); setSelectedInvoiceId(invoiceId) }}
+            />
+          ) : (
+            <CustomerList
+              onSelect={(c) => setCustomerDetailId(c.id)}
+              onNewInvoice={(customerId) => openNewInvoice(customerId)}
+            />
+          ))}
+
+        {view === 'products' && <ProductList />}
+        {view === 'settings' && <SettingsPage />}
       </ErrorBoundary>
     </Layout>
   )

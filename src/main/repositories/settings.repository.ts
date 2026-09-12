@@ -51,4 +51,25 @@ export class SettingsRepository extends BaseRepository {
   delete(key: string): void {
     this.db.prepare('DELETE FROM settings WHERE key = ?').run(key)
   }
+
+  /**
+   * Atomically returns the current value of an integer counter and advances it.
+   * Does not open its own transaction — call it inside the caller's transaction
+   * when the counter is part of a larger write (the single UPDATE is atomic).
+   * Missing/blank counters start at 1.
+   */
+  nextCounter(key: string): number {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      | { value: string | null }
+      | undefined
+    const next = row ? parseInt(row.value ?? '', 10) || 1 : 1
+    this.db
+      .prepare(
+        `INSERT INTO settings (key, value, type)
+         VALUES (?, ?, 'number')
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = datetime('now')`
+      )
+      .run(key, String(next + 1))
+    return next
+  }
 }

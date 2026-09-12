@@ -5,40 +5,17 @@ import type { CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/custome
 const customerService = new CustomerService()
 
 export function registerCustomerIpc(): void {
-  ipcMain.handle('customers:list', () => {
-    return customerService.list()
-  })
-
-  ipcMain.handle('customers:list-with-balance', () => {
-    return customerService.listWithBalances()
-  })
-
-  ipcMain.handle('customers:get-by-id', (_, id: number) => {
-    return customerService.getById(id)
-  })
-
-  ipcMain.handle('customers:get-with-balance', (_, id: number) => {
-    return customerService.getWithBalance(id)
-  })
-
-  ipcMain.handle('customers:search', (_, query: string) => {
-    return customerService.search(query)
-  })
-
-  ipcMain.handle('customers:create', (_, data: CreateCustomerDTO) => {
-    return customerService.create(data)
-  })
-
-  ipcMain.handle('customers:update', (_, id: number, data: UpdateCustomerDTO) => {
-    return customerService.update(id, data)
-  })
-
+  ipcMain.handle('customers:list', () => customerService.list())
+  ipcMain.handle('customers:list-by-route', (_, routeId: number) => customerService.listByRoute(routeId))
+  ipcMain.handle('customers:get-by-id', (_, id: number) => customerService.getByIdWithRoute(id))
+  ipcMain.handle('customers:search', (_, query: string) => customerService.search(query))
+  ipcMain.handle('customers:create', (_, data: CreateCustomerDTO) => customerService.create(data))
+  ipcMain.handle('customers:update', (_, id: number, data: UpdateCustomerDTO) =>
+    customerService.update(id, data)
+  )
   ipcMain.handle('customers:delete', (_, id: number) => {
     customerService.delete(id)
     return { success: true }
   })
-
-  ipcMain.handle('customers:count', () => {
-    return customerService.count()
-  })
+  ipcMain.handle('customers:count', () => customerService.count())
 }
