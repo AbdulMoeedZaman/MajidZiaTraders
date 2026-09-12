@@ -234,6 +234,10 @@ try {
     { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('Rs.') })
 
   const headerCentered = await ev(`(()=>{const h=document.querySelector('.invoice-sheet .sheet-head'); if(!h) return false; const s=getComputedStyle(h); return s.textAlign==='center'})()`)
+  const fontIsTimes = await ev(`(()=>{const s=getComputedStyle(document.querySelector('.invoice-sheet')); return s.fontFamily.toLowerCase().includes('times')})()`)
+  const ownerUnderlined = await ev(`(()=>{const s=getComputedStyle(document.querySelector('.invoice-sheet .ip-owner')); return s.textDecorationLine.includes('underline')})()`)
+  const ownerBandText = await ev(`document.querySelector('.invoice-sheet .sheet-head')?.innerText ?? ''`)
+  const bandLayout = ownerBandText.includes('Main Bazaar, Multan') && ownerBandText.includes('0300-1234567') && ownerBandText.includes(',')
   const boxHeadings = await ev(`[...document.querySelectorAll('.invoice-sheet .ip-box-heading')].map((h)=>h.textContent.trim()).join(',')`)
   const hasTitle = sheetText.includes('SALES INVOICE')
   const hasQtyBreakdown = (boxHeadings.includes('Quantity Breakdown') || boxHeadings.includes('QUANTITY BREAKDOWN')) && sheetText.includes('Total Ctn (Cartons)') && sheetText.includes('Total Pcs')
@@ -243,9 +247,9 @@ try {
   const netStyle = await ev(`(()=>{const n=document.querySelector('.invoice-sheet .ip-net'); if(!n) return 'NOTFOUND'; const s=getComputedStyle(n); return JSON.stringify({top:s.borderTopWidth,bottom:s.borderBottomWidth,topStyle:s.borderTopStyle})})()`)
   const netParsed = JSON.parse(netStyle)
   const netBordered = netParsed.topStyle === 'solid' && parseFloat(netParsed.top) > 0 && parseFloat(netParsed.bottom) > 0
-  check('UI-5c', 'Sheet has centered store header, SALES INVOICE title, quantity breakdown, balances, financial stack with bordered net row, and a timestamp',
-    headerCentered && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && hasTime && netBordered,
-    { headerCentered, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, timestamp: hasTime, netRowBordered: netStyle })
+  check('UI-5c', 'Sheet has Times New Roman font, underlined store name, address/comma/phone header band, SALES INVOICE title, quantity breakdown, balances, financial stack with bordered net row, and a timestamp',
+    headerCentered && fontIsTimes && ownerUnderlined && bandLayout && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && hasTime && netBordered,
+    { headerCentered, fontTimesNewRoman: fontIsTimes, ownerUnderlined, bandLayout, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, timestamp: hasTime, netRowBordered: netStyle })
 
   // =============== UI-7: load form selection + printable report ===============
   await nav('Invoices'); await wait(900)

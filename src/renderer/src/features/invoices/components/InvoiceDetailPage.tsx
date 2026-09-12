@@ -99,8 +99,11 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
         {owner && (
           <div className="sheet-head">
             <div className="ip-owner">{owner.name}</div>
-            {owner.address && <div className="ip-subtitle">{owner.address}</div>}
-            {owner.phone && <div className="ip-subtitle">Phone: {owner.phone}</div>}
+            <div className="ip-subtitle">
+              {owner.address && <span className="ip-address">{owner.address}</span>}
+              {owner.address && owner.phone && <span className="ip-comma">,</span>}
+              {owner.phone && <span className="ip-phone">{owner.phone}</span>}
+            </div>
           </div>
         )}
 
