@@ -8,6 +8,7 @@ import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
 import type { Customer } from '@shared/types/customer'
 import type { CreateInvoiceDTO, FilerStatus } from '@shared/types/invoice'
+import type { Route } from '@shared/types/route'
 
 interface Props {
   preselectCustomerId?: number | null
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
+  const [routes, setRoutes] = useState<Route[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -25,11 +27,13 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const [c, b, p] = await Promise.all([
+      const [r, c, b, p] = await Promise.all([
+        api.routes.list(),
         api.customers.list(),
         api.brokers.list(),
         api.products.list(),
       ])
+      setRoutes(r)
       setCustomers(c)
       setBrokers(b)
       setProducts(p)
@@ -50,9 +54,7 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
       brokerId: values.brokerId as number,
       date: localDate(new Date()),
       filerStatus: values.filerStatus as FilerStatus,
-      remaining: values.remaining.trim() === '' ? null : moneyToCents(values.remaining),
       tax: values.tax.trim() === '' ? null : moneyToCents(values.tax),
-      grandTotal: values.grandTotal.trim() === '' ? null : moneyToCents(values.grandTotal),
       items: values.items.map((l) => ({
         productId: l.productId as number,
         rate: moneyToCents(l.rate),
@@ -69,6 +71,7 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
 
   return (
     <InvoiceForm
+      routes={routes}
       customers={customers}
       brokers={brokers}
       products={products}

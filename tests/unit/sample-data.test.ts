@@ -74,9 +74,7 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
     customerId,
     date: d2,
     filerStatus: 'filer',
-    remaining: null,
     tax: null,
-    grandTotal: null,
   })
 
   // INV-1 Bilal: market bearings + axle bearings, 5 cartons + 6 loose boxes.

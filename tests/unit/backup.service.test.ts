@@ -18,9 +18,7 @@ describe('BackupService', () => {
     brokerId: seed.brokerId,
     date: '2026-09-10',
     filerStatus: 'filer',
-    remaining: null,
     tax: null,
-    grandTotal: null,
     items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 5 }],
   })
 

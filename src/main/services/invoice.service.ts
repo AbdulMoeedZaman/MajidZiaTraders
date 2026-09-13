@@ -82,16 +82,21 @@ export class InvoiceService {
       throw new Error('Booker (broker) not found')
     }
 
-    this.assertOptionalMoney(data.remaining, 'Remaining amount')
     this.assertOptionalMoney(data.tax, 'Tax')
-    this.assertOptionalMoney(data.grandTotal, 'Grand total')
 
     const items = this.buildItems(data.items)
+    // Totals are system calculated: the grand total is always subtotal + tax and
+    // the remaining amount is what is still owed after recorded payments (a new
+    // invoice has no payments yet, so it equals the full grand total).
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0)
+    const tax = data.tax ?? 0
+    const grandTotal = subtotal + tax
+    const remaining = grandTotal
 
     return this.invoiceRepo.runInTransaction(() => {
       const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
       const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
-      const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items)
+      const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items, grandTotal, remaining)
       this.stockService.recordSalesForInvoice(
         invoice.id,
         invoice.date,

@@ -16,9 +16,7 @@ describe('PaymentService', () => {
     brokerId: base.brokerId,
     date: '2026-09-10',
     filerStatus: 'filer',
-    remaining: null,
     tax: null,
-    grandTotal: null,
     items: [{ productId: base.product.id, rate: 500, cartonCount: 2, boxCount: 0 }],
     ...over,
   })
@@ -67,8 +65,9 @@ describe('PaymentService', () => {
   it('applies a customer payment oldest invoice first, rolling the surplus over', () => {
     const base = seed()
     const invoices = new InvoiceService()
-    const oldest = invoices.create(invoiceInput(base, { grandTotal: 5000 }))
-    const newest = invoices.create(invoiceInput(base, { date: '2026-09-11', grandTotal: 3000 }))
+    // subtotal is 2*500 = 1000, so tax inflates the grand total up to the owed amount
+    const oldest = invoices.create(invoiceInput(base, { tax: 4000 }))
+    const newest = invoices.create(invoiceInput(base, { date: '2026-09-11', tax: 2000 }))
 
     const result = new PaymentService().payCustomer(base.customerId, 6000)
 
@@ -94,7 +93,7 @@ describe('PaymentService', () => {
 
     expect(() => payments.payCustomer(base.customerId, 100)).toThrow(/no open invoice/)
 
-    invoices.create(invoiceInput(base, { grandTotal: 5000 }))
+    invoices.create(invoiceInput(base, { tax: 4000 }))
     expect(() => payments.payCustomer(base.customerId, 6000)).toThrow(/outstanding balance/)
     expect(() => payments.payCustomer(base.customerId, 0)).toThrow(/greater than zero/)
   })
@@ -132,7 +131,7 @@ describe('PaymentService', () => {
     expect(() => invoices.cancel(inv.id)!.status).not.toThrow()
     expect(() => payments.payInvoice(inv.id, 100)).toThrow(/cannot be paid/)
 
-    const paid = invoices.create(invoiceInput(base, { grandTotal: 2000 }))
+    const paid = invoices.create(invoiceInput(base, { tax: 1000 }))
     payments.payInvoice(paid.id, 2000)
     expect(() => invoices.delete(paid.id)).toThrow(/cannot be deleted/)
     expect(invoices.getById(paid.id)).toBeTruthy()

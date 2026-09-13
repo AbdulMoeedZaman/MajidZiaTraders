@@ -73,9 +73,8 @@ export interface CreateInvoiceDTO {
   brokerId: number
   date: string
   filerStatus: FilerStatus
-  remaining?: number | null
+  /** Manually entered tax (minor units). Blank when null. */
   tax?: number | null
-  grandTotal?: number | null
   items: CreateInvoiceItemDTO[]
 }
 

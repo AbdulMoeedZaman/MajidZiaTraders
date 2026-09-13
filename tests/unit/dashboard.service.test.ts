@@ -18,9 +18,7 @@ describe('DashboardService', () => {
     brokerId: seed.brokerId,
     date: opts.date,
     filerStatus: 'filer',
-    remaining: null,
     tax: null,
-    grandTotal: null,
     items: [
       {
         productId: seed.product.id,

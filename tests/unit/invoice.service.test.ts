@@ -14,9 +14,7 @@ describe('InvoiceService', () => {
     brokerId: seed.brokerId,
     date: '2026-09-10',
     filerStatus: 'filer',
-    remaining: null,
     tax: null,
-    grandTotal: null,
     items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 0 }],
   })
 
@@ -32,7 +30,7 @@ describe('InvoiceService', () => {
     expect(second.invoiceNumber).toBe('INV-000002')
   })
 
-  it('computes the box-portion of each line with single rounding', () => {
+  it('computes the box-portion of each line and auto-calculates grand total and remaining from tax', () => {
     const service = new InvoiceService()
     const seed = seedBasics()
     const created = service.create({
@@ -40,18 +38,17 @@ describe('InvoiceService', () => {
       brokerId: seed.brokerId,
       date: '2026-09-10',
       filerStatus: 'non_filer',
-      remaining: 1000,
       tax: 200,
-      grandTotal: 3000,
       items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
     })
     // 500 * 5 / 12 = 208.33 → 208
     expect(created.subtotal).toBe(208)
     const details = service.getWithDetails(created.id)!
     expect(details.invoice.items[0].amount).toBe(208)
-    expect(details.invoice.remaining).toBe(1000)
     expect(details.invoice.tax).toBe(200)
-    expect(details.invoice.grandTotal).toBe(3000)
+    // grand total = subtotal + tax; remaining = grand total (no payments yet)
+    expect(details.invoice.grandTotal).toBe(408)
+    expect(details.invoice.remaining).toBe(408)
     expect(details.customer!.code).toBe('C-001')
   })
 
@@ -125,9 +122,7 @@ describe('InvoiceService', () => {
         brokerId: broker.id,
         date: '2026-09-10',
         filerStatus: 'filer',
-        remaining: null,
         tax: null,
-        grandTotal: null,
         items: [{ productId: product.id, rate: 500, cartonCount: 1, boxCount: 0 }],
       })
     ).toThrow(/Set up the project owner/)
@@ -150,9 +145,7 @@ describe('InvoiceService', () => {
       brokerId: seed.brokerId,
       date: '2026-09-11',
       filerStatus: 'non_filer',
-      remaining: null,
-      tax: null,
-      grandTotal: 1500,
+      tax: 1292,
       items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
     })
 

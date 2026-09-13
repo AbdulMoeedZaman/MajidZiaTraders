@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Route } from '@shared/types/route'
 import type { Customer } from '@shared/types/customer'
+import { SearchSelect } from '../../../components/SearchSelect'
 
 export interface CustomerFormData {
   code: string
@@ -25,7 +26,7 @@ export function CustomerForm({ routes, initialRouteId, initial, onSave, onCancel
   const [ownerName, setOwnerName] = useState(initial?.ownerName ?? '')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
-  const [routeId, setRouteId] = useState(initial?.routeId ?? initialRouteId)
+  const [routeId, setRouteId] = useState<number | null>(initial?.routeId ?? initialRouteId)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -59,7 +60,7 @@ export function CustomerForm({ routes, initialRouteId, initial, onSave, onCancel
         ownerName: ownerName.trim(),
         phone: phone.trim(),
         address: address.trim(),
-        routeId,
+        routeId: routeId as number,
       })
       onCancel()
     } catch (e) {
@@ -88,13 +89,13 @@ export function CustomerForm({ routes, initialRouteId, initial, onSave, onCancel
           </label>
           <label className="field">
             <span>Route</span>
-            <select value={routeId} onChange={(e) => setRouteId(Number(e.target.value))}>
-              {routes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              options={routes.map((r) => ({ value: r.id, label: r.name }))}
+              value={routeId}
+              onChange={setRouteId}
+              placeholder="Select route…"
+              allowClear
+            />
           </label>
           <label className="field">
             <span>Shop name</span>

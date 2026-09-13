@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
 import type { Customer } from '@shared/types/customer'
+import type { Route } from '@shared/types/route'
+import { SearchSelect } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount } from '@shared/calc/invoice-totals'
@@ -10,9 +12,7 @@ export interface InvoiceFormValues {
   customerId: number | null
   brokerId: number | null
   filerStatus: 'filer' | 'non_filer'
-  remaining: string
   tax: string
-  grandTotal: string
   items: Array<{
     productId: number | null
     rate: string
@@ -22,6 +22,7 @@ export interface InvoiceFormValues {
 }
 
 interface Props {
+  routes: Route[]
   customers: Customer[]
   brokers: Broker[]
   products: Product[]
@@ -33,16 +34,50 @@ function emptyLine() {
   return { productId: null as number | null, rate: '', cartonCount: '', boxCount: '' }
 }
 
-export function InvoiceForm({ customers, brokers, products, preselectCustomerId, onSubmit }: Props) {
-  const [customerId, setCustomerId] = useState<number | null>(preselectCustomerId ?? null)
+export function InvoiceForm({ routes, customers, brokers, products, preselectCustomerId, onSubmit }: Props) {
+  const [routeId, setRouteId] = useState<number | null>(null)
+  const [customerId, setCustomerId] = useState<number | null>(null)
   const [brokerId, setBrokerId] = useState<number | null>(null)
   const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('filer')
   const [items, setItems] = useState(() => [emptyLine()])
-  const [remaining, setRemaining] = useState('')
   const [tax, setTax] = useState('')
-  const [grandTotal, setGrandTotal] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // When opened from a customer's "New Invoice" button, preselect both the
+  // customer and its delivery route so the customer list matches it.
+  useEffect(() => {
+    if (preselectCustomerId == null) return
+    const customer = customers.find((c) => c.id === preselectCustomerId)
+    if (!customer) return
+    setCustomerId(customer.id)
+    setRouteId(customer.routeId)
+  }, [preselectCustomerId, customers])
+
+  const routeName = (routeId: number): string =>
+    routes.find((r) => r.id === routeId)?.name ?? ''
+
+  const routeOptions = useMemo(
+    () => routes.map((r) => ({ value: r.id, label: r.name })),
+    [routes]
+  )
+
+  const customerOptions = useMemo(() => {
+    const onRoute = routeId === null ? customers : customers.filter((c) => c.routeId === routeId)
+    return onRoute.map((c) => ({
+      value: c.id,
+      label: `${c.code} — ${c.shopName || c.ownerName}`,
+      hint: routeName(c.routeId),
+    }))
+  }, [customers, routeId, routeName])
+
+  const handleRouteChange = (id: number | null) => {
+    setRouteId(id)
+    if (id !== null && customerId !== null) {
+      const customer = customers.find((c) => c.id === customerId)
+      if (customer && customer.routeId !== id) setCustomerId(null)
+    }
+  }
 
   const productById = useMemo(() => {
     const map = new Map<number, Product>()
@@ -65,6 +100,13 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
     }
     return total
   }, [items, productById])
+
+  // Grand total = subtotal + manually entered tax; remaining = grand total
+  // minus recorded payments (a freshly created invoice has none, so it starts
+  // at the full grand total and shrinks as payments are applied later).
+  const taxCents = tax.trim() === '' ? 0 : moneyToCents(tax)
+  const grandTotal = subtotal + taxCents
+  const remaining = grandTotal
 
   const setLine = (index: number, patch: Partial<InvoiceFormValues['items'][number]>) => {
     setItems((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
@@ -127,9 +169,7 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
         customerId,
         brokerId,
         filerStatus,
-        remaining,
         tax,
-        grandTotal,
         items: validLines.map((l) => ({
           productId: l.productId,
           rate: l.rate,
@@ -145,34 +185,37 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
 
   return (
     <div className="feature">
-      <div className="form-grid form-grid-3">
+      <div className="form-grid form-grid-4">
+        <label className="field">
+          <span>Route</span>
+          <SearchSelect
+            options={routeOptions}
+            value={routeId}
+            onChange={handleRouteChange}
+            placeholder="All routes"
+            allowClear
+          />
+        </label>
         <label className="field">
           <span>Customer</span>
-          <select
-            value={customerId ?? ''}
-            onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Select customer…</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.code} — {c.shopName || c.ownerName}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            options={customerOptions}
+            value={customerId}
+            onChange={setCustomerId}
+            placeholder="Select customer…"
+            emptyText={routeId === null ? 'No customers' : 'No customers on this route'}
+            allowClear
+          />
         </label>
         <label className="field">
           <span>Booker</span>
-          <select
-            value={brokerId ?? ''}
-            onChange={(e) => setBrokerId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Select booker…</option>
-            {brokers.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            options={brokers.map((b) => ({ value: b.id, label: b.name }))}
+            value={brokerId}
+            onChange={setBrokerId}
+            placeholder="Select booker…"
+            allowClear
+          />
         </label>
         <div className="field toggle-field">
           <span>Filer</span>
@@ -196,24 +239,19 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
           <div className="invoice-line" key={i}>
             <label className="field line-product">
               <span>Product</span>
-              <select
-                value={line.productId ?? ''}
-                onChange={(e) => {
-                  const pid = e.target.value ? Number(e.target.value) : null
+              <SearchSelect
+                options={products.map((p) => ({ value: p.id, label: p.name }))}
+                value={line.productId}
+                onChange={(pid) => {
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
                     rate: p ? (p.rate / 100).toFixed(2) : line.rate,
                   })
                 }}
-              >
-                <option value="">Select product…</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select product…"
+                allowClear
+              />
             </label>
             <label className="field line-qty">
               <span>Rate (Rs.)</span>
@@ -278,17 +316,6 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
           <strong className="mono">{formatMoney(subtotal)}</strong>
         </div>
         <div className="totals-row">
-          <span>Remaining amount (manual)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={remaining}
-            onChange={(e) => setRemaining(e.target.value)}
-            placeholder="0.00"
-          />
-        </div>
-        <div className="totals-row">
           <span>Tax (manual)</span>
           <input
             type="number"
@@ -300,15 +327,12 @@ export function InvoiceForm({ customers, brokers, products, preselectCustomerId,
           />
         </div>
         <div className="totals-row">
-          <span>Grand total (manual)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={grandTotal}
-            onChange={(e) => setGrandTotal(e.target.value)}
-            placeholder="0.00"
-          />
+          <span>Grand total (automatic)</span>
+          <strong className="mono">{formatMoney(grandTotal)}</strong>
+        </div>
+        <div className="totals-row">
+          <span>Remaining amount (automatic)</span>
+          <strong className="mono">{formatMoney(remaining)}</strong>
         </div>
       </div>
 

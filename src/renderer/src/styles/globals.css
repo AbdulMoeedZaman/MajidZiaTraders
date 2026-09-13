@@ -2129,3 +2129,147 @@ tr.is-cancelled td {
 .pay-modal-info > p {
   margin: 4px 0 0;
 }
+
+/* 4-column form grid (invoice: Route / Customer / Booker / Filer). */
+.form-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Searchable dropdown / combobox (replaces native selects). */
+.search-select {
+  position: relative;
+  width: 100%;
+}
+
+.field .search-select {
+  min-width: 0;
+}
+
+.search-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.search-select-trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.search-select-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-select-value.muted {
+  color: var(--text-muted);
+}
+
+.search-select-caret {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex: none;
+}
+
+.search-select-clear {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.search-select-clear:hover {
+  color: var(--text);
+}
+
+.search-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.14);
+  overflow: hidden;
+}
+
+.search-select-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-select-options {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.search-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.search-select-option:hover,
+.search-select-option.active {
+  background: #eef2ff;
+}
+
+.search-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-select-option-hint {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.search-select-empty {
+  padding: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}

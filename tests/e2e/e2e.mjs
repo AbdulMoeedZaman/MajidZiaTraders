@@ -61,6 +61,22 @@ const check = (tid, name, pass, detail) => {
 const nav = (label) => ev(`(()=>{const b=[...document.querySelectorAll('.nav-item')].find(b=>b.textContent.trim().endsWith(${JSON.stringify(label)})); if(b) b.click(); return !!b})()`)
 const clickBtn = (text) => ev(`(()=>{const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()===${JSON.stringify(text)}); if(!b.length) return false; b[0].click(); return true})()`)
 const clickRowWith = (text) => ev(`(()=>{const r=[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes(${JSON.stringify(text)})); if(!r) return false; r.click(); return true})()`)
+// Select a value from a SearchSelect (searchable dropdown) by its label text.
+// Finds the control inside the <label> whose caption starts with `name`,
+// opens it, then clicks the option whose label includes `label` (typing the
+// first word first to narrow the list if needed).
+const ss = (name) => `[...document.querySelectorAll('.search-select')].find((n)=>n.closest('label')?.innerText?.trim().startsWith(${JSON.stringify(name)}))`
+const pick = async (name, label) => {
+  const opened = await ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const t=ctrl.querySelector('.search-select-trigger'); if(!t) return false; t.click(); return true})()`)
+  if (!opened) return false
+  await wait(150)
+  const clickMatch = (outer) => ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const el=[...ctrl.querySelectorAll('.search-select-option')].find((o)=>(o.dataset.label||'').includes(${JSON.stringify(label)})); if(!el) return false; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true})); return true})()`)
+  if (await clickMatch()) return true
+  const typed = await ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const inp=ctrl.querySelector('.search-select-input'); if(!inp) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,${JSON.stringify(label)}.split(' ')[0]); inp.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
+  if (!typed) return false
+  await wait(150)
+  return clickMatch()
+}
 
 try {
   // =============== UI-0: fresh install layout ===============
@@ -96,7 +112,7 @@ try {
 
   const noOwner = await inv('invoices:create', {
     customerId: C1.id, brokerId: 9999, date: TODAY, filerStatus: 'filer',
-    remaining: null, tax: null, grandTotal: null,
+    tax: null,
     items: [{ productId: P1.id, rate: 65000, cartonCount: 1, boxCount: 0 }],
   })
   check('EO-1', 'Creating an invoice before a project owner is set up is rejected',
@@ -111,7 +127,7 @@ try {
   const item = (productId, rate, cartonCount, boxCount) => ({ productId, rate, cartonCount, boxCount })
   const I1 = must(await inv('invoices:create', {
     customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
-    remaining: null, tax: null, grandTotal: null,
+    tax: null,
     items: [item(P1.id, 65000, 2, 5)],
   }), 'I1')
   // 65000*2 + 65000*5/10 = 130000 + 32500
@@ -119,22 +135,22 @@ try {
 
   const I2 = must(await inv('invoices:create', {
     customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'non_filer',
-    remaining: 10000, tax: 5000, grandTotal: 200000,
+    tax: 5000,
     items: [item(P2.id, 15000, 4, 0)],
   }), 'I2')
   const i2 = must(await inv('invoices:get-with-details', I2.id), 'I2 details')
-  check('I-2', 'Invoice #2 sequential, manual totals stored as entered, details resolve customer/owner/broker',
-    I2.invoiceNumber === 'INV-000002' && i2.invoice.remaining === 10000 && i2.invoice.tax === 5000 && i2.invoice.grandTotal === 200000 && i2.customer.code === 'WK-001' && i2.owner.name === 'Majid Zia Motors' && i2.broker.name === 'Bashir Ahmad',
+  check('I-2', 'Invoice #2 sequential, grand total = subtotal + tax, details resolve customer/owner/broker',
+    I2.invoiceNumber === 'INV-000002' && i2.invoice.remaining === 65000 && i2.invoice.tax === 5000 && i2.invoice.grandTotal === 65000 && i2.customer.code === 'WK-001' && i2.owner.name === 'Majid Zia Motors' && i2.broker.name === 'Bashir Ahmad',
     { number: I2.invoiceNumber, remaining: i2.invoice.remaining, tax: i2.invoice.tax, grand: i2.invoice.grandTotal })
 
   const belowMin = await inv('invoices:create', {
     customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
-    remaining: null, tax: null, grandTotal: null,
+    tax: null,
     items: [item(P1.id, 64999, 1, 0)],
   })
-  const noItems = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [] })
-  const badDate = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
-  const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', remaining: null, tax: null, grandTotal: null, items: [item(P1.id, 65000, 1, 0)] })
+  const noItems = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [] })
+  const badDate = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 1, 0)] })
+  const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 1, 0)] })
   check('I-3', 'Invoice guards: below-min rate, empty items, invalid date, unknown customer all rejected',
     !belowMin.ok && !noItems.ok && !badDate.ok && !badCust.ok, [belowMin.e, noItems.e, badDate.e, badCust.e])
 
@@ -254,13 +270,15 @@ try {
     { renamedTab, name: tueRoute?.name, day: tueRoute?.day })
 
   // =============== UI-5: create an invoice through the UI form and inspect the print sheet ===============
-  const brokerId = B1.id
   await nav('Invoices'); await wait(900)
   await clickBtn('+ New Invoice'); await wait(700)
+  await pick('Route', 'Monday')
+  await pick('Customer', 'Bilal Auto Shop')
+  await pick('Booker', 'Bashir Ahmad')
+  await pick('Product', 'GAUGE 2026')
+  await wait(200)
   await ev(`(()=>{
-    const sel=(name,val)=>{const s=[...document.querySelectorAll('label.field select')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!s) return false; Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(s,String(val)); s.dispatchEvent(new Event('change',{bubbles:true})); return true};
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
-    sel('Customer', ${C1.id}); sel('Booker', ${brokerId}); sel('Product', ${gauge.id});
     num('Rate (Rs.)','2.00'); num('Carton no.','3'); return true
   })()`)
   await wait(400)
@@ -331,7 +349,7 @@ try {
     { loadButton: loadBtnShown, checkboxCount: checkboxesShown, afterCancel: boxesAfterCancel, disabledBeforeSelection: !enabledBefore, enabledAfterSelection: enabledAfter, products: lfHasProducts, customers: lfHasCustomers, grandTotal: lfGrandTotal, invoiceNumbers: lfCoversInvoices })
   const lfData = must(await inv('invoices:build-load-form', [I1.id, I2.id]), 'load form data')
   check('UI-7b', 'Load form IPC aggregates quantities and rupee customer totals for the same invoices',
-    lfData.products.length === 2 && lfData.grandTotal === 362500 &&
+    lfData.products.length === 2 && lfData.grandTotal === 227500 &&
     lfData.products.find((p) => p.productName === 'Axle Bearing 6204').cartonCount === 2 &&
     lfData.products.find((p) => p.productName === 'Axle Bearing 6204').boxCount === 5,
     { products: lfData.products, customers: lfData.customers, grandTotal: lfData.grandTotal })
@@ -344,16 +362,14 @@ try {
   await clickBtn('Restock'); await wait(400)
   const restockModalOpen = await ev(`!!document.querySelector('.modal') && document.querySelector('.modal')?.innerText.includes('Restock Product')`)
   await ev(`(()=>{
-    const sel=[...document.querySelectorAll('.modal select')].find((n)=>n.closest('label')?.innerText.includes('Product'));
-    if(!sel) return false;
-    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set.call(sel, String(${gauge.id}));
-    sel.dispatchEvent(new Event('change',{bubbles:true}));
     const inp=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.includes('Quantity'));
     if(!inp) return false;
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,'50');
     inp.dispatchEvent(new Event('input',{bubbles:true}));
     return true
   })()`)
+  await pick('Product', 'GAUGE 2026')
+  await wait(200)
   await clickBtn('Add Stock'); await wait(1000)
   const restockSuccess = await ev(`document.querySelector('.form-success')?.innerText ?? ''`)
   const stockList = must(await inv('stock:list'), 'stock list')

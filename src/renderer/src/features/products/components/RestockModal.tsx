@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Product } from '@shared/types/product'
 import type { CreateRestockDTO } from '@shared/types/stock'
+import { SearchSelect } from '../../../components/SearchSelect'
 
 interface Props {
   products: Product[]
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function RestockModal({ products, onConfirm, onCancel }: Props) {
-  const [productId, setProductId] = useState<number | ''>(products[0]?.id ?? '')
+  const [productId, setProductId] = useState<number | null>(products[0]?.id ?? null)
   const [quantity, setQuantity] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -24,7 +25,7 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
 
   const submit = async () => {
     setError(null)
-    if (productId === '') {
+    if (productId === null) {
       setError('Select a product')
       return
     }
@@ -35,7 +36,7 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
     }
     setSaving(true)
     try {
-      await onConfirm({ productId: productId as number, quantity: qty })
+      await onConfirm({ productId, quantity: qty })
       onCancel()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to restock product')
@@ -53,16 +54,13 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
         <div className="form-grid">
           <label className="field field-span-2">
             <span>Product</span>
-            <select
+            <SearchSelect
+              options={products.map((p) => ({ value: p.id, label: p.name }))}
               value={productId}
-              onChange={(e) => setProductId(e.target.value ? Number(e.target.value) : '')}
-            >
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={setProductId}
+              placeholder="Select product…"
+              allowClear
+            />
           </label>
           <label className="field">
             <span>Quantity</span>
