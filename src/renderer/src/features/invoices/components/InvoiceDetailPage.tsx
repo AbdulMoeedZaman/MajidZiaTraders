@@ -169,9 +169,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           </div>
         )}
 
-        <div className="ip-title">
-          <span className="ip-title-number">{invoice.invoiceNumber}</span>
-        </div>
 
         {/* ── Metadata boxes ───────────────────────────────────────────── */}
         <div className="ip-meta">
@@ -190,8 +187,10 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
             <div className="ip-meta-line right"><span>Date:</span> <span>{printDate(invoice.date)}</span></div>
             {broker && (
               <>
-                <div className="ip-meta-line right"><span>Booker name:</span> <span>{broker.name}</span></div>
-                <div className="ip-meta-line right"><span>Booker phone:</span> <span>{broker.phone ?? '—'}</span></div>
+                <div className="ip-meta-line right"><span>Order Booker:</span> <span><strong>{broker.name}</strong></span></div>
+                <div className="ip-meta-line right"><span>PH#:</span> <span>{broker.phone ?? '—'}</span></div>
+                
+          <span className="ip-title-number">{invoice.invoiceNumber}</span>
               </>
             )}
           </div>

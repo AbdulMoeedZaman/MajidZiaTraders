@@ -1312,7 +1312,7 @@ body {
 @media print {
   @page {
     size: A4 landscape;
-    margin: 10mm;
+    margin: 6mm;
   }
   body * {
     visibility: hidden;
@@ -1325,7 +1325,7 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: 50%;
+    width: 47%;
   }
   .toolbar,
   .detail-actions,

@@ -12,6 +12,7 @@ interface Props {
 export function RestockModal({ products, onConfirm, onCancel }: Props) {
   const [productId, setProductId] = useState<number | null>(products[0]?.id ?? null)
   const [quantity, setQuantity] = useState('')
+  const [loosePieces, setLoosePieces] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -30,13 +31,26 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
       return
     }
     const qty = Number(quantity)
-    if (!Number.isInteger(qty) || qty <= 0) {
-      setError('Cartons must be a whole number greater than zero')
+    const loose = Number(loosePieces)
+    if (quantity !== '' && (!Number.isInteger(qty) || qty < 0)) {
+      setError('Cartons must be a whole number of at least 0')
+      return
+    }
+    if (loosePieces !== '' && (!Number.isInteger(loose) || loose < 0)) {
+      setError('Loose pieces must be a whole number of at least 0')
+      return
+    }
+    if ((Number.isInteger(qty) ? qty : 0) === 0 && (Number.isInteger(loose) ? loose : 0) === 0) {
+      setError('Enter cartons or loose pieces to restock')
       return
     }
     setSaving(true)
     try {
-      await onConfirm({ productId, quantity: qty })
+      await onConfirm({
+        productId,
+        quantity: quantity === '' ? 0 : qty,
+        loosePieces: loosePieces === '' ? 0 : loose,
+      })
       onCancel()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to restock product')
@@ -66,11 +80,22 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
             <span>Cartons</span>
             <input
               type="number"
-              min="1"
+              min="0"
               step="1"
               value={quantity}
               autoFocus
               onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0"
+            />
+          </label>
+          <label className="field">
+            <span>Loose pcs</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={loosePieces}
+              onChange={(e) => setLoosePieces(e.target.value)}
               placeholder="0"
             />
           </label>

@@ -189,6 +189,15 @@ try {
     !!freshReturn && freshReturn.quantity === 20 && freshReturn.newQuantity === freshSale.previousQuantity &&
     freshStillThere && freshStillThere.status === 'cancelled',
     { paidOne: { status: paidOne.status, paid: paidOne.paidAmount }, paidThree: { status: paidThree.status, paid: paidThree.paidAmount }, p1, p3, cancelled: { status: cancelled.status, paid: cancelled.paidAmount }, freshPays: freshPays.length, stock: stockNow.filter((m) => m.referenceId === fresh.id).map((m) => ({ t: m.type, q: m.quantity, prev: m.previousQuantity, new: m.newQuantity })) })
+
+  // X-12: restock accepts loose pieces alone (0 cartons + 5 pcs → 5-piece purchase movement)
+  const looseLead = productsSorted[0].id
+  const looseBefore = must(await inv('stock:list'), 'stock before loose restock')
+  const prevForProduct = looseBefore.find((m) => m.productId === looseLead)?.newQuantity ?? 0
+  const looseRestock = must(await inv('stock:restock', { productId: looseLead, quantity: 0, loosePieces: 5 }), 'loose-piece restock')
+  check('X-12', 'Restock accepts loose pieces on their own (0 cartons + 5 pcs = 5-piece purchase)',
+    looseRestock.quantity === 5 && looseRestock.previousQuantity === prevForProduct && looseRestock.newQuantity === prevForProduct + 5,
+    { restock: { quantity: looseRestock.quantity, previous: looseRestock.previousQuantity, new: looseRestock.newQuantity }, before: prevForProduct })
 } catch (err) {
   console.log('\nSCRIPT STOPPED:', err.message)
   process.exitCode = 1

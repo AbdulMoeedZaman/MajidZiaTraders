@@ -38,14 +38,35 @@ describe('StockService', () => {
     expect(byProduct[0].productName).toBe('Widget 1')
   })
 
+  it('restock supports loose pieces on their own or mixed with cartons', () => {
+    const service = new StockService()
+    const seed = seedBasics()
+
+    const looseOnly = service.restock({ productId: seed.product.id, quantity: 0, loosePieces: 7 })
+    expect(looseOnly.quantity).toBe(7)
+    expect(looseOnly.newQuantity).toBe(7)
+
+    const mixed = service.restock({ productId: seed.product.id, quantity: 2, loosePieces: 5 })
+    expect(mixed.quantity).toBe(29) // 2 cartons × 12 + 5 pieces
+    expect(mixed.previousQuantity).toBe(7)
+    expect(mixed.newQuantity).toBe(36)
+
+    const cartonsOnly = service.restock({ productId: seed.product.id, quantity: 50 })
+    expect(cartonsOnly.quantity).toBe(600)
+    expect(cartonsOnly.newQuantity).toBe(636)
+  })
+
   it('rejects restock with an unknown product or an invalid quantity', () => {
     const service = new StockService()
     const seed = seedBasics()
 
     expect(() => service.restock({ productId: 9999, quantity: 5 })).toThrow(/Product not found/)
-    expect(() => service.restock({ productId: seed.product.id, quantity: 0 })).toThrow(/whole number/)
+    expect(() => service.restock({ productId: seed.product.id, quantity: 0 })).toThrow(/Enter cartons or loose pieces/)
+    expect(() => service.restock({ productId: seed.product.id, quantity: 0, loosePieces: 0 })).toThrow(/Enter cartons or loose pieces/)
     expect(() => service.restock({ productId: seed.product.id, quantity: -3 })).toThrow(/whole number/)
     expect(() => service.restock({ productId: seed.product.id, quantity: 2.5 })).toThrow(/whole number/)
+    expect(() => service.restock({ productId: seed.product.id, quantity: 5, loosePieces: -1 })).toThrow(/whole number/)
+    expect(() => service.restock({ productId: seed.product.id, quantity: 5, loosePieces: 1.5 })).toThrow(/whole number/)
     expect(service.list()).toHaveLength(0)
   })
 

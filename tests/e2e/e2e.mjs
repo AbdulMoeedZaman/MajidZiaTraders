@@ -411,12 +411,12 @@ try {
   await clickRowWith('GAUGE 2026'); await wait(1000)
   const detailHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
   const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
-  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*600/.test(detailText)
-  const detailHasHistory = detailText.includes('+600 pcs') && detailText.includes('-36')
+  const detailHasInStock = detailText.includes('In stock') && /600\s*pcs\s*\(50\s*ctn\s*\+\s*0\s*box\)/.test(detailText)
+  const detailHasHistory = detailText.includes('+50') && detailText.includes('-3')
   const detailToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
   const detailPrintExport = detailToolbarBtns.includes('Print') && detailToolbarBtns.includes('Export CSV')
-  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +600 pcs, sale -36 and In stock 600',
-    detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory && detailPrintExport,
+  check('UI-10', 'Product detail page shows a per-product history with separate cartons and boxes columns (restock +50 ctn / +0 box, sale -3 ctn / 0 box, In stock 600 pcs (50 ctn + 0 box))',
+    detailHeaders === 'Date,Customer,Price,Cartons,Boxes' && detailHasInStock && detailHasHistory && detailPrintExport,
     { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory, printExport: detailPrintExport, toolbar: detailToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
   const backToProducts = await ev(`!!document.querySelector('.toolbar input.search-input')`)
@@ -618,8 +618,13 @@ try {
   // =============== H-5: dashboard Owed + Cash flow modal breakdowns ===============
   await nav('Dashboard'); await wait(1200)
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Owed amount')?.click()`)
-  await wait(700)
-  const owedModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
+  const owedDeadline = Date.now() + 4000
+  let owedModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
+  while ((!owedModal || !owedModal.toUpperCase().includes('AMOUNT OWED')) && Date.now() < owedDeadline) {
+    await wait(200)
+    await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Owed amount')?.click()`)
+    owedModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
+  }
   const owedModalUpper = owedModal.toUpperCase()
   check('H-5a', 'Owed amount modal lists the per-customer outstanding balances',
     owedModalUpper.includes('AMOUNT OWED') && owedModalUpper.includes('EMERALD PARTS') &&

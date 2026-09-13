@@ -34,10 +34,12 @@ export interface StockMovementWithProduct extends StockMovement {
 export interface CreateRestockDTO {
   productId: number
   /**
-   * Whole cartons to add (must be a whole number greater than zero). The ledger
-   * records pieces: cartons × the product's boxesPerCarton.
+   * Whole cartons to add (must be a whole number of at least 0). The ledger
+   * records pieces: cartons × the product's boxesPerCarton + loosePieces.
    */
   quantity: number
+  /** Loose pieces (boxes) to add on top of the cartons. Defaults to 0. */
+  loosePieces?: number
 }
 
 /** Current running balance for every product (last ledger entry's newQuantity, in pieces). */

@@ -36,19 +36,28 @@ export class StockService {
 
   /**
    * Adds stock via a `purchase` movement. The DTO's `quantity` is the number of
-   * whole cartons; the ledger records the equivalent pieces
-   * (cartons × product.boxesPerCarton) so stock balances are always in pieces.
+   * whole cartons and `loosePieces` the loose pieces on top; the ledger records
+   * the equivalent total pieces (cartons × boxesPerCarton + loosePieces) so
+   * balances are always in pieces. At least one of the two must be present.
    */
   restock(data: CreateRestockDTO): StockMovement {
     const product = this.productRepo.findById(data.productId)
     if (!product) {
       throw new Error('Product not found')
     }
-    if (!Number.isInteger(data.quantity) || data.quantity <= 0) {
-      throw new Error('Cartons must be a whole number greater than zero')
+    const cartons = data.quantity
+    const loose = data.loosePieces ?? 0
+    if (!Number.isInteger(cartons) || cartons < 0) {
+      throw new Error('Cartons must be a whole number of at least 0')
+    }
+    if (!Number.isInteger(loose) || loose < 0) {
+      throw new Error('Loose pieces must be a whole number of at least 0')
+    }
+    if (cartons === 0 && loose === 0) {
+      throw new Error('Enter cartons or loose pieces to restock')
     }
 
-    const pieces = data.quantity * product.boxesPerCarton
+    const pieces = cartons * product.boxesPerCarton + loose
     return this.stockRepo.runInTransaction(() => {
       const previous = this.stockRepo.lastNewQuantity(data.productId) ?? 0
       const movement = this.stockRepo.insert({
@@ -63,11 +72,13 @@ export class StockService {
         date: localDate(new Date()),
         price: null,
       })
+      const detail = cartons > 0 ? `+${cartons} ctn` : ''
+      const loosePart = loose > 0 ? `+${loose} pcs` : ''
       this.history.append({
         action: 'restocked',
         targetType: 'stock',
         targetId: movement.id,
-        summary: `Restocked "${product.name}" +${data.quantity} ctn (+${pieces} pcs)`,
+        summary: `Restocked "${product.name}" ${detail} ${loosePart} (+${pieces} pcs)`.replace(/\s+/g, ' ').trim(),
         snapshot: { movement, productName: product.name },
       })
       return movement

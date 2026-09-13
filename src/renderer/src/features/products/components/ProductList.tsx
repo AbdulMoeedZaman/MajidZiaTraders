@@ -56,10 +56,13 @@ export function ProductList({ onOpen }: Props) {
     }
   }
 
-  const handleRestock = async (data: { productId: number; quantity: number }) => {
+  const handleRestock = async (data: { productId: number; quantity: number; loosePieces?: number }) => {
     const product = products.find((p) => p.id === data.productId)
     await api.stock.restock(data)
-    setSuccess(`Added ${data.quantity} cartons to ${product?.name ?? 'product'}`)
+    const parts: string[] = []
+    if (data.quantity > 0) parts.push(`${data.quantity} cartons`)
+    if ((data.loosePieces ?? 0) > 0) parts.push(`${data.loosePieces} pcs`)
+    setSuccess(`Added ${parts.length ? parts.join(' + ') : 'stock'} to ${product?.name ?? 'product'}`)
     window.setTimeout(() => setSuccess(null), 3000)
   }
 

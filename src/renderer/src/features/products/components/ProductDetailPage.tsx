@@ -10,6 +10,15 @@ interface Props {
   onBack: () => void
 }
 
+function splitUnits(pieces: number, perCarton: number): { cartons: number; boxes: number } {
+  const sign = pieces < 0 ? -1 : 1
+  const abs = Math.abs(pieces)
+  return {
+    cartons: sign * Math.floor(abs / perCarton),
+    boxes: sign * (abs % perCarton),
+  }
+}
+
 export function ProductDetailPage({ productId, onBack }: Props) {
   const [product, setProduct] = useState<Product | null>(null)
   const [movements, setMovements] = useState<StockMovementWithProduct[]>([])
@@ -39,18 +48,24 @@ export function ProductDetailPage({ productId, onBack }: Props) {
 
   const latest = [...movements].sort((a, b) => b.id - a.id)[0]
   const inStock = latest ? latest.newQuantity : null
+  const perCarton = product?.boxesPerCarton ?? 1
+  const inStockUnits = inStock != null ? splitUnits(inStock, perCarton) : null
 
   const title = `${product?.name ?? 'Product'} — stock history`
   const sections: ReportSection[] = [
     {
       title: 'Stock history',
-      columns: ['Date', 'Customer', 'Price', 'Quantity'],
-      rows: movements.map((m) => [
-        formatStockDate(m.date),
-        m.customerName ?? '—',
-        m.price != null ? formatMoney(m.price) : '—',
-        m.type === 'purchase' ? `+${m.quantity} pcs` : String(m.quantity),
-      ]),
+      columns: ['Date', 'Customer', 'Price', 'Cartons', 'Boxes'],
+      rows: movements.map((m) => {
+        const u = splitUnits(m.quantity, perCarton)
+        return [
+          formatStockDate(m.date),
+          m.customerName ?? '—',
+          m.price != null ? formatMoney(m.price) : '—',
+          String(u.cartons),
+          String(u.boxes),
+        ]
+      }),
     },
   ]
 
@@ -94,7 +109,7 @@ export function ProductDetailPage({ productId, onBack }: Props) {
             </div>
             <div>
               <dt>In stock</dt>
-              <dd>{inStock ?? '—'}</dd>
+              <dd>{inStock != null && inStockUnits ? `${inStock} pcs (${inStockUnits.cartons} ctn + ${inStockUnits.boxes} box)` : '—'}</dd>
             </div>
           </div>
         </div>
@@ -115,24 +130,28 @@ export function ProductDetailPage({ productId, onBack }: Props) {
                 <th>Date</th>
                 <th>Customer</th>
                 <th className="num">Price</th>
-                <th className="num">Quantity</th>
+                <th className="num">Cartons</th>
+                <th className="num">Boxes</th>
               </tr>
             </thead>
             <tbody>
-              {movements.map((m) => (
-                <tr key={m.id}>
-                  <td>{formatStockDate(m.date)}</td>
-                  <td>{m.customerName ?? '—'}</td>
-                  <td className="num mono">{m.price != null ? formatMoney(m.price) : '—'}</td>
-                  <td className="num">
-                    {m.type === 'purchase' ? (
-                      <span className="stock-in">+{m.quantity} pcs</span>
-                    ) : (
-                      <span className="stock-out">{m.quantity}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {movements.map((m) => {
+                const u = splitUnits(m.quantity, perCarton)
+                const cls = m.type === 'purchase' ? 'stock-in' : 'stock-out'
+                return (
+                  <tr key={m.id}>
+                    <td>{formatStockDate(m.date)}</td>
+                    <td>{m.customerName ?? '—'}</td>
+                    <td className="num mono">{m.price != null ? formatMoney(m.price) : '—'}</td>
+                    <td className="num">
+                      <span className={cls}>{m.type === 'purchase' ? `+${u.cartons}` : String(u.cartons)}</span>
+                    </td>
+                    <td className="num">
+                      <span className={cls}>{m.type === 'purchase' ? `+${u.boxes}` : String(u.boxes)}</span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
