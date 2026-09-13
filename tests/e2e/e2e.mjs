@@ -400,9 +400,11 @@ try {
   const invHasRestock = invText.includes('+50 Restocks')
   const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650.00') && invText.includes('-7')
   const invHasSpring = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('Valve Spring') && r.textContent.includes('-4'))`)
+  const invToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
+  const invPrintExport = invToolbarBtns.includes('Print') && invToolbarBtns.includes('Export CSV')
   check('UI-9', 'Inventory view lists restocks (+50 Restocks) and invoice sales with customer, price and quantity',
-    invHasRestock && invHasSale && invHasSpring,
-    { restockRow: invHasRestock, saleRow: invHasSale, springRow: invHasSpring })
+    invHasRestock && invHasSale && invHasSpring && invPrintExport,
+    { restockRow: invHasRestock, saleRow: invHasSale, springRow: invHasSpring, printExport: invPrintExport, toolbar: invToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
 
   await clickRowWith('GAUGE 2026'); await wait(1000)
@@ -410,9 +412,11 @@ try {
   const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
   const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*50/.test(detailText)
   const detailHasHistory = detailText.includes('+50 Restocks') && detailText.includes('-3')
+  const detailToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
+  const detailPrintExport = detailToolbarBtns.includes('Print') && detailToolbarBtns.includes('Export CSV')
   check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +50, sale -3 and In stock 50',
-    detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory,
-    { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory })
+    detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory && detailPrintExport,
+    { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory, printExport: detailPrintExport, toolbar: detailToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
   const backToProducts = await ev(`!!document.querySelector('.toolbar input.search-input')`)
   check('UI-10b', 'Product detail can be closed back to the product list', backToProducts, { backToProducts })
@@ -434,8 +438,11 @@ try {
   const profitUpper = profitDetail.toUpperCase()
   const profitHasColumns = profitUpper.includes('INVOICES') && profitUpper.includes('SALES') && profitUpper.includes('PROFIT')
   const profitHasMoney = profitDetail.includes('Rs.')
-  check('UI-11b', 'Clicking the Profit matrix opens a modal with the per-customer profit breakdown',
-    profitHasCustomer && profitHasColumns && profitHasMoney, { profitHasCustomer, profitHasColumns, profitHasMoney })
+  const profitActions = await ev(`[...document.querySelectorAll('.detail-modal .modal-actions button')].map((b)=>b.textContent.trim()).join(',')`)
+  const profitCsvWired = await ev(`(()=>{const orig=HTMLAnchorElement.prototype.click;window.__csvFired=false;HTMLAnchorElement.prototype.click=function(){if(this.download&&this.href)window.__csvFired=true;};const b=[...document.querySelectorAll('.detail-modal .modal-actions button')].find((x)=>x.textContent.trim()==='Export CSV');b?.click();const ok=window.__csvFired;HTMLAnchorElement.prototype.click=orig;return ok})()`)
+  check('UI-11b', 'Clicking the Profit matrix opens a modal with Print/Export CSV actions and a breakdown',
+    profitHasCustomer && profitHasColumns && profitHasMoney && profitActions.includes('Print') && profitActions.includes('Export CSV') && profitCsvWired,
+    { profitHasCustomer, profitHasColumns, profitHasMoney, actions: profitActions, csvWired: profitCsvWired })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Remaining stock')?.click()`)
@@ -444,9 +451,10 @@ try {
   const stockSections = await ev(`[...document.querySelectorAll('.modal-section h4')].map((h)=>h.textContent.trim()).join(',')`)
   const stockHasGauge = /GAUGE 202650/.test(stockRows)
   const stockHasOthers = stockRows.includes('Axle Bearing 62040') && stockRows.includes('Valve Spring0')
+  const stockActions = await ev(`[...document.querySelectorAll('.detail-modal .modal-actions button')].map((b)=>b.textContent.trim()).join(',')`)
   check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with the inventory and today dispatches',
-    stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers,
-    { stockRows, stockSections, stockHasGauge, stockHasOthers })
+    stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers && stockActions === 'Print,Export CSV,Close',
+    { stockRows, stockSections, stockHasGauge, stockHasOthers, actions: stockActions })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices')?.click()`)

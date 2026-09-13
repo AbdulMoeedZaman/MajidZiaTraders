@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { formatMoney, formatStockDate } from '../../../lib/format'
+import { exportReportCsv, printReport, type ReportSection } from '../../../lib/report'
 import type { Product } from '@shared/types/product'
 import type { StockMovementWithProduct } from '@shared/types/stock'
 
@@ -39,6 +40,20 @@ export function ProductDetailPage({ productId, onBack }: Props) {
   const latest = [...movements].sort((a, b) => b.id - a.id)[0]
   const inStock = latest ? latest.newQuantity : null
 
+  const title = `${product?.name ?? 'Product'} — stock history`
+  const sections: ReportSection[] = [
+    {
+      title: 'Stock history',
+      columns: ['Date', 'Customer', 'Price', 'Quantity'],
+      rows: movements.map((m) => [
+        formatStockDate(m.date),
+        m.customerName ?? '—',
+        m.price != null ? formatMoney(m.price) : '—',
+        m.type === 'purchase' ? `+${m.quantity} Restocks` : String(m.quantity),
+      ]),
+    },
+  ]
+
   if (loading) return <div className="placeholder"><h3>Loading product…</h3></div>
   if (error) return <div className="error-screen">{error}</div>
   if (!product) return <div className="error-screen">This product does not exist anymore.</div>
@@ -52,6 +67,12 @@ export function ProductDetailPage({ productId, onBack }: Props) {
             ↻
           </button>
         </div>
+        <button className="btn ghost" onClick={() => printReport(title, `In stock: ${inStock ?? '—'}`, sections)}>
+          Print
+        </button>
+        <button className="btn ghost" onClick={() => exportReportCsv(title, sections)}>
+          Export CSV
+        </button>
         <button className="btn ghost" onClick={onBack}>
           Back to Products
         </button>

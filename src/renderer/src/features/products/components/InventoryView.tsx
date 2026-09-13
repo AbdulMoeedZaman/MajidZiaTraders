@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { formatMoney, formatStockDate } from '../../../lib/format'
+import { exportReportCsv, printReport, type ReportSection } from '../../../lib/report'
 import type { StockMovementWithProduct } from '@shared/types/stock'
 
 interface Props {
@@ -28,6 +29,20 @@ export function InventoryView({ onBack }: Props) {
     void load()
   }, [load])
 
+  const sections: ReportSection[] = [
+    {
+      title: 'Inventory',
+      columns: ['Product', 'Date', 'Customer', 'Price', 'Quantity'],
+      rows: movements.map((m) => [
+        m.productName,
+        formatStockDate(m.date),
+        m.customerName ?? '—',
+        m.price != null ? formatMoney(m.price) : '—',
+        m.type === 'purchase' ? `+${m.quantity} Restocks` : String(m.quantity),
+      ]),
+    },
+  ]
+
   return (
     <div className="feature">
       <div className="toolbar">
@@ -37,6 +52,15 @@ export function InventoryView({ onBack }: Props) {
             ↻
           </button>
         </div>
+        <button
+          className="btn ghost"
+          onClick={() => printReport('Inventory', 'all stock movements', sections)}
+        >
+          Print
+        </button>
+        <button className="btn ghost" onClick={() => exportReportCsv('Inventory', sections)}>
+          Export CSV
+        </button>
         <button className="btn ghost" onClick={onBack}>
           Back to Products
         </button>

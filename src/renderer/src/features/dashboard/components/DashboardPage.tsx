@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../../../lib/api'
 import { formatDate, formatDateTime, formatMoney } from '../../../lib/format'
+import { exportReportCsv, printReport, type ReportSection } from '../../../lib/report'
 import { localDate } from '@shared/date'
 import type { DashboardSummary, CashInward, CustomerOwed, TodayDispatch } from '@shared/types/dashboard'
 import type { ExpenseDaySummary } from '@shared/types/expense'
@@ -306,11 +307,15 @@ function rangeLabel(range: { start: string; end: string }): string {
 function DetailModal({
   title,
   subtitle,
+  printMeta,
+  sections,
   onClose,
   children,
 }: {
   title: string
   subtitle?: string
+  printMeta: string
+  sections: ReportSection[]
   onClose: () => void
   children: ReactNode
 }) {
@@ -322,9 +327,17 @@ function DetailModal({
             <h3>{title}</h3>
             {subtitle && <span className="muted fine-text">{subtitle}</span>}
           </div>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
+          <div className="modal-actions">
+            <button className="btn ghost small" onClick={() => printReport(title, printMeta, sections)}>
+              Print
+            </button>
+            <button className="btn ghost small" onClick={() => exportReportCsv(title, sections)}>
+              Export CSV
+            </button>
+            <button className="btn ghost small" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
         <div className="modal-body">{children}</div>
       </div>
@@ -348,8 +361,27 @@ function ProfitModal({
   const invoices = data.reduce((sum, c) => sum + c.invoices, 0)
   const sales = data.reduce((sum, c) => sum + c.sales, 0)
   const profit = data.reduce((sum, c) => sum + c.profit, 0)
+  const sections: ReportSection[] = [
+    {
+      title: 'Profit by customer',
+      columns: ['Customer', 'Invoices', 'Sales', 'Profit'],
+      rows: data.map((c) => [
+        c.customerName,
+        String(c.invoices),
+        formatMoney(c.sales),
+        formatMoney(c.profit),
+      ]),
+      foot: [['Total', String(invoices), formatMoney(sales), formatMoney(profit)]],
+    },
+  ]
   return (
-    <DetailModal title="Profit by customer" subtitle={rangeLabel(range)} onClose={onClose}>
+    <DetailModal
+      title="Profit by customer"
+      subtitle={rangeLabel(range)}
+      printMeta={rangeLabel(range)}
+      sections={sections}
+      onClose={onClose}
+    >
       {data.length === 0 ? (
         <EmptyMessage text="No profit in this period." />
       ) : (
@@ -400,8 +432,32 @@ function StockModal({
   const total = perProduct.reduce((sum, p) => sum + p.remaining, 0)
   const dispatchedUnits = dispatchedToday.reduce((sum, d) => sum + d.quantity, 0)
   const dispatchedAmount = dispatchedToday.reduce((sum, d) => sum + d.amount, 0)
+  const sections: ReportSection[] = [
+    {
+      title: 'Remaining inventory',
+      columns: ['Product', 'Remaining'],
+      rows: perProduct.map((p) => [p.productName, p.remaining.toLocaleString()]),
+      foot: [['Total', total.toLocaleString()]],
+    },
+    {
+      title: 'Dispatched today',
+      columns: ['Product', 'Quantity', 'Value'],
+      rows: dispatchedToday.map((d) => [
+        d.productName,
+        d.quantity.toLocaleString(),
+        formatMoney(d.amount),
+      ]),
+      foot: [['Total', dispatchedUnits.toLocaleString(), formatMoney(dispatchedAmount)]],
+    },
+  ]
   return (
-    <DetailModal title="Stock report" subtitle="remaining inventory" onClose={onClose}>
+    <DetailModal
+      title="Stock report"
+      subtitle="remaining inventory"
+      printMeta={`Remaining inventory · dispatched ${formatDate(localDate())}`}
+      sections={sections}
+      onClose={onClose}
+    >
       <section className="modal-section">
         <h4>Remaining inventory</h4>
         {perProduct.length === 0 ? (
@@ -482,10 +538,31 @@ function InvoiceLedgerModal({
   onClose: () => void
 }) {
   const grandTotal = data.reduce((sum, i) => sum + (i.grandTotal ?? i.subtotal), 0)
+  const sections: ReportSection[] = [
+    {
+      title: 'Invoice ledger',
+      columns: ['Invoice', 'Date', 'Customer', 'Grand total', 'Paid', 'Owed', 'Status'],
+      rows: data.map((inv) => {
+        const due = inv.grandTotal ?? inv.subtotal
+        return [
+          inv.invoiceNumber,
+          formatDate(inv.date),
+          inv.customerName,
+          formatMoney(due),
+          formatMoney(inv.paidAmount),
+          formatMoney(Math.max(0, due - inv.paidAmount)),
+          inv.status,
+        ]
+      }),
+      foot: [['Total', '', '', formatMoney(grandTotal), '', '', '']],
+    },
+  ]
   return (
     <DetailModal
       title="Invoice ledger"
       subtitle={rangeLabel(range)}
+      printMeta={rangeLabel(range)}
+      sections={sections}
       onClose={onClose}
     >
       {data.length === 0 ? (
@@ -545,8 +622,23 @@ function OwedModal({
   onClose: () => void
 }) {
   const total = data.reduce((sum, c) => sum + c.owed, 0)
+  const openInvoices = data.reduce((sum, c) => sum + c.openInvoices, 0)
+  const sections: ReportSection[] = [
+    {
+      title: 'Amount owed',
+      columns: ['Customer', 'Open invoices', 'Owed'],
+      rows: data.map((c) => [c.customerName, String(c.openInvoices), formatMoney(c.owed)]),
+      foot: [['Total', String(openInvoices), formatMoney(total)]],
+    },
+  ]
   return (
-    <DetailModal title="Amount owed" subtitle="all open invoices" onClose={onClose}>
+    <DetailModal
+      title="Amount owed"
+      subtitle="all open invoices"
+      printMeta="all open invoices"
+      sections={sections}
+      onClose={onClose}
+    >
       {data.length === 0 ? (
         <EmptyMessage text="No outstanding balances." />
       ) : (
@@ -599,8 +691,39 @@ function CashFlowModal({
   range: { start: string; end: string }
   onClose: () => void
 }) {
+  const net = inwardTotal - outwardTotal
+  const sections: ReportSection[] = [
+    {
+      title: 'Inward — payments received',
+      columns: ['Date', 'Invoice', 'Customer', 'Amount'],
+      rows: inward.map((p) => [
+        formatDate(p.date),
+        p.invoiceNumber,
+        p.customerName,
+        formatMoney(p.amount),
+      ]),
+      foot: [['Total received', '', '', formatMoney(inwardTotal)]],
+    },
+    {
+      title: 'Outward — expenses paid',
+      columns: ['Date', 'Expense', 'Amount'],
+      rows: outward.map((e) => [formatDate(e.date), e.name, formatMoney(e.price)]),
+      foot: [['Total paid', '', formatMoney(outwardTotal)]],
+    },
+    {
+      title: 'Net cash flow',
+      columns: ['', 'Amount'],
+      rows: [['Net cash flow', formatMoney(net)]],
+    },
+  ]
   return (
-    <DetailModal title="Cash flow" subtitle={rangeLabel(range)} onClose={onClose}>
+    <DetailModal
+      title="Cash flow"
+      subtitle={rangeLabel(range)}
+      printMeta={rangeLabel(range)}
+      sections={sections}
+      onClose={onClose}
+    >
       <section className="modal-section">
         <h4>Inward — payments received</h4>
         {inward.length === 0 ? (
@@ -773,6 +896,16 @@ function ExpenseDetailModal({
   onClose: () => void
 }) {
   const grandTotal = data.reduce((sum, day) => sum + day.total, 0)
+  const sections: ReportSection[] = [
+    {
+      title: 'Expenses',
+      columns: ['Date', 'Expense', 'Amount'],
+      rows: data.flatMap((day) =>
+        day.items.map((e) => [formatDate(e.date), e.name, formatMoney(e.price)])
+      ),
+      foot: [['Total', '', formatMoney(grandTotal)]],
+    },
+  ]
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -784,9 +917,26 @@ function ExpenseDetailModal({
               {formatDate(range.start)} → {formatDate(range.end)} · Today: {formatMoney(todayTotal)}
             </span>
           </div>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
+          <div className="modal-actions">
+            <button
+              className="btn ghost small"
+              onClick={() =>
+                printReport(
+                  'Expenses',
+                  `${formatDate(range.start)} → ${formatDate(range.end)} · Today: ${formatMoney(todayTotal)}`,
+                  sections
+                )
+              }
+            >
+              Print
+            </button>
+            <button className="btn ghost small" onClick={() => exportReportCsv('Expenses', sections)}>
+              Export CSV
+            </button>
+            <button className="btn ghost small" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
 
         {data.length === 0 ? (
