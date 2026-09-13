@@ -124,10 +124,10 @@ try {
   const B1 = must(await inv('brokers:create', { name: 'Bashir Ahmad', phone: '0322-1112223' }), 'B1')
 
   // =============== Stock the invoices below will sell (negative-stock guard) ===============
-  // INV-000001 sells 2 cartons + 5 boxes of Axle Bearing 6204 (qty 7), INV-000002 sells
-  // 4 cartons of Valve Spring (qty 4) — both need enough stock before they can be made.
-  must(await inv('stock:restock', { productId: P1.id, quantity: 7 }), 'prestock P1 +7')
-  must(await inv('stock:restock', { productId: P2.id, quantity: 4 }), 'prestock P2 +4')
+  // INV-000001 sells 2 cartons + 5 boxes of Axle Bearing 6204 (2×10+5 = 25 pcs), INV-000002 sells
+  // 4 cartons of Valve Spring (4×20 = 80 pcs) — restock both in cartons first (bpc 10 and 20).
+  must(await inv('stock:restock', { productId: P1.id, quantity: 7 }), 'prestock P1 7 cartons → 70 pcs')
+  must(await inv('stock:restock', { productId: P2.id, quantity: 4 }), 'prestock P2 4 cartons → 80 pcs')
 
   // =============== Invoice ring & maths ===============
   const item = (productId, rate, cartonCount, boxCount) => ({ productId, rate, cartonCount, boxCount })
@@ -163,7 +163,8 @@ try {
   const overStock = await inv('invoices:create', {
     customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     tax: null,
-    items: [item(P1.id, 65000, 1, 0)],
+    // Prestocked 7 cartons (70 pcs), I1 sold 2×10+5 = 25 → 45 left. 5 cartons (50 pcs) > 45.
+    items: [item(P1.id, 65000, 5, 0)],
   })
   check('I-3b', 'An invoice needing more stock than available is rejected (negative-stock guard)',
     !overStock.ok && /Insufficient stock/.test(overStock.e), overStock.e ?? 'accepted')
@@ -378,7 +379,7 @@ try {
   await clickBtn('Restock'); await wait(400)
   const restockModalOpen = await ev(`!!document.querySelector('.modal') && document.querySelector('.modal')?.innerText.includes('Restock Product')`)
   await ev(`(()=>{
-    const inp=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.includes('Quantity'));
+    const inp=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.includes('Cartons'));
     if(!inp) return false;
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,'50');
     inp.dispatchEvent(new Event('input',{bubbles:true}));
@@ -390,19 +391,19 @@ try {
   const restockSuccess = await ev(`document.querySelector('.form-success')?.innerText ?? ''`)
   const stockList = must(await inv('stock:list'), 'stock list')
   const uiRestock = stockList.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
-  check('UI-8', 'Restock modal adds stock as a purchase movement and shows a success toast',
-    restockModalOpen && restockSuccess.includes('50') && restockSuccess.includes('GAUGE 2026') &&
-    !!uiRestock && uiRestock.quantity === 50 && uiRestock.previousQuantity === 0 && uiRestock.newQuantity === 50 && uiRestock.date === TODAY,
+  check('UI-8', 'Restock modal takes cartons and stores the pieces (50 × 12 = 600) with a running balance and a success toast',
+    restockModalOpen && restockSuccess.includes('50') && restockSuccess.includes('cartons') && restockSuccess.includes('GAUGE 2026') &&
+    !!uiRestock && uiRestock.quantity === 600 && uiRestock.previousQuantity === 0 && uiRestock.newQuantity === 600 && uiRestock.date === TODAY,
     { modalOpen: restockModalOpen, success: restockSuccess, restock: uiRestock })
 
   await clickBtn('Inventory'); await wait(1000)
   const invText = await ev(`document.body.innerText`)
-  const invHasRestock = invText.includes('+50 Restocks')
-  const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650.00') && invText.includes('-7')
-  const invHasSpring = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('Valve Spring') && r.textContent.includes('-4'))`)
+  const invHasRestock = invText.includes('+600 pcs')
+  const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650.00') && invText.includes('-25')
+  const invHasSpring = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('Valve Spring') && r.textContent.includes('-80'))`)
   const invToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
   const invPrintExport = invToolbarBtns.includes('Print') && invToolbarBtns.includes('Export CSV')
-  check('UI-9', 'Inventory view lists restocks (+50 Restocks) and invoice sales with customer, price and quantity',
+  check('UI-9', 'Inventory view lists restocks (+600 pcs) and invoice sales with customer, price and piece quantity',
     invHasRestock && invHasSale && invHasSpring && invPrintExport,
     { restockRow: invHasRestock, saleRow: invHasSale, springRow: invHasSpring, printExport: invPrintExport, toolbar: invToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
@@ -410,11 +411,11 @@ try {
   await clickRowWith('GAUGE 2026'); await wait(1000)
   const detailHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
   const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
-  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*50/.test(detailText)
-  const detailHasHistory = detailText.includes('+50 Restocks') && detailText.includes('-3')
+  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*600/.test(detailText)
+  const detailHasHistory = detailText.includes('+600 pcs') && detailText.includes('-36')
   const detailToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
   const detailPrintExport = detailToolbarBtns.includes('Print') && detailToolbarBtns.includes('Export CSV')
-  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +50, sale -3 and In stock 50',
+  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +600 pcs, sale -36 and In stock 600',
     detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory && detailPrintExport,
     { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory, printExport: detailPrintExport, toolbar: detailToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
@@ -449,10 +450,10 @@ try {
   await wait(700)
   const stockRows = await ev(`[...document.querySelectorAll('.detail-modal tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const stockSections = await ev(`[...document.querySelectorAll('.modal-section h4')].map((h)=>h.textContent.trim()).join(',')`)
-  const stockHasGauge = /GAUGE 202650/.test(stockRows)
-  const stockHasOthers = stockRows.includes('Axle Bearing 62040') && stockRows.includes('Valve Spring0')
+  const stockHasGauge = stockRows.includes('GAUGE 2026500600') // 600 pcs → 50 ctn + 0 loose (cells join without spaces)
+  const stockHasOthers = stockRows.includes('Axle Bearing 62044545') && stockRows.includes('Valve Spring000')
   const stockActions = await ev(`[...document.querySelectorAll('.detail-modal .modal-actions button')].map((b)=>b.textContent.trim()).join(',')`)
-  check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with the inventory and today dispatches',
+  check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with cartons+loose inventory and today dispatches',
     stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers && stockActions === 'Print,Export CSV,Close',
     { stockRows, stockSections, stockHasGauge, stockHasOthers, actions: stockActions })
   await clickBtn('Close'); await wait(400)

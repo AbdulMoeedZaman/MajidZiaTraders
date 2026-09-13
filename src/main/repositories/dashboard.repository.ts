@@ -19,6 +19,8 @@ export interface ProfitLineRow {
 export interface ProductRemainingRow {
   productId: number
   productName: string
+  /** Pieces per carton, so remaining can be split into whole cartons + loose pieces. */
+  boxesPerCarton: number
   remaining: number
 }
 
@@ -37,11 +39,11 @@ export class DashboardRepository extends BaseRepository {
       .all(from, to) as ProfitLineRow[]
   }
 
-  /** Every product's current stock level (latest ledger running balance). */
+  /** Every product's current stock level (latest ledger running balance, in pieces). */
   remainingPerProduct(): ProductRemainingRow[] {
     return this.db
       .prepare(
-        `SELECT p.id AS productId, p.name AS productName,
+        `SELECT p.id AS productId, p.name AS productName, p.boxesPerCarton AS boxesPerCarton,
                 COALESCE((SELECT m.newQuantity FROM stock_movements m
                           WHERE m.productId = p.id ORDER BY m.id DESC LIMIT 1), 0) AS remaining
          FROM products p

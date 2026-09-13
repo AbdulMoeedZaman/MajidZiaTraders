@@ -34,24 +34,29 @@ export class StockService {
     return this.stockRepo.lastNewQuantity(productId) ?? 0
   }
 
-  /** Adds stock via a `purchase` movement, recording the running balance. */
+  /**
+   * Adds stock via a `purchase` movement. The DTO's `quantity` is the number of
+   * whole cartons; the ledger records the equivalent pieces
+   * (cartons × product.boxesPerCarton) so stock balances are always in pieces.
+   */
   restock(data: CreateRestockDTO): StockMovement {
     const product = this.productRepo.findById(data.productId)
     if (!product) {
       throw new Error('Product not found')
     }
     if (!Number.isInteger(data.quantity) || data.quantity <= 0) {
-      throw new Error('Restock quantity must be a whole number greater than zero')
+      throw new Error('Cartons must be a whole number greater than zero')
     }
 
+    const pieces = data.quantity * product.boxesPerCarton
     return this.stockRepo.runInTransaction(() => {
       const previous = this.stockRepo.lastNewQuantity(data.productId) ?? 0
       const movement = this.stockRepo.insert({
         productId: data.productId,
         type: 'purchase',
-        quantity: data.quantity,
+        quantity: pieces,
         previousQuantity: previous,
-        newQuantity: previous + data.quantity,
+        newQuantity: previous + pieces,
         referenceType: 'restock',
         referenceId: null,
         note: null,
@@ -62,7 +67,7 @@ export class StockService {
         action: 'restocked',
         targetType: 'stock',
         targetId: movement.id,
-        summary: `Restocked "${product.name}" +${data.quantity}`,
+        summary: `Restocked "${product.name}" +${data.quantity} ctn (+${pieces} pcs)`,
         snapshot: { movement, productName: product.name },
       })
       return movement
@@ -71,9 +76,9 @@ export class StockService {
 
   /**
    * Records one `sale` movement per invoice line inside the invoice's own
-   * transaction. Quantity is negative (cartons + loose boxes) and `price`
-   * snapshots the billed rate at that moment. Returns the written movements so
-   * callers can snapshot them for the action log.
+   * transaction. Quantity is negative (pieces = cartons × boxesPerCarton +
+   * loose boxes) and `price` snapshots the billed rate at that moment. Returns
+   * the written movements so callers can snapshot them for the action log.
    */
   recordSalesForInvoice(
     invoiceId: number,

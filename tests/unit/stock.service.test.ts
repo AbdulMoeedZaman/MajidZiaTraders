@@ -18,20 +18,20 @@ describe('StockService', () => {
     items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 5 }],
   })
 
-  it('restock adds a purchase movement with a running balance', () => {
+  it('restock adds a purchase movement with a running balance, in pieces (cartons × boxes per carton)', () => {
     const service = new StockService()
     const seed = seedBasics()
 
     const first = service.restock({ productId: seed.product.id, quantity: 50 })
     expect(first.type).toBe('purchase')
-    expect(first.quantity).toBe(50)
+    expect(first.quantity).toBe(600) // 50 cartons × 12 pcs
     expect(first.previousQuantity).toBe(0)
-    expect(first.newQuantity).toBe(50)
+    expect(first.newQuantity).toBe(600)
     expect(first.date).toBe(localDate(new Date()))
 
     const second = service.restock({ productId: seed.product.id, quantity: 10 })
-    expect(second.previousQuantity).toBe(50)
-    expect(second.newQuantity).toBe(60)
+    expect(second.previousQuantity).toBe(600)
+    expect(second.newQuantity).toBe(720)
 
     const byProduct = service.listByProduct(seed.product.id)
     expect(byProduct).toHaveLength(2)
@@ -49,7 +49,7 @@ describe('StockService', () => {
     expect(service.list()).toHaveLength(0)
   })
 
-  it('invoice create records sale movements with negative quantity, date and price snapshot', () => {
+  it('invoice create records sale movements with negative pieces, date and price snapshot', () => {
     const stock = new StockService()
     const invoice = new InvoiceService()
     const seed = seedStocked(7)
@@ -62,9 +62,9 @@ describe('StockService', () => {
     expect(m.productId).toBe(seed.product.id)
     expect(m.productName).toBe('Widget 1')
     expect(m.type).toBe('sale')
-    expect(m.quantity).toBe(-7) // 2 cartons + 5 boxes
-    expect(m.previousQuantity).toBe(7)
-    expect(m.newQuantity).toBe(0)
+    expect(m.quantity).toBe(-29) // 2 cartons × 12 + 5 boxes, in pieces
+    expect(m.previousQuantity).toBe(84) // 7 cartons × 12
+    expect(m.newQuantity).toBe(55)
     expect(m.date).toBe('2026-09-10')
     expect(m.price).toBe(500)
     expect(m.customerName).toBe('Bilal Auto Shop')

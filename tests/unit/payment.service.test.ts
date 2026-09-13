@@ -116,10 +116,10 @@ describe('PaymentService', () => {
     const sale = rows.find((m) => m.type === 'sale' && m.referenceId === inv.id)
     const ret = rows.find((m) => m.type === 'return' && m.referenceId === inv.id)
     expect(sale).toBeTruthy()
-    expect(sale!.quantity).toBe(-2)
+    expect(sale!.quantity).toBe(-24) // 2 cartons × 12
     expect(ret).toBeTruthy()
-    expect(ret!.quantity).toBe(2)
-    expect(ret!.newQuantity).toBe(100) // balance restored to the seeded level
+    expect(ret!.quantity).toBe(24)
+    expect(ret!.newQuantity).toBe(1200) // balance restored to the seeded level (100 cartons × 12)
   })
 
   it('a cancelled invoice cannot be paid and a paid invoice is kept until cancellation', () => {

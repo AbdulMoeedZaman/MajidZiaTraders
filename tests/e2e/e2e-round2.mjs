@@ -52,10 +52,10 @@ try {
     invoices.length >= 3 && products.length >= 3 && customers.length >= 3,
     { invoices: invoices.length, products: products.length, customers: customers.length })
 
-  // X-1b: stock the product used by the invoices below — round 1 sold out Axle Bearing 6204
+  // X-1b: stock the product used by the invoices below — round 1 left Axle Bearing 6204 at 45 pcs
   const productsSorted = [...products].sort((a, b) => a.name.localeCompare(b.name))
   const stockLead = productsSorted[0] // 'Axle Bearing 6204' (created first in round 1)
-  must(await inv('stock:restock', { productId: stockLead.id, quantity: 3 }), 'stock P1 +3 for round2 invoices')
+  must(await inv('stock:restock', { productId: stockLead.id, quantity: 3 }), 'stock P1 3 cartons (30 pcs) for round2 invoices')
 
   // X-2: the invoice numbering counter carried on in the same session after UI-created invoices
   const B = must(await inv('brokers:list'), 'brokers')
@@ -102,16 +102,17 @@ try {
   const s1 = stockRows.find((m) => m.productName === 'Axle Bearing 6204' && m.type === 'sale')
   const s2 = stockRows.find((m) => m.productName === 'Valve Spring' && m.type === 'sale')
   const sg = stockRows.find((m) => m.productName === 'GAUGE 2026' && m.type === 'sale')
-  check('X-6', 'Round-1 invoice lines wrote sale movements (negative qty, price snapshot, customer name)',
-    !!s1 && s1.quantity === -7 && s1.price === 65000 && s1.customerName === 'Bilal Auto Shop' &&
-    !!s2 && s2.quantity === -4 &&
-    !!sg && sg.quantity === -3,
+  check('X-6', 'Round-1 invoice lines wrote sale movements in pieces (negative qty, price snapshot, customer name)',
+    !!s1 && s1.quantity === -25 && s1.price === 65000 && s1.customerName === 'Bilal Auto Shop' &&
+    !!s2 && s2.quantity === -80 &&
+    !!sg && sg.quantity === -36,
     stockRows.map((m) => ({ p: m.productName, t: m.type, q: m.quantity, price: m.price, c: m.customerName })))
 
   // X-7: the UI restock from round 1 persisted as a purchase movement dated today
+  // (50 cartons of the 12/carton GAUGE 2026 → 600 pcs).
   const rg = stockRows.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
-  check('X-7', 'UI restock persisted: GAUGE 2026 +50 purchase movement with running balance carried to 50',
-    !!rg && rg.quantity === 50 && rg.date === TODAY && rg.previousQuantity === 0 && rg.newQuantity === 50,
+  check('X-7', 'UI restock persisted: GAUGE 2026 +50 cartons (600 pcs) purchase movement with running balance carried to 600',
+    !!rg && rg.quantity === 600 && rg.date === TODAY && rg.previousQuantity === 0 && rg.newQuantity === 600,
     rg ?? null)
 
   // X-8: backup create → validate → restore round trip (data intact, safety copy kept)
@@ -184,8 +185,8 @@ try {
     paidThree.status === 'paid' && paidThree.paidAmount === 600 &&
     p1.length === 1 && p1[0].amount === 162500 && p3.length === 1 && p3[0].amount === 600 &&
     cancelled.status === 'cancelled' && cancelled.paidAmount === 0 && freshPays.length === 0 &&
-    !!freshSale && freshSale.quantity === -2 &&
-    !!freshReturn && freshReturn.quantity === 2 && freshReturn.newQuantity === freshSale.previousQuantity &&
+    !!freshSale && freshSale.quantity === -20 &&
+    !!freshReturn && freshReturn.quantity === 20 && freshReturn.newQuantity === freshSale.previousQuantity &&
     freshStillThere && freshStillThere.status === 'cancelled',
     { paidOne: { status: paidOne.status, paid: paidOne.paidAmount }, paidThree: { status: paidThree.status, paid: paidThree.paidAmount }, p1, p3, cancelled: { status: cancelled.status, paid: cancelled.paidAmount }, freshPays: freshPays.length, stock: stockNow.filter((m) => m.referenceId === fresh.id).map((m) => ({ t: m.type, q: m.quantity, prev: m.previousQuantity, new: m.newQuantity })) })
 } catch (err) {

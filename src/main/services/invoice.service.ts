@@ -106,7 +106,7 @@ export class InvoiceService {
         invoice.date,
         items.map((item) => ({
           productId: item.productId,
-          quantity: item.cartonCount + item.boxCount,
+          quantity: item.cartonCount * item.boxesPerCarton + item.boxCount,
           rate: item.rate,
         }))
       )
@@ -292,13 +292,14 @@ export class InvoiceService {
 
   /**
    * Blocks invoices that would drive a product below zero stock: the quantity
-   * requested (cartons + boxes) across all lines must not exceed the current
-   * running balance for each product.
+   * requested in pieces (cartons × boxesPerCarton + loose boxes) across all
+   * lines must not exceed the current running balance (also in pieces) for each
+   * product.
    */
   private assertSufficientStock(items: InvoiceItemRow[]): void {
     const needed = new Map<number, { name: string; quantity: number }>()
     for (const item of items) {
-      const quantity = item.cartonCount + item.boxCount
+      const quantity = item.cartonCount * item.boxesPerCarton + item.boxCount
       const existing = needed.get(item.productId)
       if (existing) existing.quantity += quantity
       else needed.set(item.productId, { name: item.productName, quantity })
@@ -307,7 +308,7 @@ export class InvoiceService {
       const available = this.stockService.currentQuantity(productId)
       if (available < need.quantity) {
         throw new Error(
-          `Insufficient stock for "${need.name}" — available ${available}, requested ${need.quantity}. Restock the product first.`
+          `Insufficient stock for "${need.name}" — available ${available} pcs, requested ${need.quantity} pcs. Restock the product first.`
         )
       }
     }

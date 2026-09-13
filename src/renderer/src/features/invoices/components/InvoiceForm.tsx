@@ -138,13 +138,14 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (rateCents < product.rate) {
       return `Cannot go below minimum rate ${formatMoney(product.rate)}`
     }
-    const quantity = countToInt(line.cartonCount) + countToInt(line.boxCount)
+    const quantity =
+      countToInt(line.cartonCount) * product.boxesPerCarton + countToInt(line.boxCount)
     if (quantity === 0) {
       return 'Enter cartons or boxes'
     }
     const stock = stockLevels[line.productId] ?? 0
     if (quantity > stock) {
-      return `Only ${stock} in stock — requested ${quantity}`
+      return `Only ${stock} pcs in stock — requested ${quantity} pcs`
     }
     return null
   }
@@ -306,7 +307,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
             </button>
             {product && (
               <div className="line-hint muted fine-text">
-                In stock: {stockLevels[product.id] ?? 0}
+                In stock: {(stockLevels[product.id] ?? 0)} pcs
+                {' '}({Math.floor((stockLevels[product.id] ?? 0) / Math.max(1, product.boxesPerCarton))} ctn +{' '}
+                {(stockLevels[product.id] ?? 0) % Math.max(1, product.boxesPerCarton)} loose)
               </div>
             )}
             {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}

@@ -56,9 +56,9 @@ describe('HistoryService', () => {
     const seed = seedBasics()
     const stock = new StockService()
     const history = new HistoryService()
-    stock.restock({ productId: seed.product.id, quantity: 10 })
+    stock.restock({ productId: seed.product.id, quantity: 10 }) // 10 cartons × 12 = 120 pcs
     expect(stock.list()).toHaveLength(1)
-    expect(stock.list()[0].newQuantity).toBe(10)
+    expect(stock.list()[0].newQuantity).toBe(120)
 
     history.undo()
     expect(stock.list()).toHaveLength(2)
@@ -67,7 +67,7 @@ describe('HistoryService', () => {
 
     history.redo()
     expect(stock.list()).toHaveLength(1) // the compensation movement is removed
-    expect(stock.list()[0].newQuantity).toBe(10)
+    expect(stock.list()[0].newQuantity).toBe(120)
   })
 
   it('undo and redo a recorded payment', () => {
@@ -99,20 +99,20 @@ describe('HistoryService', () => {
     const history = new HistoryService()
     const inv = invoices.create(invoiceInput(seed))
     const sale = (): StockMovement => stock.list().find((m) => m.type === 'sale')!
-    expect(sale().previousQuantity).toBe(10)
-    expect(sale().newQuantity).toBe(8) // 10 seeded - 2 sold
+    expect(sale().previousQuantity).toBe(120) // 10 cartons × 12
+    expect(sale().newQuantity).toBe(96) // 120 seeded - 2 cartons × 12 sold
 
     history.undo()
     expect(invoices.getById(inv.id)).toBeFalsy()
     expect(invoices.count()).toBe(0)
     expect(stock.list().filter((m) => m.type === 'sale')).toHaveLength(0)
-    expect(stock.list().find((m) => m.type === 'purchase')!.newQuantity).toBe(10)
+    expect(stock.list().find((m) => m.type === 'purchase')!.newQuantity).toBe(120)
 
     history.redo()
     const restored = invoices.getById(inv.id)!
     expect(restored.invoiceNumber).toBe('INV-000001')
     expect(restored.subtotal).toBe(1000)
-    expect(stock.list().find((m) => m.type === 'sale')!.newQuantity).toBe(8)
+    expect(stock.list().find((m) => m.type === 'sale')!.newQuantity).toBe(96)
   })
 
   it('a new applied action supersedes the undo trail', () => {

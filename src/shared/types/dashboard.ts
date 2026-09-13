@@ -15,10 +15,12 @@ export interface CustomerProfit {
   profit: number
 }
 
-/** Current stock level of one product (latest ledger running balance). */
+/** Current stock level of one product (latest ledger running balance, in pieces). */
 export interface ProductRemaining {
   productId: number
   productName: string
+  /** Pieces per carton; together with `remaining` this yields whole cartons + loose pieces. */
+  boxesPerCarton: number
   remaining: number
 }
 

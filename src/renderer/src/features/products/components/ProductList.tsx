@@ -59,7 +59,7 @@ export function ProductList({ onOpen }: Props) {
   const handleRestock = async (data: { productId: number; quantity: number }) => {
     const product = products.find((p) => p.id === data.productId)
     await api.stock.restock(data)
-    setSuccess(`Added ${data.quantity} units to ${product?.name ?? 'product'}`)
+    setSuccess(`Added ${data.quantity} cartons to ${product?.name ?? 'product'}`)
     window.setTimeout(() => setSuccess(null), 3000)
   }
 

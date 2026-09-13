@@ -166,15 +166,16 @@ describe('DashboardService', () => {
     const invoices = new InvoiceService()
     const seed = seedBasics()
 
-    stock.restock({ productId: seed.product.id, quantity: 30 })
+    stock.restock({ productId: seed.product.id, quantity: 30 }) // 30 cartons × 12 = 360 pcs
     invoices.create(
-      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10' }) // quantity -8
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10' }) // -30 pcs (2×12 + 6)
     )
 
     const s = dashboard.summary('2026-01-01', '2026-12-31')
     const row = s.stock.perProduct.find((p) => p.productId === seed.product.id)
-    expect(row?.remaining).toBe(22)
-    expect(s.stock.total).toBe(22)
+    expect(row?.remaining).toBe(330)
+    expect(row?.boxesPerCarton).toBe(12)
+    expect(s.stock.total).toBe(330)
     expect(s.stock.perProduct.length).toBeGreaterThan(0)
   })
 

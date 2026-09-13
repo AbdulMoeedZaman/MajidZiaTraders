@@ -38,7 +38,7 @@ export function InventoryView({ onBack }: Props) {
         formatStockDate(m.date),
         m.customerName ?? '—',
         m.price != null ? formatMoney(m.price) : '—',
-        m.type === 'purchase' ? `+${m.quantity} Restocks` : String(m.quantity),
+        m.type === 'purchase' ? `+${m.quantity} pcs` : String(m.quantity),
       ]),
     },
   ]
@@ -100,7 +100,7 @@ export function InventoryView({ onBack }: Props) {
                   <td className="num mono">{m.price != null ? formatMoney(m.price) : '—'}</td>
                   <td className="num">
                     {m.type === 'purchase' ? (
-                      <span className="stock-in">+{m.quantity} Restocks</span>
+                      <span className="stock-in">+{m.quantity} pcs</span>
                     ) : (
                       <span className="stock-out">{m.quantity}</span>
                     )}

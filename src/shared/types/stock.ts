@@ -10,7 +10,7 @@ export type StockMovementType =
 export interface StockMovement {
   id: number
   productId: number
-  /** Signed: positive for stock in, negative for stock out. */
+  /** Signed: positive for stock in, negative for stock out. Always in pieces. */
   type: StockMovementType
   quantity: number
   previousQuantity: number | null
@@ -33,11 +33,14 @@ export interface StockMovementWithProduct extends StockMovement {
 
 export interface CreateRestockDTO {
   productId: number
-  /** Quantity to add; must be a whole number greater than zero. */
+  /**
+   * Whole cartons to add (must be a whole number greater than zero). The ledger
+   * records pieces: cartons × the product's boxesPerCarton.
+   */
   quantity: number
 }
 
-/** Current running balance for every product (last ledger entry's newQuantity). */
+/** Current running balance for every product (last ledger entry's newQuantity, in pieces). */
 export interface StockLevel {
   productId: number
   productName: string

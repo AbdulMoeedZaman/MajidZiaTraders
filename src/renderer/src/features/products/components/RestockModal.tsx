@@ -31,7 +31,7 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
     }
     const qty = Number(quantity)
     if (!Number.isInteger(qty) || qty <= 0) {
-      setError('Quantity must be a whole number greater than zero')
+      setError('Cartons must be a whole number greater than zero')
       return
     }
     setSaving(true)
@@ -63,7 +63,7 @@ export function RestockModal({ products, onConfirm, onCancel }: Props) {
             />
           </label>
           <label className="field">
-            <span>Quantity</span>
+            <span>Cartons</span>
             <input
               type="number"
               min="1"
