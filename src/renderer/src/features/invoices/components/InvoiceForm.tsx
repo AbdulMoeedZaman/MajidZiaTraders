@@ -6,7 +6,7 @@ import type { Route } from '@shared/types/route'
 import { SearchSelect } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
-import { calculateLineAmount } from '@shared/calc/invoice-totals'
+import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 
 export interface InvoiceFormValues {
   customerId: number | null
@@ -105,9 +105,11 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
 
   // Grand total = subtotal + manually entered tax; remaining = grand total
   // minus recorded payments (a freshly created invoice has none, so it starts
-  // at the full grand total and shrinks as payments are applied later).
-  const taxCents = tax.trim() === '' ? 0 : moneyToCents(tax)
-  const grandTotal = subtotal + taxCents
+  // at the full grand total and shrinks as payments are applied later). The tax
+  // is rounded to the nearest ten paisa exactly as the backend stores it, so the
+  // preview can never disagree with the saved invoice.
+  const taxCents = tax.trim() === '' ? null : roundToTen(moneyToCents(tax))
+  const grandTotal = subtotal + (taxCents ?? 0)
   const remaining = grandTotal
 
   const setLine = (index: number, patch: Partial<InvoiceFormValues['items'][number]>) => {

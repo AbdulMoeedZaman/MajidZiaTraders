@@ -94,7 +94,8 @@ export class InvoiceRepository extends BaseRepository {
    * Persists an invoice and its line item rows. `data.items` must already be
    * validated and snapshotted by the service; the subtotal is the sum of the
    * persisted line amounts so storage can never disagree with the lines.
-   * `grandTotal` (subtotal + tax) and `remaining` are calculated by the service.
+   * `grandTotal` (subtotal + tax), `remaining` and the stored `tax` (already
+   * rounded by the service) are passed in so the columns stay consistent.
    */
   create(
     data: CreateInvoiceDTO,
@@ -102,7 +103,8 @@ export class InvoiceRepository extends BaseRepository {
     ownerId: number,
     items: InvoiceItemRow[],
     grandTotal: number,
-    remaining: number
+    remaining: number,
+    tax: number | null
   ): Invoice {
     const subtotal = calculateInvoiceSubtotal(
       items.map<InvoiceLineInput>((item) => ({
@@ -128,7 +130,7 @@ export class InvoiceRepository extends BaseRepository {
         data.filerStatus,
         subtotal,
         remaining,
-        data.tax ?? null,
+        tax,
         grandTotal
       )
 

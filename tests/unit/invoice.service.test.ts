@@ -30,7 +30,7 @@ describe('InvoiceService', () => {
     expect(second.invoiceNumber).toBe('INV-000002')
   })
 
-  it('computes the box-portion of each line and auto-calculates grand total and remaining from tax', () => {
+  it('computes the box-portion of each line, rounding it and the tax to the nearest ten, and auto-calculates grand total and remaining', () => {
     const service = new InvoiceService()
     const seed = seedStocked(5)
     const created = service.create({
@@ -41,14 +41,14 @@ describe('InvoiceService', () => {
       tax: 200,
       items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
     })
-    // 500 * 5 / 12 = 208.33 → 208
-    expect(created.subtotal).toBe(208)
+    // 500 * 5 / 12 = 208.33 → 208, rounded to the nearest ten → 210
+    expect(created.subtotal).toBe(210)
     const details = service.getWithDetails(created.id)!
-    expect(details.invoice.items[0].amount).toBe(208)
+    expect(details.invoice.items[0].amount).toBe(210)
     expect(details.invoice.tax).toBe(200)
     // grand total = subtotal + tax; remaining = grand total (no payments yet)
-    expect(details.invoice.grandTotal).toBe(408)
-    expect(details.invoice.remaining).toBe(408)
+    expect(details.invoice.grandTotal).toBe(410)
+    expect(details.invoice.remaining).toBe(410)
     expect(details.customer!.code).toBe('C-001')
   })
 
@@ -148,6 +148,12 @@ describe('InvoiceService', () => {
       tax: 1292,
       items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
     })
+
+    // Raw tax 1292 rounds down to 1290 (stored); subtotal 210 rounds up from 208,
+    // so the grand total ends up the same clean 1500 either way.
+    expect(second.subtotal).toBe(210)
+    expect(second.tax).toBe(1290)
+    expect(second.grandTotal).toBe(1500)
 
     const report = service.buildLoadReport([first.id, second.id])
 

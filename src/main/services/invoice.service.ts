@@ -9,7 +9,7 @@ import { ProductRepository } from '../repositories/product.repository'
 import { SettingsRepository } from '../repositories/settings.repository'
 import { HistoryService } from './history.service'
 import { assertIsoDate, localDate } from '@shared/date'
-import { calculateLineAmount } from '@shared/calc/invoice-totals'
+import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import type {
   Invoice,
   InvoiceWithCustomer,
@@ -88,18 +88,19 @@ export class InvoiceService {
 
     const items = this.buildItems(data.items)
     this.assertSufficientStock(items)
-    // Totals are system calculated: the grand total is always subtotal + tax and
-    // the remaining amount is what is still owed after recorded payments (a new
-    // invoice has no payments yet, so it equals the full grand total).
+    // Totals are system calculated: every amount is rounded to the nearest ten
+    // paisa so the figures stay clean, and the grand total is always subtotal +
+    // (rounded) tax. The remaining amount is what is still owed after recorded
+    // payments (a new invoice has no payments yet, so it equals the grand total).
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0)
-    const tax = data.tax ?? 0
-    const grandTotal = subtotal + tax
+    const tax = data.tax == null ? null : roundToTen(data.tax)
+    const grandTotal = subtotal + (tax ?? 0)
     const remaining = grandTotal
 
     return this.invoiceRepo.runInTransaction(() => {
       const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
       const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
-      const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items, grandTotal, remaining)
+      const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items, grandTotal, remaining, tax)
       const movements = this.stockService.recordSalesForInvoice(
         invoice.id,
         invoice.date,
