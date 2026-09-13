@@ -1,6 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
-import { StatusBadge } from '../../../components/StatusBadge'
 import { invoiceRemaining } from '@shared/types/invoice'
 import type { InvoiceDetails } from '@shared/types/invoice'
 import type { Payment } from '@shared/types/payment'
@@ -162,15 +161,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
 
       {actionError && <div className="form-error">{actionError}</div>}
 
-      <div className="invoice-status-row">
-        <StatusBadge status={invoice.status} />
-        <span className="muted fine-text">
-          {cancelled
-            ? 'Amount removed and products restocked.'
-            : `Received ${printMoney(paidTotal)} · Remaining ${printMoney(remaining)}`}
-        </span>
-      </div>
-
       <div className="invoice-sheet">
         {/* ── Company Header (centered) ────────────────────────────────── */}
         {owner && (
@@ -204,10 +194,10 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           <div className="ip-meta-right">
             <div className="ip-meta-line right"><span>Date:</span> <strong>{printDate(invoice.date)}</strong></div>
             {broker && (
-              <div className="ip-meta-line right">
-                <span>Booker:</span>
-                <strong>{broker.name}{broker.phone ? ` · ${broker.phone}` : ''}</strong>
-              </div>
+              <>
+                <div className="ip-meta-line right"><span>Booker name:</span> <strong>{broker.name}</strong></div>
+                <div className="ip-meta-line right"><span>Booker phone:</span> <strong>{broker.phone ?? '—'}</strong></div>
+              </>
             )}
           </div>
         </div>

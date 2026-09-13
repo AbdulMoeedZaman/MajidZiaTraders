@@ -532,21 +532,21 @@ try {
   await nav('Invoices'); await wait(900)
   await clickRowWith('INV-000001'); await wait(900)
   const hasPayBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Pay')`)
-  const unpaidBadge = await ev(`document.querySelector('.status-badge.status-unpaid')?.textContent.trim() ?? ''`)
+  const inv1BeforePay = must(await inv('invoices:get-by-id', I1.id), 'I1 before pay')
   await clickBtn('Pay'); await wait(300)
   const confirmPayShown = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Confirm payment')`)
   await clickBtn('Confirm payment'); await wait(1100)
-  const paidBadge = await ev(`document.querySelector('.status-badge.status-paid')?.textContent.trim() ?? ''`)
   const sheetTextPaid = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
   const paysTable = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const paysRows = await ev(`[...document.querySelectorAll('.data-table tfoot tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const inv1AfterPay = must(await inv('invoices:get-by-id', I1.id), 'I1 after pay')
   check('UI-13', 'Invoice Pay button settles the exact remaining amount through a confirmation and marks the invoice Paid',
-    hasPayBtn && unpaidBadge === 'Unpaid' && confirmPayShown && paidBadge === 'Paid' &&
-    !sheetTextPaid.includes('Payment: Paid') && paysTable.includes('Rs.1,625.00') &&
+    hasPayBtn && inv1BeforePay.status === 'unpaid' && confirmPayShown &&
+    !sheetTextPaid.includes('Received ') && !sheetTextPaid.includes('Remaining ') &&
+    paysTable.includes('Rs.1,625.00') &&
     paysRows.toUpperCase().includes('TOTAL RECEIVED') && paysRows.includes('Rs.1,625.00') &&
     inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
-    { payButton: hasPayBtn, before: unpaidBadge, confirmation: confirmPayShown, after: paidBadge, sheet: !sheetTextPaid.includes('Payment: Paid'), payments: paysTable, footer: paysRows, invoice: { status: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
+    { payButton: hasPayBtn, confirmation: confirmPayShown, sheet: !sheetTextPaid.includes('Received ') && !sheetTextPaid.includes('Remaining '), payments: paysTable, footer: paysRows, invoice: { before: inv1BeforePay.status, after: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
 
   await clickBtn('Back to Invoices'); await wait(500)
 
