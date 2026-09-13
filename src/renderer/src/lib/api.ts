@@ -7,6 +7,7 @@ import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, Lo
 import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
+import type { DashboardSummary } from '@shared/types/dashboard'
 
 declare global {
   interface Window {
@@ -111,5 +112,10 @@ export const api = {
     create: (destinationPath: string) => ipc<BackupFileInfo>('backup:create', destinationPath),
     validate: (sourcePath: string) => ipc<BackupValidation>('backup:validate', sourcePath),
     restore: (sourcePath: string) => ipc<BackupRestoreResult>('backup:restore', sourcePath),
+  },
+
+  dashboard: {
+    summary: (start: string, end: string) =>
+      ipc<DashboardSummary>('dashboard:summary', { start, end }),
   },
 }

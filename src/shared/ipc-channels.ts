@@ -51,6 +51,8 @@ export const IPC_CHANNELS = {
   STOCK_LIST_BY_PRODUCT: 'stock:list-by-product',
   STOCK_RESTOCK: 'stock:restock',
 
+  DASHBOARD_SUMMARY: 'dashboard:summary',
+
   DIALOG_SAVE_BACKUP: 'dialog:save-backup',
   DIALOG_OPEN_BACKUP: 'dialog:open-backup',
   BACKUP_CREATE: 'backup:create',

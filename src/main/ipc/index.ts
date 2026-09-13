@@ -7,6 +7,7 @@ import { registerCustomerIpc } from './customer.ipc'
 import { registerInvoiceIpc } from './invoice.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerBackupIpc } from './backup.ipc'
+import { registerDashboardIpc } from './dashboard.ipc'
 
 export function registerAllIpc(): void {
   registerProjectOwnerIpc()
@@ -18,4 +19,5 @@ export function registerAllIpc(): void {
   registerInvoiceIpc()
   registerSettingsIpc()
   registerBackupIpc()
+  registerDashboardIpc()
 }

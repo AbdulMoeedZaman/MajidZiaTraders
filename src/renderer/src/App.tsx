@@ -9,6 +9,7 @@ import { CustomerDetailPage } from './features/customers/components/CustomerDeta
 import { ProductList } from './features/products/components/ProductList'
 import { ProductDetailPage } from './features/products/components/ProductDetailPage'
 import { SettingsPage } from './features/settings/components/SettingsPage'
+import { DashboardPage } from './features/dashboard/components/DashboardPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 export default function App() {
@@ -126,6 +127,7 @@ export default function App() {
           ) : (
             <ProductList onOpen={(id) => setSelectedProductId(id)} />
           ))}
+        {view === 'dashboard' && <DashboardPage onNavigate={setView} />}
         {view === 'settings' && <SettingsPage />}
       </ErrorBoundary>
     </Layout>

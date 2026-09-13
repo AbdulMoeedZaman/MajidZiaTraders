@@ -385,6 +385,58 @@ try {
   const backToProducts = await ev(`!!document.querySelector('.toolbar input.search-input')`)
   check('UI-10b', 'Product detail can be closed back to the product list', backToProducts, { backToProducts })
 
+  // =============== UI-11: dashboard matrices, detail panels and short lists ===============
+  await nav('Dashboard'); await wait(1200)
+  const dashActive = await ev(`[...document.querySelectorAll('.nav-item.active')].map((b)=>b.textContent.trim()).join(',')`)
+  const metricLabels = await ev(`[...document.querySelectorAll('.metric-card .metric-label')].map((n)=>n.textContent.trim()).join(',')`)
+  const metricValues = await ev(`[...document.querySelectorAll('.metric-card .metric-value')].map((n)=>n.textContent.trim()).join('|')`)
+  const hasRange = await ev(`document.querySelectorAll('.dashboard-toolbar input[type="date"]').length === 2`)
+  check('UI-11', 'Dashboard shows profit/stock/invoice matrices with a date range picker',
+    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices created' && hasRange && metricValues.includes('Rs.'),
+    { activeNav: dashActive, metricLabels, metricValues, hasRange })
+
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Profit')?.click()`)
+  await wait(700)
+  const profitDetail = await ev(`document.querySelector('.detail-panel')?.innerText ?? ''`)
+  const profitHasCustomer = profitDetail.includes('Bilal Auto Shop')
+  const profitUpper = profitDetail.toUpperCase()
+  const profitHasColumns = profitUpper.includes('INVOICES') && profitUpper.includes('PROFIT')
+  const profitHasMoney = profitDetail.includes('Rs.')
+  check('UI-11b', 'Clicking the Profit matrix opens the per-customer profit detail',
+    profitHasCustomer && profitHasColumns && profitHasMoney, { profitHasCustomer, profitHasColumns, profitHasMoney })
+  await clickBtn('Close'); await wait(400)
+
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Remaining stock')?.click()`)
+  await wait(700)
+  const stockRows = await ev(`[...document.querySelectorAll('.detail-panel tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const stockHasGauge = /GAUGE 202647/.test(stockRows)
+  const stockHasOthers = stockRows.includes('Axle Bearing 6204-7') && stockRows.includes('Valve Spring-4')
+  check('UI-11c', 'Clicking the Remaining stock matrix opens the per-product remaining detail',
+    stockHasGauge && stockHasOthers, { stockRows, stockHasGauge, stockHasOthers })
+  await clickBtn('Close'); await wait(400)
+
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices created')?.click()`)
+  await wait(700)
+  const invoiceDetail = await ev(`document.querySelector('.detail-panel')?.innerText ?? ''`)
+  const invoiceDetailHasRows = invoiceDetail.includes('INV-000001') && invoiceDetail.includes('INV-000003')
+  const invoiceValue = await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices created')?.querySelector('.metric-value')?.textContent.trim()`)
+  check('UI-11d', 'Clicking the Invoices created matrix lists the invoices in the range',
+    invoiceValue === '3' && invoiceDetailHasRows, { invoiceValue, invoiceDetailHasRows })
+  await clickBtn('Close'); await wait(400)
+
+  const shortHeaders = await ev(`[...document.querySelectorAll('.short-list-header h3')].map((h)=>h.textContent.trim()).join(',')`)
+  const moreButtons = await ev(`[...document.querySelectorAll('.short-list-header .btn')].map((b)=>b.textContent.trim()).join(',')`)
+  const shortHasProducts = await ev(`document.querySelectorAll('.short-list')[0]?.innerText.includes('GAUGE 2026') || document.querySelectorAll('.short-list')[0]?.innerText.includes('Axle Bearing 6204')`)
+  check('UI-11e', 'Short lists show recent products/invoices/customers, each with a More button',
+    shortHeaders === 'Products,Invoices,Customers' && moreButtons.split(',').filter((b) => b.includes('More')).length === 3 && shortHasProducts,
+    { shortHeaders, moreButtons, shortHasProducts })
+
+  await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Invoices')?.querySelector('.btn')?.click()`)
+  await wait(900)
+  const moreWentTo = await ev(`[...document.querySelectorAll('.nav-item.active')].map((b)=>b.textContent.trim()).join(',')`)
+  check('UI-11f', 'The More button on the Invoices short list navigates to the Invoices page',
+    moreWentTo.includes('Invoices'), { moreWentTo })
+
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)
 } catch (err) {
