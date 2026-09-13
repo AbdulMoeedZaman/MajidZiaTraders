@@ -391,8 +391,8 @@ try {
   const metricLabels = await ev(`[...document.querySelectorAll('.metric-card .metric-label')].map((n)=>n.textContent.trim()).join(',')`)
   const metricValues = await ev(`[...document.querySelectorAll('.metric-card .metric-value')].map((n)=>n.textContent.trim()).join('|')`)
   const hasRange = await ev(`document.querySelectorAll('.dashboard-toolbar input[type="date"]').length === 2`)
-  check('UI-11', 'Dashboard shows profit/stock/invoice matrices with a date range picker',
-    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices created' && hasRange && metricValues.includes('Rs.'),
+  check('UI-11', 'Dashboard shows profit/stock/invoice/expense matrices with a date range picker',
+    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices created,Expenses' && hasRange && metricValues.includes('Rs.'),
     { activeNav: dashActive, metricLabels, metricValues, hasRange })
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Profit')?.click()`)
@@ -436,6 +436,54 @@ try {
   const moreWentTo = await ev(`[...document.querySelectorAll('.nav-item.active')].map((b)=>b.textContent.trim()).join(',')`)
   check('UI-11f', 'The More button on the Invoices short list navigates to the Invoices page',
     moreWentTo.includes('Invoices'), { moreWentTo })
+
+  // =============== UI-12: expenses page (add, upsert, list, total) ===============
+  await nav('Expenses'); await wait(1000)
+  const expenseDateValue = await ev(`document.querySelector('.feature .toolbar input[type="date"]')?.value`)
+  const expenseEmptyTotal = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+  const addExpense = async (name, price) => {
+    await ev(`(()=>{const set=(label,val)=>{const i=[...document.querySelectorAll('.expense-form input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(label)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}}; set('Expense name',${JSON.stringify(name)}); set('Price (Rs.)',${JSON.stringify(price)}); return true})()`)
+    return clickBtn('+ Add Expense')
+  }
+  await addExpense('Travelling', '50'); await wait(700)
+  await addExpense('Tea', '25'); await wait(700)
+  await addExpense('Travelling', '75'); await wait(700)
+  const expRows = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const expTotalRow = await ev(`document.querySelector('.expense-total-row')?.innerText.replace(/\\s+/g,' ')`)
+  const expSummaryTotal = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+  const expDay = must(await inv('expenses:day-summary', TODAY), 'expense day summary')
+  check('UI-12', 'Expenses page adds entries via the form, upserts the same name and totals the day',
+    expenseDateValue === TODAY && expenseEmptyTotal === 'Rs. 0.00' &&
+    expRows.includes('Travelling') && expRows.includes('Tea') && (expRows.match(/Travelling/g) ?? []).length === 1 &&
+    expTotalRow.toUpperCase().includes('TOTAL') && expTotalRow.toUpperCase().includes('RS. 100.00') && expSummaryTotal === 'Rs. 100.00' &&
+    expDay.total === 10000 && expDay.items.length === 2 &&
+    expDay.items.find((e) => e.name === 'Travelling').price === 7500,
+    { dateDefault: expenseDateValue, emptyTotal: expenseEmptyTotal, rows: expRows, totalRow: expTotalRow, summaryTotal: expSummaryTotal, day: { total: expDay.total, items: expDay.items.length, travelling: expDay.items.find((e) => e.name === 'Travelling')?.price } })
+
+  await ev(`(()=>{const r=[...document.querySelectorAll('tbody tr')].find((r)=>r.textContent.includes('Tea')); if(!r) return false; r.querySelector('button')?.click(); return true})()`)
+  await wait(400)
+  await clickBtn('Confirm'); await wait(800)
+  const expTotalAfterDelete = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+  const expAfterDelete = must(await inv('expenses:list-by-date', TODAY), 'expenses after delete')
+  check('UI-12b', 'Deleting an expense from the page removes it and recalculates the day total',
+    expTotalAfterDelete === 'Rs. 75.00' && expAfterDelete.length === 1 && !expAfterDelete.some((e) => e.name === 'Tea'),
+    { total: expTotalAfterDelete, remaining: expAfterDelete.map((e) => e.name) })
+
+  // =============== UI-12c: dashboard expenses adapt to the range + grouped-by-day modal ===============
+  must(await inv('expenses:save', { date: '2026-01-02', name: 'Old Tea', price: 2000 }), 'past-day expense')
+  await nav('Dashboard'); await wait(1200)
+  await ev(`(()=>{const set=(i,val)=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true}));}; const ins=[...document.querySelectorAll('.dashboard-toolbar input[type="date"]')]; if(ins.length<2) return false; set(ins[0],'2026-01-01'); set(ins[1],${JSON.stringify(TODAY)}); return true})()`)
+  await wait(1200)
+  const expMetricValue = await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Expenses')?.querySelector('.metric-value')?.textContent.trim()`)
+  const expMetricHint = await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Expenses')?.querySelector('.metric-hint')?.textContent.trim()`)
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Expenses')?.click()`)
+  await wait(700)
+  const expModalText = await ev(`document.querySelector('.expense-modal')?.innerText ?? ''`)
+  check('UI-12c', 'Dashboard Expenses adapts to the range and opens a modal grouped by day',
+    expMetricValue === 'Rs. 95.00' && expMetricHint.includes('Today: Rs. 75.00') && expMetricHint.includes('2 days in range') &&
+    expModalText.includes('Old Tea') && expModalText.includes('Travelling') && expModalText.includes('Rs. 95.00'),
+    { metricValue: expMetricValue, metricHint: expMetricHint, modal: expModalText })
+  await clickBtn('Close'); await wait(400)
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)

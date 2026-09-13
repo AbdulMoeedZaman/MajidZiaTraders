@@ -1,7 +1,8 @@
 import { DashboardRepository } from '../repositories/dashboard.repository'
 import { InvoiceRepository } from '../repositories/invoice.repository'
-import { assertIsoDate } from '@shared/date'
+import { assertIsoDate, localDate } from '@shared/date'
 import type { CustomerProfit, DashboardSummary } from '@shared/types/dashboard'
+import type { ExpenseDaySummary } from '@shared/types/expense'
 
 const RECENT_LIMIT = 5
 
@@ -55,11 +56,35 @@ export class DashboardService {
     const perProduct = this.dashboardRepo.remainingPerProduct()
     const stockTotal = perProduct.reduce((sum, p) => sum + p.remaining, 0)
 
+    const today = localDate()
+    const todayItems = this.dashboardRepo.expensesFrom(today)
+    const todayTotal = todayItems.reduce((sum, e) => sum + e.price, 0)
+
+    const rangeExpenses = this.dashboardRepo.expensesInRange(start, end)
+    const byDay = new Map<string, ExpenseDaySummary>()
+    for (const expense of rangeExpenses) {
+      const day = byDay.get(expense.date)
+      if (day) {
+        day.total += expense.price
+        day.items.push(expense)
+      } else {
+        byDay.set(expense.date, { date: expense.date, total: expense.price, items: [expense] })
+      }
+    }
+    const expenseDays = [...byDay.values()]
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+      .map((day) => ({ ...day, items: [...day.items] }))
+
     return {
       range: { start, end },
       profit: { total: profitTotal, perCustomer },
       stock: { total: stockTotal, perProduct },
       invoices: { total: invoiceList.length, list: invoiceList },
+      expenses: {
+        todayTotal,
+        total: expenseDays.reduce((sum, d) => sum + d.total, 0),
+        byDay: expenseDays,
+      },
       recent: {
         products: this.dashboardRepo.recentProducts(RECENT_LIMIT),
         invoices: this.invoiceRepo.findAllWithCustomer({ limit: RECENT_LIMIT }),

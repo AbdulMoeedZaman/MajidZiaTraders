@@ -53,6 +53,12 @@ export const IPC_CHANNELS = {
 
   DASHBOARD_SUMMARY: 'dashboard:summary',
 
+  EXPENSES_LIST_BY_DATE: 'expenses:list-by-date',
+  EXPENSES_DAY_SUMMARY: 'expenses:day-summary',
+  EXPENSES_RANGE_SUMMARY: 'expenses:range-summary',
+  EXPENSES_SAVE: 'expenses:save',
+  EXPENSES_DELETE: 'expenses:delete',
+
   DIALOG_SAVE_BACKUP: 'dialog:save-backup',
   DIALOG_OPEN_BACKUP: 'dialog:open-backup',
   BACKUP_CREATE: 'backup:create',

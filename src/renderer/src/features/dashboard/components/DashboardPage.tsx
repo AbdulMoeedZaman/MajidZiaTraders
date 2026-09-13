@@ -3,10 +3,11 @@ import { api } from '../../../lib/api'
 import { formatDate, formatMoney } from '../../../lib/format'
 import { localDate } from '@shared/date'
 import type { DashboardSummary, CustomerProfit, ProductRemaining } from '@shared/types/dashboard'
+import type { ExpenseDaySummary } from '@shared/types/expense'
 import type { InvoiceWithCustomer } from '@shared/types/invoice'
 import type { AppView } from '../../../components/layout/nav'
 
-type DetailKind = 'profit' | 'stock' | 'invoices'
+type DetailKind = 'profit' | 'stock' | 'invoices' | 'expenses'
 
 interface Props {
   onNavigate: (view: AppView) => void
@@ -101,11 +102,26 @@ export function DashboardPage({ onNavigate }: Props) {
               hint="inside the selected dates"
               onClick={() => toggleDetail('invoices')}
             />
+            <MetricCard
+              open={detail === 'expenses'}
+              label="Expenses"
+              value={formatMoney(summary.expenses.total)}
+              hint={`Today: ${formatMoney(summary.expenses.todayTotal)} · ${summary.expenses.byDay.length} day${summary.expenses.byDay.length === 1 ? '' : 's'} in range`}
+              onClick={() => toggleDetail('expenses')}
+            />
           </div>
 
           {detail === 'profit' && <ProfitDetail data={summary.profit.perCustomer} range={summary.range} onClose={() => setDetail(null)} />}
           {detail === 'stock' && <StockDetail data={summary.stock.perProduct} onClose={() => setDetail(null)} />}
           {detail === 'invoices' && <InvoiceDetail data={summary.invoices.list} range={summary.range} onClose={() => setDetail(null)} />}
+          {detail === 'expenses' && (
+            <ExpenseDetailModal
+              data={summary.expenses.byDay}
+              todayTotal={summary.expenses.todayTotal}
+              range={summary.range}
+              onClose={() => setDetail(null)}
+            />
+          )}
 
           <div className="short-lists">
             <ShortList
@@ -360,5 +376,66 @@ function ShortList({
         <ul className="short-list-items">{children}</ul>
       )}
     </section>
+  )
+}
+
+function ExpenseDetailModal({
+  data,
+  todayTotal,
+  range,
+  onClose,
+}: {
+  data: ExpenseDaySummary[]
+  todayTotal: number
+  range: { start: string; end: string }
+  onClose: () => void
+}) {
+  const grandTotal = data.reduce((sum, day) => sum + day.total, 0)
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal expense-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>Expenses</h3>
+            <span className="muted fine-text">
+              {formatDate(range.start)} → {formatDate(range.end)} · Today: {formatMoney(todayTotal)}
+            </span>
+          </div>
+          <button className="btn ghost small" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {data.length === 0 ? (
+          <div className="empty-state">
+            <h3>No expenses in this period</h3>
+          </div>
+        ) : (
+          <div className="expense-modal-days">
+            {data.map((day) => (
+              <section key={day.date} className="expense-modal-day">
+                <header className="expense-modal-day-header">
+                  <strong>{formatDate(day.date)}</strong>
+                  <span className="num mono">{formatMoney(day.total)}</span>
+                </header>
+                <ul className="expense-modal-item-list">
+                  {day.items.map((e) => (
+                    <li key={e.id}>
+                      <span>{e.name}</span>
+                      <span className="num mono">{formatMoney(e.price)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+            <footer className="expense-modal-total">
+              <strong>Total</strong>
+              <strong className="num mono">{formatMoney(grandTotal)}</strong>
+            </footer>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

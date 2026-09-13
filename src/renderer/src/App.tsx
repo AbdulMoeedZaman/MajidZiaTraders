@@ -10,6 +10,7 @@ import { ProductList } from './features/products/components/ProductList'
 import { ProductDetailPage } from './features/products/components/ProductDetailPage'
 import { SettingsPage } from './features/settings/components/SettingsPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
+import { ExpensePage } from './features/expenses/components/ExpensePage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 export default function App() {
@@ -128,6 +129,7 @@ export default function App() {
             <ProductList onOpen={(id) => setSelectedProductId(id)} />
           ))}
         {view === 'dashboard' && <DashboardPage onNavigate={setView} />}
+        {view === 'expenses' && <ExpensePage />}
         {view === 'settings' && <SettingsPage />}
       </ErrorBoundary>
     </Layout>

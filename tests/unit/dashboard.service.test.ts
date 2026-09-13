@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { DashboardService } from '../../src/main/services/dashboard.service'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { StockService } from '../../src/main/services/stock.service'
+import { ExpenseService } from '../../src/main/services/expense.service'
+import { localDate } from '@shared/date'
 import { useTestDatabase, seedBasics } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
@@ -96,5 +98,37 @@ describe('DashboardService', () => {
   it('rejects an invalid range', () => {
     const dashboard = new DashboardService()
     expect(() => dashboard.summary('not-a-date', '2026-09-30')).toThrow(/valid date in YYYY-MM-DD/)
+  })
+
+  it('reports today total always and range expenses grouped by day', () => {
+    const dashboard = new DashboardService()
+    const expenses = new ExpenseService()
+    const today = localDate()
+    expenses.save({ date: today, name: 'Travelling', price: 5000 })
+    expenses.save({ date: today, name: 'Loader', price: 3000 })
+    expenses.save({ date: '2026-09-01', name: 'Tea', price: 1000 })
+
+    const s = dashboard.summary('2026-09-01', today)
+
+    expect(s.expenses.todayTotal).toBe(8000)
+    expect(s.expenses.total).toBe(9000)
+    expect(s.expenses.byDay[0].date).toBe(today)
+    expect(s.expenses.byDay[0].total).toBe(8000)
+    expect(s.expenses.byDay[0].items).toHaveLength(2)
+  })
+
+  it('expense range adapts to the selected dates while today total stays current', () => {
+    const dashboard = new DashboardService()
+    const expenses = new ExpenseService()
+    const today = localDate()
+    expenses.save({ date: today, name: 'Travelling', price: 5000 })
+    expenses.save({ date: '2026-09-01', name: 'Tea', price: 1000 })
+
+    const s = dashboard.summary('2026-09-01', '2026-09-01')
+
+    expect(s.expenses.todayTotal).toBe(5000)
+    expect(s.expenses.total).toBe(1000)
+    expect(s.expenses.byDay).toHaveLength(1)
+    expect(s.expenses.byDay[0].items[0].name).toBe('Tea')
   })
 })

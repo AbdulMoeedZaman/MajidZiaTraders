@@ -125,7 +125,7 @@ try {
   const invoicesAfter = must(await inv('invoices:list'), 'invoices after restore')
   const stockAfter = must(await inv('stock:list'), 'stock after restore')
   check('X-8', 'Backup create/validate/restore round trip: valid backup, garbage rejected, safety copy saved, data intact after restore',
-    createdOnDisk && validated.valid && validated.version === 4 && !garbage.valid &&
+    createdOnDisk && validated.valid && validated.version === 5 && !garbage.valid &&
     safetyOnDisk && invoicesAfter.length === invoices.length && stockAfter.length === stockRows.length,
     { createdOnDisk, fileBytes: created.size, validation: { valid: validated.valid, version: validated.version }, garbageRejected: { valid: garbage.valid, message: garbage.message }, safetyOnDisk, invoicesAfter: invoicesAfter.length, stockAfter: stockAfter.length })
 
@@ -139,6 +139,15 @@ try {
   const future = must(await inv('backup:validate', futurePath), 'validate future backup')
   check('X-9', 'A backup made by a newer app version is rejected with a clear message',
     !future.valid && future.version === 999 && /newer version/.test(future.message), future)
+
+  // X-10: expenses created in round 1 persist on the same day and on a past day
+  const todaysExpenses = must(await inv('expenses:list-by-date', TODAY), 'expenses today')
+  const pastExpenses = must(await inv('expenses:list-by-date', '2026-01-02'), 'expenses past day')
+  const travel = todaysExpenses.find((e) => e.name === 'Travelling')
+  const oldTea = pastExpenses.find((e) => e.name === 'Old Tea')
+  check('X-10', 'Expenses saved in round 1 persisted (today travelling Rs.75, past-day Old Tea Rs.20)',
+    !!travel && travel.price === 7500 && !!oldTea && oldTea.price === 2000,
+    { today: todaysExpenses, pastDay: pastExpenses })
 } catch (err) {
   console.log('\nSCRIPT STOPPED:', err.message)
   process.exitCode = 1

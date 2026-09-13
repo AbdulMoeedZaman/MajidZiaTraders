@@ -8,6 +8,7 @@ import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
 import type { DashboardSummary } from '@shared/types/dashboard'
+import type { CreateExpenseDTO, Expense, ExpenseDaySummary, ExpenseRangeSummary } from '@shared/types/expense'
 
 declare global {
   interface Window {
@@ -117,5 +118,14 @@ export const api = {
   dashboard: {
     summary: (start: string, end: string) =>
       ipc<DashboardSummary>('dashboard:summary', { start, end }),
+  },
+
+  expenses: {
+    listByDate: (date: string) => ipc<Expense[]>('expenses:list-by-date', date),
+    daySummary: (date: string) => ipc<ExpenseDaySummary>('expenses:day-summary', date),
+    rangeSummary: (from: string, to: string) =>
+      ipc<ExpenseRangeSummary>('expenses:range-summary', { from, to }),
+    save: (data: CreateExpenseDTO) => ipc<Expense>('expenses:save', data),
+    remove: (id: number) => ipc<{ success: boolean }>('expenses:delete', id),
   },
 }

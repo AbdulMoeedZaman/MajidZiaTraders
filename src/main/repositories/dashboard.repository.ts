@@ -1,6 +1,7 @@
 import { BaseRepository } from './base.repository'
 import type { Product } from '@shared/types/product'
 import type { CustomerWithRoute } from '@shared/types/customer'
+import type { Expense } from '@shared/types/expense'
 
 /** One invoice line inside the range, with everything needed to compute profit. */
 export interface ProfitLineRow {
@@ -64,5 +65,17 @@ export class DashboardRepository extends BaseRepository {
          LIMIT ?`
       )
       .all(limit) as CustomerWithRoute[]
+  }
+
+  expensesFrom(from: string): Expense[] {
+    return this.db
+      .prepare('SELECT * FROM expenses WHERE date >= ? ORDER BY date ASC, id ASC')
+      .all(from) as Expense[]
+  }
+
+  expensesInRange(from: string, to: string): Expense[] {
+    return this.db
+      .prepare('SELECT * FROM expenses WHERE date >= ? AND date <= ? ORDER BY date ASC, id ASC')
+      .all(from, to) as Expense[]
   }
 }
