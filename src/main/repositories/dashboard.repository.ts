@@ -2,6 +2,7 @@ import { BaseRepository } from './base.repository'
 import type { Product } from '@shared/types/product'
 import type { CustomerWithRoute } from '@shared/types/customer'
 import type { Expense } from '@shared/types/expense'
+import type { CustomerOwed, CashInward, TodayDispatch } from '@shared/types/dashboard'
 
 /** One invoice line inside the range, with everything needed to compute profit. */
 export interface ProfitLineRow {
@@ -77,5 +78,54 @@ export class DashboardRepository extends BaseRepository {
     return this.db
       .prepare('SELECT * FROM expenses WHERE date >= ? AND date <= ? ORDER BY date ASC, id ASC')
       .all(from, to) as Expense[]
+  }
+
+  /** Payments received inside the range, with the customer and invoice they settled. */
+  paymentsInRange(from: string, to: string): CashInward[] {
+    return this.db
+      .prepare(
+        `SELECT p.id AS paymentId, p.date, p.amount,
+                c.shopName AS customerName, i.invoiceNumber
+         FROM payments p
+         JOIN invoices i ON i.id = p.invoiceId
+         JOIN customers c ON c.id = p.customerId
+         WHERE p.date >= ? AND p.date <= ?
+         ORDER BY p.date DESC, p.id DESC`
+      )
+      .all(from, to) as CashInward[]
+  }
+
+  /** Every open (unpaid/partial) invoice's remaining balance, summed per customer. */
+  outstandingByCustomer(): CustomerOwed[] {
+    return this.db
+      .prepare(
+        `SELECT c.id AS customerId, c.shopName AS customerName,
+                COUNT(i.id) AS openInvoices,
+                SUM(i.grandTotal - i.paidAmount) AS owed
+         FROM invoices i
+         JOIN customers c ON c.id = i.customerId
+         WHERE i.status != 'cancelled' AND i.grandTotal > i.paidAmount
+         GROUP BY c.id, c.shopName
+         HAVING SUM(i.grandTotal - i.paidAmount) > 0
+         ORDER BY owed DESC, c.shopName ASC`
+      )
+      .all() as CustomerOwed[]
+  }
+
+  /** Products dispatched by the invoices dated on the given day (billed amounts). */
+  dispatchedToday(date: string): TodayDispatch[] {
+    return this.db
+      .prepare(
+        `SELECT ii.productId, p.name AS productName,
+                SUM(ii.cartonCount + ii.boxCount) AS quantity,
+                SUM(ii.amount) AS amount
+         FROM invoice_items ii
+         JOIN invoices i ON i.id = ii.invoiceId
+         JOIN products p ON p.id = ii.productId
+         WHERE i.date = ? AND i.status != 'cancelled'
+         GROUP BY ii.productId, p.name
+         ORDER BY quantity DESC, p.name ASC`
+      )
+      .all(date) as TodayDispatch[]
   }
 }

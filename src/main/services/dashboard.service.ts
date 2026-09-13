@@ -1,6 +1,7 @@
 import { DashboardRepository } from '../repositories/dashboard.repository'
 import { InvoiceRepository } from '../repositories/invoice.repository'
 import { assertIsoDate, localDate } from '@shared/date'
+import { invoiceDue } from '@shared/types/invoice'
 import type { CustomerProfit, DashboardSummary } from '@shared/types/dashboard'
 import type { ExpenseDaySummary } from '@shared/types/expense'
 
@@ -43,13 +44,27 @@ export class DashboardService {
           customerName: line.customerName,
           profit,
           invoices: 0,
+          sales: 0,
           invoiceIds: new Set([line.invoiceId]),
         })
       }
     }
 
+    const salesByCustomer = new Map<number, number>()
+    for (const invoice of invoiceList) {
+      if (invoice.status === 'cancelled') continue
+      salesByCustomer.set(
+        invoice.customerId,
+        (salesByCustomer.get(invoice.customerId) ?? 0) + invoiceDue(invoice)
+      )
+    }
+
     const perCustomer = [...map.values()]
-      .map(({ invoiceIds, ...rest }) => ({ ...rest, invoices: invoiceIds.size }))
+      .map(({ invoiceIds, ...rest }) => ({
+        ...rest,
+        invoices: invoiceIds.size,
+        sales: salesByCustomer.get(rest.customerId) ?? 0,
+      }))
       .filter((c) => c.profit !== 0)
       .sort((a, b) => b.profit - a.profit)
 
@@ -59,6 +74,7 @@ export class DashboardService {
     const today = localDate()
     const todayItems = this.dashboardRepo.expensesFrom(today)
     const todayTotal = todayItems.reduce((sum, e) => sum + e.price, 0)
+    const dispatchedToday = this.dashboardRepo.dispatchedToday(today)
 
     const rangeExpenses = this.dashboardRepo.expensesInRange(start, end)
     const byDay = new Map<string, ExpenseDaySummary>()
@@ -75,15 +91,36 @@ export class DashboardService {
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
       .map((day) => ({ ...day, items: [...day.items] }))
 
+    const perCustomerOwed = this.dashboardRepo.outstandingByCustomer()
+    const payments = this.dashboardRepo.paymentsInRange(start, end)
+
     return {
       range: { start, end },
       profit: { total: profitTotal, perCustomer },
       stock: { total: stockTotal, perProduct },
-      invoices: { total: invoiceList.length, list: invoiceList },
+      invoices: {
+        total: invoiceList.length,
+        list: invoiceList,
+        dispatchedToday,
+      },
       expenses: {
         todayTotal,
         total: expenseDays.reduce((sum, d) => sum + d.total, 0),
         byDay: expenseDays,
+      },
+      owed: {
+        total: perCustomerOwed.reduce((sum, c) => sum + c.owed, 0),
+        perCustomer: perCustomerOwed,
+      },
+      cashFlow: {
+        inward: {
+          total: payments.reduce((sum, p) => sum + p.amount, 0),
+          payments,
+        },
+        outward: {
+          total: rangeExpenses.reduce((sum, e) => sum + e.price, 0),
+          expenses: rangeExpenses,
+        },
       },
       recent: {
         products: this.dashboardRepo.recentProducts(RECENT_LIMIT),

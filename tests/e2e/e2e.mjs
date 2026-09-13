@@ -423,36 +423,38 @@ try {
   const metricLabels = await ev(`[...document.querySelectorAll('.metric-card .metric-label')].map((n)=>n.textContent.trim()).join(',')`)
   const metricValues = await ev(`[...document.querySelectorAll('.metric-card .metric-value')].map((n)=>n.textContent.trim()).join('|')`)
   const hasRange = await ev(`document.querySelectorAll('.dashboard-toolbar input[type="date"]').length === 2`)
-  check('UI-11', 'Dashboard shows profit/stock/invoice/expense matrices with a date range picker',
-    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices created,Expenses' && hasRange && metricValues.includes('Rs.'),
+  check('UI-11', 'Dashboard shows the six metric matrices with a date range picker',
+    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices,Expenses,Owed amount,Cash flow' && hasRange && metricValues.includes('Rs.'),
     { activeNav: dashActive, metricLabels, metricValues, hasRange })
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Profit')?.click()`)
   await wait(700)
-  const profitDetail = await ev(`document.querySelector('.detail-panel')?.innerText ?? ''`)
+  const profitDetail = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
   const profitHasCustomer = profitDetail.includes('Bilal Auto Shop')
   const profitUpper = profitDetail.toUpperCase()
-  const profitHasColumns = profitUpper.includes('INVOICES') && profitUpper.includes('PROFIT')
+  const profitHasColumns = profitUpper.includes('INVOICES') && profitUpper.includes('SALES') && profitUpper.includes('PROFIT')
   const profitHasMoney = profitDetail.includes('Rs.')
-  check('UI-11b', 'Clicking the Profit matrix opens the per-customer profit detail',
+  check('UI-11b', 'Clicking the Profit matrix opens a modal with the per-customer profit breakdown',
     profitHasCustomer && profitHasColumns && profitHasMoney, { profitHasCustomer, profitHasColumns, profitHasMoney })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Remaining stock')?.click()`)
   await wait(700)
-  const stockRows = await ev(`[...document.querySelectorAll('.detail-panel tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const stockRows = await ev(`[...document.querySelectorAll('.detail-modal tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const stockSections = await ev(`[...document.querySelectorAll('.modal-section h4')].map((h)=>h.textContent.trim()).join(',')`)
   const stockHasGauge = /GAUGE 202650/.test(stockRows)
   const stockHasOthers = stockRows.includes('Axle Bearing 62040') && stockRows.includes('Valve Spring0')
-  check('UI-11c', 'Clicking the Remaining stock matrix opens the per-product remaining detail',
-    stockHasGauge && stockHasOthers, { stockRows, stockHasGauge, stockHasOthers })
+  check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with the inventory and today dispatches',
+    stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers,
+    { stockRows, stockSections, stockHasGauge, stockHasOthers })
   await clickBtn('Close'); await wait(400)
 
-  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices created')?.click()`)
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices')?.click()`)
   await wait(700)
-  const invoiceDetail = await ev(`document.querySelector('.detail-panel')?.innerText ?? ''`)
+  const invoiceDetail = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
   const invoiceDetailHasRows = invoiceDetail.includes('INV-000001') && invoiceDetail.includes('INV-000003')
-  const invoiceValue = await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices created')?.querySelector('.metric-value')?.textContent.trim()`)
-  check('UI-11d', 'Clicking the Invoices created matrix lists the invoices in the range',
+  const invoiceValue = await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices')?.querySelector('.metric-value')?.textContent.trim()`)
+  check('UI-11d', 'Clicking the Invoices matrix opens the invoice ledger for the range',
     invoiceValue === '3' && invoiceDetailHasRows, { invoiceValue, invoiceDetailHasRows })
   await clickBtn('Close'); await wait(400)
 
@@ -609,6 +611,30 @@ try {
     redoneLatest.action === 'payment_recorded' && redoneLatest.status === 'applied' &&
     redone3.status === 'paid' && redone3.paidAmount === 600,
     { latest: { action: redoneLatest.action, status: redoneLatest.status }, inv3: { status: redone3.status, paid: redone3.paidAmount } })
+
+  // =============== H-5: dashboard Owed + Cash flow modal breakdowns ===============
+  await nav('Dashboard'); await wait(1200)
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Owed amount')?.click()`)
+  await wait(700)
+  const owedModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
+  const owedModalUpper = owedModal.toUpperCase()
+  check('H-5a', 'Owed amount modal lists the per-customer outstanding balances',
+    owedModalUpper.includes('AMOUNT OWED') && owedModalUpper.includes('EMERALD PARTS') &&
+    owedModal.includes('Rs. 650.00') && owedModalUpper.includes('OPEN INVOICES'),
+    { modal: owedModal.replace(/\s+/g, ' ').slice(0, 300) })
+  await clickBtn('Close'); await wait(400)
+
+  await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Cash flow')?.click()`)
+  await wait(700)
+  const cashModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
+  const cashNet = await ev(`document.querySelector('.modal-net')?.innerText.replace(/\\s+/g,' ') ?? ''`)
+  check('H-5b', 'Cash flow modal splits inward payments from outward expenses and nets them',
+    cashModal.includes('Rs. 1,631.00') && cashModal.includes('INV-000001') && cashModal.includes('INV-000003') &&
+    cashModal.includes('Travelling') &&
+    cashModal.toUpperCase().includes('INWARD') && cashModal.toUpperCase().includes('OUTWARD') &&
+    cashNet.includes('Rs. 1,556.00'),
+    { net: cashNet, modal: cashModal.replace(/\s+/g, ' ').slice(0, 300) })
+  await clickBtn('Close'); await wait(400)
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)

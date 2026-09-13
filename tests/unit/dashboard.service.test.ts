@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DashboardService } from '../../src/main/services/dashboard.service'
 import { InvoiceService } from '../../src/main/services/invoice.service'
+import { PaymentService } from '../../src/main/services/payment.service'
 import { StockService } from '../../src/main/services/stock.service'
 import { ExpenseService } from '../../src/main/services/expense.service'
 import { localDate } from '@shared/date'
@@ -73,6 +74,90 @@ describe('DashboardService', () => {
     const s = dashboard.summary('2026-09-01', '2026-09-30')
     expect(s.invoices.total).toBe(1)
     expect(s.invoices.list.map((i) => i.id)).toEqual([inRange.id])
+  })
+
+  it('attributes the billed sales per customer for the profit modal', () => {
+    const dashboard = new DashboardService()
+    const invoices = new InvoiceService()
+    const seed = seedStocked(8)
+
+    invoices.create(
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, cartonCount: 2, boxCount: 6 })
+    )
+
+    const s = dashboard.summary('2026-09-01', '2026-09-30')
+    expect(s.profit.perCustomer[0].sales).toBe(2500)
+  })
+
+  it('reports what every customer owes across open invoices', () => {
+    const dashboard = new DashboardService()
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+    const seed = seedStocked(8)
+
+    const invoice = invoices.create(
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000 })
+    )
+
+    const s = dashboard.summary('2026-09-01', '2026-09-30')
+    expect(s.owed.total).toBe(2500)
+    expect(s.owed.perCustomer).toHaveLength(1)
+    expect(s.owed.perCustomer[0].customerName).toBe('Bilal Auto Shop')
+    expect(s.owed.perCustomer[0].openInvoices).toBe(1)
+    expect(s.owed.perCustomer[0].owed).toBe(2500)
+
+    payments.payInvoice(invoice.id, 1000)
+
+    const after = dashboard.summary('2026-09-01', '2026-09-30')
+    expect(after.owed.total).toBe(1500)
+    expect(after.owed.perCustomer[0].openInvoices).toBe(1)
+  })
+
+  it('breaks down cash flow into received payments and paid expenses', () => {
+    const dashboard = new DashboardService()
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+    const expenses = new ExpenseService()
+    const seed = seedStocked(8)
+
+    const invoice = invoices.create(
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000 })
+    )
+    payments.payInvoice(invoice.id, 2500)
+    expenses.save({ date: '2026-09-11', name: 'Travelling', price: 1200 })
+
+    const s = dashboard.summary('2026-09-01', '2026-09-30')
+
+    expect(s.cashFlow.inward.total).toBe(2500)
+    expect(s.cashFlow.inward.payments).toHaveLength(1)
+    expect(s.cashFlow.inward.payments[0]).toMatchObject({
+      customerName: 'Bilal Auto Shop',
+      invoiceNumber: 'INV-000001',
+      amount: 2500,
+    })
+    expect(s.cashFlow.outward.total).toBe(1200)
+    expect(s.cashFlow.outward.expenses[0].name).toBe('Travelling')
+    const net = s.cashFlow.inward.total - s.cashFlow.outward.total
+    expect(net).toBe(1300)
+  })
+
+  it('lists the units dispatched by today from the sale ledger', () => {
+    const dashboard = new DashboardService()
+    const invoices = new InvoiceService()
+    const seed = seedStocked(8)
+    const today = localDate()
+
+    invoices.create(
+      invoiceInput(seed, { customerId: seed.customerId, date: today, rate: 1000, cartonCount: 2, boxCount: 6 })
+    )
+
+    const s = dashboard.summary('2026-09-01', '2026-09-30')
+    expect(s.invoices.dispatchedToday).toHaveLength(1)
+    expect(s.invoices.dispatchedToday[0]).toMatchObject({
+      productName: seed.product.name,
+      quantity: 8,
+      amount: 2500,
+    })
   })
 
   it('reports remaining stock per product from the latest ledger balance', () => {
