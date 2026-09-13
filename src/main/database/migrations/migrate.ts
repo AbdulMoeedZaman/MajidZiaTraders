@@ -18,6 +18,14 @@ interface Migration {
  *   ignores `PRAGMA foreign_keys = OFF` inside a transaction, so for a table rebuild use
  *   `PRAGMA defer_foreign_keys = ON`, copy the rows, and check `PRAGMA foreign_key_check`
  *   is empty before the migration returns.
+ *
+ * Version tracking:
+ * - `PRAGMA user_version` is the source of truth for the applied schema version.
+ * - `_migrations` is kept as an audit journal (who applied what, when) and as a
+ *   fallback for databases created before user_version tracking existed.
+ * - The version stamp is written inside the same transaction as each migration, so a
+ *   failed migration rolls back both the schema changes and the version bump — the
+ *   database can never be left half-migrated.
  */
 const migrations: Migration[] = [
   { version: 1, name: '001_initial_schema', up: initialSchema },
@@ -28,6 +36,27 @@ const migrations: Migration[] = [
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version
 
+function readUserVersion(db: AppDatabase): number {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined
+  const value = typeof row?.user_version === 'number' ? row.user_version : 0
+  return value > 0 ? value : 0
+}
+
+function readJournalVersions(db: AppDatabase): Set<number> {
+  return new Set(
+    (db.prepare('SELECT version FROM _migrations').all() as { version: number }[]).map(
+      (row) => row.version
+    )
+  )
+}
+
+/** Highest schema version recorded anywhere for this database (user_version or journal). */
+export function readSchemaVersion(db: AppDatabase): number {
+  const userVersion = readUserVersion(db)
+  const journalVersions = readJournalVersions(db)
+  return Math.max(userVersion, ...[...journalVersions])
+}
+
 export function runMigrations(db: AppDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
@@ -37,19 +66,29 @@ export function runMigrations(db: AppDatabase): void {
     );
   `)
 
-  const applied = (
-    db.prepare('SELECT version FROM _migrations').all() as { version: number }[]
-  ).map((row) => row.version)
+  const journal = readJournalVersions(db)
+  const userVersion = readUserVersion(db)
+
+  // A migration is already applied if the journal records it OR its version is at or
+  // below user_version. user_version wins for databases that were never journaled.
+  let current = Math.max(userVersion, ...[...journal])
 
   for (const migration of migrations) {
-    if (!applied.includes(migration.version)) {
-      runInTransaction(db, () => {
-        migration.up(db)
-        db.prepare('INSERT INTO _migrations (version, name) VALUES (?, ?)').run(
-          migration.version,
-          migration.name
-        )
-      })
-    }
+    if (migration.version <= current) continue
+    runInTransaction(db, () => {
+      migration.up(db)
+      db.prepare('INSERT INTO _migrations (version, name) VALUES (?, ?)').run(
+        migration.version,
+        migration.name
+      )
+      db.exec(`PRAGMA user_version = ${migration.version}`)
+    })
+    current = migration.version
+  }
+
+  // Backfill: databases migrated before version tracking have a full journal but an
+  // unstamped header. Write the effective version so user_version is always accurate.
+  if (readUserVersion(db) !== current) {
+    db.exec(`PRAGMA user_version = ${current}`)
   }
 }

@@ -97,8 +97,7 @@ export function LoadFormReport({ summary, onClose }: Props) {
           </table>
         )}
 
-        <div className="ip-currency-note">All amounts in Pakistani Rupees (Rs.)</div>
-      </div>
+        </div>
     </div>
   )
 }

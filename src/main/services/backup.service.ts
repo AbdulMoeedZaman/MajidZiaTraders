@@ -3,7 +3,7 @@ import path from 'path'
 import { app } from 'electron'
 import { getDatabase, getDatabasePath, replaceDatabaseFromFile } from '../database/connection'
 import { backupDatabase, openReadonlyDatabase } from '../database/sqlite'
-import { LATEST_MIGRATION_VERSION } from '../database/migrations/migrate'
+import { LATEST_MIGRATION_VERSION, readSchemaVersion } from '../database/migrations/migrate'
 import type {
   BackupFileInfo,
   BackupValidation,
@@ -67,14 +67,11 @@ export class BackupService {
 
       let version: number | null = null
       try {
-        const row = db.prepare('SELECT MAX(version) AS v FROM _migrations').get() as {
-          v: number | null
-        }
-        version = row && typeof row.v === 'number' ? row.v : null
+        version = readSchemaVersion(db)
       } catch {
         // _migrations table missing (or unreadable)
       }
-      if (version === null) {
+      if (version === null || version === 0) {
         return { valid: false, message: 'Not an MZTraders backup (missing migration records)', version: null }
       }
       if (version > LATEST_MIGRATION_VERSION) {

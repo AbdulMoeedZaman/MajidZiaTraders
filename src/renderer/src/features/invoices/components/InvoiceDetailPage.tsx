@@ -229,8 +229,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           />
         )}
 
-        <div className="ip-currency-note">All amounts in Pakistani Rupees (Rs.)</div>
-      </div>
+        </div>
     </div>
   )
 }

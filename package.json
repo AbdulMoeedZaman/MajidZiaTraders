@@ -22,6 +22,7 @@
   "build": {
     "appId": "com.mztraders.app",
     "productName": "MZTraders",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -34,15 +35,32 @@
     "npmRebuild": false,
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "MZTraders",
+      "uninstallDisplayName": "MZTraders",
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": true,
+      "runAfterFinish": true
     },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://updates.example.com/mztraders/"
+      }
+    ],
     "mac": {
       "target": [
         "dmg"
@@ -51,6 +69,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "xlsx": "^0.18.5"

@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { getDatabase, closeDatabase } from './database/connection'
 import { registerAllIpc } from './ipc'
+import { initAutoUpdater } from './updater'
 
 app.setName('MZTraders')
 
@@ -63,6 +64,7 @@ if (!gotTheLock) {
     getDatabase()
     registerAllIpc()
     createWindow()
+    void initAutoUpdater()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

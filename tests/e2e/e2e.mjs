@@ -283,7 +283,7 @@ try {
     detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Description,Qty.,Unit,Rate,Amount' && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
-    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('Rs.') && sheetText.includes('All amounts in Pakistani Rupees (Rs.)'),
+    dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('Rs.'),
     { datesShown: dateCount, shopNameLabel: hasShopNameLabel, ownerNameLabel: hasOwnerNameLabel, statusLabel: hasStatusLabel, rupee: sheetText.includes('Rs.') })
 
   const headerCentered = await ev(`(()=>{const h=document.querySelector('.invoice-sheet .sheet-head'); if(!h) return false; const s=getComputedStyle(h); return s.textAlign==='center'})()`)
