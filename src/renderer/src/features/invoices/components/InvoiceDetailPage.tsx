@@ -187,11 +187,11 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
             )}
           </div>
           <div className="ip-meta-right">
-            <div className="ip-meta-line right"><span>Date:</span> <strong>{printDate(invoice.date)}</strong></div>
+            <div className="ip-meta-line right"><span>Date:</span> <span>{printDate(invoice.date)}</span></div>
             {broker && (
               <>
-                <div className="ip-meta-line right"><span>Booker name:</span> <strong>{broker.name}</strong></div>
-                <div className="ip-meta-line right"><span>Booker phone:</span> <strong>{broker.phone ?? '—'}</strong></div>
+                <div className="ip-meta-line right"><span>Booker name:</span> <span>{broker.name}</span></div>
+                <div className="ip-meta-line right"><span>Booker phone:</span> <span>{broker.phone ?? '—'}</span></div>
               </>
             )}
           </div>
