@@ -1308,8 +1308,12 @@ body {
   font-size: 12px;
 }
 
-/* Print: only the printable area when printing an invoice */
+/* Print: only the printable area when printing an invoice (landscape A4) */
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
   body * {
     visibility: hidden;
   }

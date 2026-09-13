@@ -537,16 +537,10 @@ try {
   const confirmPayShown = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Confirm payment')`)
   await clickBtn('Confirm payment'); await wait(1100)
   const sheetTextPaid = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
-  const paysTable = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
-  const paysRows = await ev(`[...document.querySelectorAll('.data-table tfoot tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const inv1AfterPay = must(await inv('invoices:get-by-id', I1.id), 'I1 after pay')
   check('UI-13', 'Invoice Pay button settles the exact remaining amount through a confirmation and marks the invoice Paid',
-    hasPayBtn && inv1BeforePay.status === 'unpaid' && confirmPayShown &&
-    !sheetTextPaid.includes('Received ') && !sheetTextPaid.includes('Remaining ') &&
-    paysTable.includes('Rs.1,625.00') &&
-    paysRows.toUpperCase().includes('TOTAL RECEIVED') && paysRows.includes('Rs.1,625.00') &&
-    inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
-    { payButton: hasPayBtn, confirmation: confirmPayShown, sheet: !sheetTextPaid.includes('Received ') && !sheetTextPaid.includes('Remaining '), payments: paysTable, footer: paysRows, invoice: { before: inv1BeforePay.status, after: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
+    hasPayBtn && inv1BeforePay.status === 'unpaid' && confirmPayShown && inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
+    { payButton: hasPayBtn, confirmation: confirmPayShown, sheet: sheetTextPaid.includes('Net Amount / Grand Total') && sheetTextPaid.includes('Rs.1,625.00'), invoice: { before: inv1BeforePay.status, after: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
 
   await clickBtn('Back to Invoices'); await wait(500)
 

@@ -2,7 +2,6 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { invoiceRemaining } from '@shared/types/invoice'
 import type { InvoiceDetails } from '@shared/types/invoice'
-import type { Payment } from '@shared/types/payment'
 
 interface Props {
   invoiceId: number
@@ -26,7 +25,6 @@ function printMoney(cents: number | null | undefined): string {
 
 export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
   const [data, setData] = useState<InvoiceDetails | null>(null)
-  const [payments, setPayments] = useState<Payment[]>([])
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,14 +38,12 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const [details, desc, pays] = await Promise.all([
+      const [details, desc] = await Promise.all([
         api.invoices.getWithDetails(invoiceId),
         api.settings.getValue('invoice_description'),
-        api.payments.listByInvoice(invoiceId),
       ])
       setData(details)
       setDescription(desc ?? '')
-      setPayments(pays)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load invoice')
     } finally {
@@ -100,7 +96,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
   const { invoice, customer, owner, broker } = data
   const totalCtn = invoice.items.reduce((sum, it) => sum + it.cartonCount, 0)
   const totalPcs = invoice.items.reduce((sum, it) => sum + it.boxCount, 0)
-  const paidTotal = payments.reduce((sum, p) => sum + p.amount, 0)
   const remaining = invoiceRemaining(invoice)
   const cancelled = invoice.status === 'cancelled'
 
@@ -282,7 +277,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
               <span>Net Amount / Grand Total</span>
               <strong>{printMoney(invoice.grandTotal ?? invoice.subtotal)}</strong>
             </div>
-            <div className="ip-fin-row"><span>Received</span><strong>{printMoney(paidTotal)}</strong></div>
           </div>
         </div>
 
@@ -302,42 +296,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
         )}
 
       </div>
-
-      <div className="section-title">Payments</div>
-      {payments.length === 0 ? (
-        <div className="empty-state">
-          <p>
-            {cancelled
-              ? 'This invoice was cancelled — no payments were kept.'
-              : 'No payments recorded yet.'}
-          </p>
-        </div>
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p.id}>
-                  <td>{printDate(p.date)}</td>
-                  <td className="num mono">{printMoney(p.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="expense-total-row">
-                <th>Total received</th>
-                <th className="num mono">{printMoney(paidTotal)}</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
     </div>
   )
 }
