@@ -45,7 +45,14 @@ export const IPC_CHANNELS = {
   INVOICES_CREATE: 'invoices:create',
   INVOICES_BUILD_LOAD_FORM: 'invoices:build-load-form',
   INVOICES_DELETE: 'invoices:delete',
+  INVOICES_CANCEL: 'invoices:cancel',
+  INVOICES_PAY: 'invoices:pay',
   INVOICES_COUNT: 'invoices:count',
+
+  CUSTOMERS_PAY: 'customers:pay',
+
+  PAYMENTS_LIST_BY_INVOICE: 'payments:list-by-invoice',
+  PAYMENTS_LIST_BY_CUSTOMER: 'payments:list-by-customer',
 
   STOCK_LIST: 'stock:list',
   STOCK_LIST_BY_PRODUCT: 'stock:list-by-product',

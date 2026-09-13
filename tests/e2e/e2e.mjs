@@ -485,6 +485,65 @@ try {
     { metricValue: expMetricValue, metricHint: expMetricHint, modal: expModalText })
   await clickBtn('Close'); await wait(400)
 
+  // =============== UI-13: pay an invoice from its detail page ===============
+  await nav('Invoices'); await wait(900)
+  await clickRowWith('INV-000001'); await wait(900)
+  const hasPayBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Pay')`)
+  const unpaidBadge = await ev(`document.querySelector('.status-badge.status-unpaid')?.textContent.trim() ?? ''`)
+  await clickBtn('Pay'); await wait(300)
+  const confirmPayShown = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Confirm payment')`)
+  await clickBtn('Confirm payment'); await wait(1100)
+  const paidBadge = await ev(`document.querySelector('.status-badge.status-paid')?.textContent.trim() ?? ''`)
+  const sheetTextPaid = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
+  const paysTable = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const paysRows = await ev(`[...document.querySelectorAll('.data-table tfoot tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const inv1AfterPay = must(await inv('invoices:get-by-id', I1.id), 'I1 after pay')
+  check('UI-13', 'Invoice Pay button settles the exact remaining amount through a confirmation and marks the invoice Paid',
+    hasPayBtn && unpaidBadge === 'Unpaid' && confirmPayShown && paidBadge === 'Paid' &&
+    sheetTextPaid.includes('Payment: Paid') && paysTable.includes('Rs.1,625.00') &&
+    paysRows.toUpperCase().includes('TOTAL RECEIVED') && paysRows.includes('Rs.1,625.00') &&
+    inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
+    { payButton: hasPayBtn, before: unpaidBadge, confirmation: confirmPayShown, after: paidBadge, sheet: sheetTextPaid.includes('Payment: Paid'), payments: paysTable, footer: paysRows, invoice: { status: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
+
+  await clickBtn('Back to Invoices'); await wait(500)
+
+  // =============== UI-13b: customer Pay modal applies amount oldest-invoice-first ===============
+  await nav('Customers'); await wait(900)
+  await clickRowWith('Bilal Auto Shop'); await wait(900)
+  const outstandingText = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+  const openText = await ev(`document.querySelector('.expense-summary-copy .fine-text')?.textContent ?? ''`)
+  const rowBadge3 = await ev(`[...document.querySelectorAll('.data-table tbody tr')].find((r)=>r.textContent.includes('INV-000003'))?.textContent.trim().replace(/\\s+/g,' ') ?? ''`)
+  await clickBtn('Pay'); await wait(400)
+  const payModalText = await ev(`document.querySelector('.pay-modal-info')?.innerText ?? ''`)
+  await ev(`(()=>{const i=document.querySelector('.modal input[type="number"]'); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,'6.00'); i.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
+  await clickBtn('Confirm Payment'); await wait(1100)
+  const paySuccess = await ev(`document.querySelector('.text-ok')?.textContent.trim() ?? ''`)
+  const outstandingAfter = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+  const openAfter = await ev(`document.querySelector('.expense-summary-copy .fine-text')?.textContent ?? ''`)
+  const inv3Row = must(await inv('invoices:list'), 'invoice list after pay').find((i) => i.invoiceNumber === 'INV-000003')
+  const inv1Row = must(await inv('invoices:list'), 'invoice list after customer pay').find((i) => i.invoiceNumber === 'INV-000001')
+  check('UI-13b', 'Customer Pay modal shows the outstanding balance, applies the amount oldest-first and clears the invoice',
+    outstandingText === 'Rs. 6.00' && openText.includes('open invoice') && rowBadge3.includes('Unpaid') &&
+    payModalText.includes('Bilal Auto Shop') && payModalText.includes('Rs. 6.00') && /Open invoices\s*1/.test(payModalText) &&
+    paySuccess.includes('Received Rs. 6.00') && outstandingAfter === 'Rs. 0.00' && openAfter.includes('0 open invoices') &&
+    inv3Row.status === 'paid' && inv3Row.paidAmount === 600 && inv1Row.status === 'paid',
+    { outstandingBefore: outstandingText, openBefore: openText, inv3Row: rowBadge3, modal: payModalText, success: paySuccess, outstandingAfter, openAfter, inv3: { status: inv3Row.status, paid: inv3Row.paidAmount } })
+
+  // =============== UI-13c: customer Pay modal surfaces backend validation errors ===============
+  const payOpenOk = await clickBtn('Pay'); await wait(400)
+  const modalAfterOpen = await ev(`!!document.querySelector('.modal')`)
+  await ev(`(()=>{const i=document.querySelector('.modal input[type="number"]'); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,'5.00'); i.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
+  const confirmClicked = await clickBtn('Confirm Payment'); await wait(1000)
+  const payModalErr = await ev(`document.querySelector('.modal .form-error')?.textContent ?? ''`)
+  const pagePayErr = await ev(`document.querySelector('.feature .form-error')?.textContent ?? ''`)
+  const modalStillOpen = await ev(`document.querySelector('.modal')?.innerText ?? ''`)
+  const backend = await inv('customers:pay', 1, 500)
+  check('UI-13c', 'Customer Pay modal shows the backend error and stays open when no open invoice remains',
+    payOpenOk && modalAfterOpen && confirmClicked &&
+    (payModalErr.includes('no open invoice') || pagePayErr.includes('no open invoice')) &&
+    modalStillOpen.includes('Confirm Payment') && !backend.ok,
+    { payOpenOk, modalAfterOpen, confirmClicked, payModalErr, pagePayErr, modalOpen: modalStillOpen.includes('Confirm Payment'), backend: backend.e ?? 'accepted' })
+
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)
 } catch (err) {

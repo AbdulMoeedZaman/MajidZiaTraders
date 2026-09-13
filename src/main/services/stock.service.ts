@@ -79,4 +79,28 @@ export class StockService {
   removeForInvoice(invoiceId: number): void {
     this.stockRepo.deleteForInvoice(invoiceId)
   }
+
+  /**
+   * Reverses an invoice's sales: one `return` movement per original `sale` row so the
+   * product's running balance is restored exactly. The reversal is linked to the same
+   * invoice, so the ledger stays coherent and can be traced back to the cancellation.
+   */
+  revertSalesForInvoice(invoiceId: number, date: string): void {
+    const sales = this.stockRepo.findSalesForInvoice(invoiceId)
+    for (const sale of sales) {
+      const previous = this.stockRepo.lastNewQuantity(sale.productId) ?? 0
+      this.stockRepo.insert({
+        productId: sale.productId,
+        type: 'return',
+        quantity: -sale.quantity,
+        previousQuantity: previous,
+        newQuantity: previous - sale.quantity,
+        referenceType: 'invoice',
+        referenceId: invoiceId,
+        note: 'Invoice cancelled',
+        date,
+        price: sale.price,
+      })
+    }
+  }
 }

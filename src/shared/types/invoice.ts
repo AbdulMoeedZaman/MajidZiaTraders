@@ -4,6 +4,8 @@ import type { Customer } from './customer'
 
 export type FilerStatus = 'filer' | 'non_filer'
 
+export type InvoiceStatus = 'unpaid' | 'paid' | 'partial' | 'cancelled'
+
 export interface Invoice {
   id: number
   invoiceNumber: string
@@ -21,8 +23,22 @@ export interface Invoice {
   tax: number | null
   /** Manually entered grand total (minor units). Blank when null. */
   grandTotal: number | null
+  /** Payment status: paid, unpaid, part-paid or cancelled. */
+  status: InvoiceStatus
+  /** Total recorded payments (minor units); 0 for unpaid/cancelled invoices. */
+  paidAmount: number
   createdAt: string
   updatedAt: string
+}
+
+/** The full amount owed on an invoice (grand total, else subtotal). */
+export function invoiceDue(invoice: Pick<Invoice, 'grandTotal' | 'subtotal'>): number {
+  return invoice.grandTotal ?? invoice.subtotal
+}
+
+/** The amount still owed on an invoice (due minus payments, never below zero). */
+export function invoiceRemaining(invoice: Pick<Invoice, 'grandTotal' | 'subtotal' | 'paidAmount'>): number {
+  return Math.max(0, invoiceDue(invoice) - invoice.paidAmount)
 }
 
 export interface InvoiceItem {

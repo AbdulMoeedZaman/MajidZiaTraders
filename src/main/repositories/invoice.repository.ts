@@ -153,6 +153,16 @@ export class InvoiceRepository extends BaseRepository {
     this.db.prepare('DELETE FROM invoices WHERE id = ?').run(id) // invoice_items cascade
   }
 
+  updatePaymentState(id: number, paidAmount: number, status: string): void {
+    this.db
+      .prepare(
+        `UPDATE invoices
+         SET paidAmount = ?, status = ?, updatedAt = datetime('now')
+         WHERE id = ?`
+      )
+      .run(paidAmount, status, id)
+  }
+
   countByCustomer(customerId: number): number {
     const result = this.db
       .prepare('SELECT COUNT(*) AS count FROM invoices WHERE customerId = ?')

@@ -2,11 +2,12 @@ import { InvoiceRepository } from '../repositories/invoice.repository'
 import type { InvoiceItemRow } from '../repositories/invoice.repository'
 import { CustomerRepository } from '../repositories/customer.repository'
 import { StockService } from './stock.service'
+import { PaymentRepository } from '../repositories/payment.repository'
 import { ProjectOwnerRepository } from '../repositories/project-owner.repository'
 import { BrokerRepository } from '../repositories/broker.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import { SettingsRepository } from '../repositories/settings.repository'
-import { assertIsoDate } from '@shared/date'
+import { assertIsoDate, localDate } from '@shared/date'
 import { calculateLineAmount } from '@shared/calc/invoice-totals'
 import type {
   Invoice,
@@ -32,6 +33,7 @@ export class InvoiceService {
   private productRepo = new ProductRepository()
   private settingsRepo = new SettingsRepository()
   private stockService = new StockService()
+  private paymentRepo = new PaymentRepository()
 
   list(): InvoiceWithCustomer[] {
     return this.invoiceRepo.findAllWithCustomer()
@@ -104,15 +106,40 @@ export class InvoiceService {
   }
 
   delete(id: number): void {
-    if (!this.invoiceRepo.findById(id)) {
+    const invoice = this.invoiceRepo.findById(id)
+    if (!invoice) {
       throw new Error('Invoice not found')
     }
+    if (invoice.paidAmount > 0) {
+      throw new Error('An invoice with recorded payments cannot be deleted \u2014 cancel it first')
+    }
     // The invoice's stock movements are removed in the same transaction so the
-    // ledger never references a deleted invoice (future phase: a separate
-    // reversal movement per line to restore balances exactly).
+    // ledger never references a deleted invoice.
     this.invoiceRepo.runInTransaction(() => {
       this.stockService.removeForInvoice(id)
       this.invoiceRepo.delete(id)
+    })
+  }
+
+  /**
+   * Cancels an invoice: reverses any payments, restocks the products with a `return`
+   * movement per original sale, and marks the invoice `cancelled` (kept for history).
+   * Cancelled amounts no longer count as received or as profit.
+   */
+  cancel(id: number): Invoice | null {
+    const invoice = this.invoiceRepo.findById(id)
+    if (!invoice) {
+      throw new Error('Invoice not found')
+    }
+    if (invoice.status === 'cancelled') {
+      throw new Error('Invoice is already cancelled')
+    }
+
+    return this.invoiceRepo.runInTransaction(() => {
+      this.paymentRepo.deleteForInvoice(id)
+      this.stockService.revertSalesForInvoice(id, localDate())
+      this.invoiceRepo.updatePaymentState(id, 0, 'cancelled')
+      return this.invoiceRepo.findById(id)!
     })
   }
 
@@ -135,6 +162,9 @@ export class InvoiceService {
       const invoice = this.invoiceRepo.findByIdWithCustomer(id)
       if (!invoice) {
         throw new Error('Invoice not found')
+      }
+      if (invoice.status === 'cancelled') {
+        throw new Error(`Invoice ${invoice.invoiceNumber} is cancelled and cannot be on a load form`)
       }
       invoiceNumbers.push(invoice.invoiceNumber)
 

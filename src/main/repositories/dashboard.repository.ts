@@ -30,7 +30,7 @@ export class DashboardRepository extends BaseRepository {
          FROM invoice_items ii
          JOIN invoices i ON i.id = ii.invoiceId
          JOIN customers c ON c.id = i.customerId
-         WHERE i.date >= ? AND i.date <= ?
+         WHERE i.date >= ? AND i.date <= ? AND i.status != 'cancelled'
          ORDER BY i.date DESC, i.id DESC`
       )
       .all(from, to) as ProfitLineRow[]

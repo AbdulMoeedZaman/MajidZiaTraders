@@ -9,6 +9,7 @@ import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/t
 import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
 import type { DashboardSummary } from '@shared/types/dashboard'
 import type { CreateExpenseDTO, Expense, ExpenseDaySummary, ExpenseRangeSummary } from '@shared/types/expense'
+import type { CustomerPayResult, Payment } from '@shared/types/payment'
 
 declare global {
   interface Window {
@@ -70,6 +71,13 @@ export const api = {
     count: () => ipc<number>('customers:count'),
     importExcel: (filePath: string, routeId: number) =>
       ipc<CustomerImportResult>('customers:import-excel', filePath, routeId),
+    pay: (customerId: number, amount: number) =>
+      ipc<CustomerPayResult>('customers:pay', customerId, amount),
+  },
+
+  payments: {
+    listByInvoice: (invoiceId: number) => ipc<Payment[]>('payments:list-by-invoice', invoiceId),
+    listByCustomer: (customerId: number) => ipc<Payment[]>('payments:list-by-customer', customerId),
   },
 
   invoices: {
@@ -81,6 +89,8 @@ export const api = {
     create: (data: CreateInvoiceDTO) => ipc<Invoice>('invoices:create', data),
     buildLoadForm: (invoiceIds: number[]) => ipc<LoadFormSummary>('invoices:build-load-form', invoiceIds),
     delete: (id: number) => ipc<{ success: boolean }>('invoices:delete', id),
+    cancel: (id: number) => ipc<Invoice | null>('invoices:cancel', id),
+    pay: (id: number, amount: number) => ipc<Invoice>('invoices:pay', id, amount),
     count: () => ipc<number>('invoices:count'),
   },
 

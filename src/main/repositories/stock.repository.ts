@@ -73,4 +73,12 @@ export class StockRepository extends BaseRepository {
       .prepare("DELETE FROM stock_movements WHERE referenceType = 'invoice' AND referenceId = ?")
       .run(invoiceId)
   }
+
+  findSalesForInvoice(invoiceId: number): StockMovement[] {
+    return this.db
+      .prepare(
+        "SELECT * FROM stock_movements WHERE referenceType = 'invoice' AND referenceId = ? ORDER BY id ASC"
+      )
+      .all(invoiceId) as StockMovement[]
+  }
 }

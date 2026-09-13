@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../../lib/api'
 import { formatDate, formatMoney } from '../../../lib/format'
 import { LoadFormReport } from './LoadFormReport'
+import { StatusBadge } from '../../../components/StatusBadge'
 import type { InvoiceWithCustomer, LoadFormSummary } from '@shared/types/invoice'
 
 interface Props {
@@ -149,6 +150,7 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
                 <th>Invoice no.</th>
                 <th>Date</th>
                 <th>Customer</th>
+                <th>Status</th>
                 <th className="num">Subtotal</th>
                 <th className="num">Grand total</th>
                 {!selectMode && <th className="actions-col">Actions</th>}
@@ -158,7 +160,7 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
               {visible.map((inv) => (
                 <tr
                   key={inv.id}
-                  className={`${selected.has(inv.id) ? 'selected' : ''}`}
+                  className={`${inv.status === 'cancelled' ? 'is-cancelled' : ''} ${selected.has(inv.id) ? 'selected' : ''}`}
                   onClick={() => (selectMode ? toggle(inv.id) : onOpen(inv.id))}
                 >
                   {selectMode && (
@@ -175,6 +177,9 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
                   <td>
                     {inv.customerName}
                     <span className="muted fine-text"> · {inv.customerCode}</span>
+                  </td>
+                  <td>
+                    <StatusBadge status={inv.status} />
                   </td>
                   <td className="num mono">{formatMoney(inv.subtotal)}</td>
                   <td className="num mono">{formatMoney(inv.grandTotal)}</td>

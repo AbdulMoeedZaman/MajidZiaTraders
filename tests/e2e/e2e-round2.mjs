@@ -125,7 +125,7 @@ try {
   const invoicesAfter = must(await inv('invoices:list'), 'invoices after restore')
   const stockAfter = must(await inv('stock:list'), 'stock after restore')
   check('X-8', 'Backup create/validate/restore round trip: valid backup, garbage rejected, safety copy saved, data intact after restore',
-    createdOnDisk && validated.valid && validated.version === 5 && !garbage.valid &&
+    createdOnDisk && validated.valid && validated.version === 6 && !garbage.valid &&
     safetyOnDisk && invoicesAfter.length === invoices.length && stockAfter.length === stockRows.length,
     { createdOnDisk, fileBytes: created.size, validation: { valid: validated.valid, version: validated.version }, garbageRejected: { valid: garbage.valid, message: garbage.message }, safetyOnDisk, invoicesAfter: invoicesAfter.length, stockAfter: stockAfter.length })
 
@@ -148,6 +148,41 @@ try {
   check('X-10', 'Expenses saved in round 1 persisted (today travelling Rs.75, past-day Old Tea Rs.20)',
     !!travel && travel.price === 7500 && !!oldTea && oldTea.price === 2000,
     { today: todaysExpenses, pastDay: pastExpenses })
+
+  // X-11: payments + cancellation survived the UI round trip and cancel reverses everything
+  const now = must(await inv('invoices:list'), 'invoices for payments')
+  const paidOne = now.find((i) => i.invoiceNumber === 'INV-000001')
+  const paidThree = now.find((i) => i.invoiceNumber === 'INV-000003')
+  if (!paidOne || !paidThree) throw new Error('INV-000001 / INV-000003 missing for X-11')
+  const p1 = must(await inv('payments:list-by-invoice', paidOne.id), 'payments INV-000001')
+  const p3 = must(await inv('payments:list-by-invoice', paidThree.id), 'payments INV-000003')
+
+  const fresh = must(await inv('invoices:create', {
+    customerId,
+    brokerId: B[0].id,
+    date: TODAY,
+    filerStatus: 'filer',
+    remaining: null,
+    tax: null,
+    grandTotal: null,
+    items: [{ productId: products[0].id, rate: products[0].rate, cartonCount: 2, boxCount: 0 }],
+  }), 'fresh invoice for cancel')
+  await inv('invoices:pay', fresh.id, 5000)
+  const cancelled = must(await inv('invoices:cancel', fresh.id), 'cancel fresh invoice')
+  const freshPays = must(await inv('payments:list-by-invoice', fresh.id), 'payments after cancel')
+  const stockNow = must(await inv('stock:list'), 'stock after cancel')
+  const freshSale = stockNow.find((m) => m.type === 'sale' && m.referenceId === fresh.id)
+  const freshReturn = stockNow.find((m) => m.type === 'return' && m.referenceId === fresh.id)
+  const freshStillThere = (await inv('invoices:list')).v.find((i) => i.id === fresh.id)
+  check('X-11', 'Round-1 payments persisted; cancel reverses payments, restocks via a return movement and keeps the cancelled record',
+    paidOne.status === 'paid' && paidOne.paidAmount === 162500 &&
+    paidThree.status === 'paid' && paidThree.paidAmount === 600 &&
+    p1.length === 1 && p1[0].amount === 162500 && p3.length === 1 && p3[0].amount === 600 &&
+    cancelled.status === 'cancelled' && cancelled.paidAmount === 0 && freshPays.length === 0 &&
+    !!freshSale && freshSale.quantity === -2 &&
+    !!freshReturn && freshReturn.quantity === 2 && freshReturn.newQuantity === freshSale.previousQuantity &&
+    freshStillThere && freshStillThere.status === 'cancelled',
+    { paidOne: { status: paidOne.status, paid: paidOne.paidAmount }, paidThree: { status: paidThree.status, paid: paidThree.paidAmount }, p1, p3, cancelled: { status: cancelled.status, paid: cancelled.paidAmount }, freshPays: freshPays.length, stock: stockNow.filter((m) => m.referenceId === fresh.id).map((m) => ({ t: m.type, q: m.quantity, prev: m.previousQuantity, new: m.newQuantity })) })
 } catch (err) {
   console.log('\nSCRIPT STOPPED:', err.message)
   process.exitCode = 1

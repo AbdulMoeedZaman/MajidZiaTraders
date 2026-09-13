@@ -19,5 +19,6 @@ export function registerInvoiceIpc(): void {
     invoiceService.delete(id)
     return { success: true }
   })
+  ipcMain.handle('invoices:cancel', (_, id: number) => invoiceService.cancel(id))
   ipcMain.handle('invoices:count', () => invoiceService.count())
 }

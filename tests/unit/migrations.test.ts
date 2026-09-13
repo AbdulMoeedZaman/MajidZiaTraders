@@ -55,7 +55,7 @@ describe('schema migrations (PRAGMA user_version)', () => {
     const versions = (
       oldDb.prepare('SELECT version FROM _migrations ORDER BY version').all() as { version: number }[]
     ).map((row) => row.version)
-    expect(versions).toEqual([1, 2, 3, 4, 5])
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6])
     // end state of the later migrations is present
     const routeCols = (
       oldDb.prepare('PRAGMA table_info(routes)').all() as { name: string }[]
@@ -66,6 +66,11 @@ describe('schema migrations (PRAGMA user_version)', () => {
     ).map((c) => c.name)
     expect(stockCols).toContain('date')
     expect(stockCols).toContain('price')
+    const invoiceCols = (
+      oldDb.prepare('PRAGMA table_info(invoices)').all() as { name: string }[]
+    ).map((c) => c.name)
+    expect(invoiceCols).toContain('status')
+    expect(invoiceCols).toContain('paidAmount')
     oldDb.close()
   })
 
