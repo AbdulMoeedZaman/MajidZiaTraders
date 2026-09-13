@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProducts } from '../hooks/useProducts'
 import { ProductForm } from './ProductForm'
 import { RestockModal } from './RestockModal'
@@ -22,6 +22,22 @@ export function ProductList({ onOpen }: Props) {
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [stocks, setStocks] = useState<Record<number, number>>({})
+
+  const loadStocks = useCallback(async () => {
+    try {
+      const levels = await api.stock.levels()
+      const map: Record<number, number> = {}
+      for (const l of levels) map[l.productId] = l.quantity
+      setStocks(map)
+    } catch {
+      // stock levels are auxiliary — keep the table usable if this fails
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStocks()
+  }, [loadStocks])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -59,6 +75,7 @@ export function ProductList({ onOpen }: Props) {
   const handleRestock = async (data: { productId: number; quantity: number; loosePieces?: number }) => {
     const product = products.find((p) => p.id === data.productId)
     await api.stock.restock(data)
+    await loadStocks()
     const parts: string[] = []
     if (data.quantity > 0) parts.push(`${data.quantity} cartons`)
     if ((data.loosePieces ?? 0) > 0) parts.push(`${data.loosePieces} pcs`)
@@ -134,38 +151,46 @@ export function ProductList({ onOpen }: Props) {
                 <th>Product</th>
                 <th className="num">Minimum rate</th>
                 <th className="num">Boxes / carton</th>
+                <th className="num">Cartons</th>
+                <th className="num">Loose pcs</th>
                 <th className="actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((p) => (
-                <tr key={p.id} className="clickable" onClick={() => onOpen?.(p.id)}>
-                  <td>{p.name}</td>
-                  <td className="num mono">{formatMoney(p.rate)}</td>
-                  <td className="num">{p.boxesPerCarton}</td>
-                  <td className="actions-col" onClick={(e) => e.stopPropagation()}>
-                    {confirmId === p.id ? (
-                      <span className="confirm-bar">
-                        <button className="btn danger small" onClick={() => void handleDelete(p.id)}>
-                          Confirm
-                        </button>
-                        <button className="btn ghost small" onClick={() => setConfirmId(null)}>
-                          Cancel
-                        </button>
-                      </span>
-                    ) : (
-                      <>
-                        <button className="btn ghost small" onClick={() => setEditing(p)}>
-                          Edit
-                        </button>
-                        <button className="btn danger small" onClick={() => setConfirmId(p.id)}>
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {visible.map((p) => {
+                const qty = stocks[p.id] ?? 0
+                const bpc = Math.max(1, p.boxesPerCarton)
+                return (
+                  <tr key={p.id} className="clickable" onClick={() => onOpen?.(p.id)}>
+                    <td>{p.name}</td>
+                    <td className="num mono">{formatMoney(p.rate)}</td>
+                    <td className="num">{p.boxesPerCarton}</td>
+                    <td className="num">{Math.floor(qty / bpc)}</td>
+                    <td className="num">{qty % bpc}</td>
+                    <td className="actions-col" onClick={(e) => e.stopPropagation()}>
+                      {confirmId === p.id ? (
+                        <span className="confirm-bar">
+                          <button className="btn danger small" onClick={() => void handleDelete(p.id)}>
+                            Confirm
+                          </button>
+                          <button className="btn ghost small" onClick={() => setConfirmId(null)}>
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          <button className="btn ghost small" onClick={() => setEditing(p)}>
+                            Edit
+                          </button>
+                          <button className="btn danger small" onClick={() => setConfirmId(p.id)}>
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
