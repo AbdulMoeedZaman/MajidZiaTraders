@@ -3,13 +3,13 @@ import { InvoiceService } from '../../src/main/services/invoice.service'
 import { PaymentService } from '../../src/main/services/payment.service'
 import { StockService } from '../../src/main/services/stock.service'
 import { DashboardService } from '../../src/main/services/dashboard.service'
-import { useTestDatabase, seedBasics } from './helpers'
+import { useTestDatabase, seedStocked } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 describe('PaymentService', () => {
   useTestDatabase()
 
-  const seed = seedBasics
+  const seed = seedStocked
 
   const invoiceInput = (base: ReturnType<typeof seed>, over: Partial<CreateInvoiceDTO> = {}): CreateInvoiceDTO => ({
     customerId: base.customerId,
@@ -119,7 +119,7 @@ describe('PaymentService', () => {
     expect(sale!.quantity).toBe(-2)
     expect(ret).toBeTruthy()
     expect(ret!.quantity).toBe(2)
-    expect(ret!.newQuantity).toBe(0) // balance restored to pre-sale level
+    expect(ret!.newQuantity).toBe(100) // balance restored to the seeded level
   })
 
   it('a cancelled invoice cannot be paid and a paid invoice is kept until cancellation', () => {

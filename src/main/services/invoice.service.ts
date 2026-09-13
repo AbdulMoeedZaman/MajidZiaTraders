@@ -7,6 +7,7 @@ import { ProjectOwnerRepository } from '../repositories/project-owner.repository
 import { BrokerRepository } from '../repositories/broker.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import { SettingsRepository } from '../repositories/settings.repository'
+import { HistoryService } from './history.service'
 import { assertIsoDate, localDate } from '@shared/date'
 import { calculateLineAmount } from '@shared/calc/invoice-totals'
 import type {
@@ -34,6 +35,7 @@ export class InvoiceService {
   private settingsRepo = new SettingsRepository()
   private stockService = new StockService()
   private paymentRepo = new PaymentRepository()
+  private history = new HistoryService()
 
   list(): InvoiceWithCustomer[] {
     return this.invoiceRepo.findAllWithCustomer()
@@ -85,6 +87,7 @@ export class InvoiceService {
     this.assertOptionalMoney(data.tax, 'Tax')
 
     const items = this.buildItems(data.items)
+    this.assertSufficientStock(items)
     // Totals are system calculated: the grand total is always subtotal + tax and
     // the remaining amount is what is still owed after recorded payments (a new
     // invoice has no payments yet, so it equals the full grand total).
@@ -97,7 +100,7 @@ export class InvoiceService {
       const nextNumber = this.settingsRepo.nextCounter(INVOICE_COUNTER_KEY)
       const invoiceNumber = this.invoiceRepo.generateInvoiceNumber(nextNumber)
       const invoice = this.invoiceRepo.create(data, invoiceNumber, owner.id, items, grandTotal, remaining)
-      this.stockService.recordSalesForInvoice(
+      const movements = this.stockService.recordSalesForInvoice(
         invoice.id,
         invoice.date,
         items.map((item) => ({
@@ -106,6 +109,18 @@ export class InvoiceService {
           rate: item.rate,
         }))
       )
+      const customerName = customer.shopName || customer.ownerName
+      this.history.append({
+        action: 'invoice_created',
+        targetType: 'invoice',
+        targetId: invoice.id,
+        summary: `Invoice ${invoice.invoiceNumber} created for ${customerName}`,
+        snapshot: {
+          invoice,
+          items: this.invoiceRepo.getItems(invoice.id),
+          movements,
+        },
+      })
       return invoice
     })
   }
@@ -271,6 +286,29 @@ export class InvoiceService {
     if (value === null || value === undefined) return
     if (!Number.isInteger(value) || value < 0) {
       throw new Error(`${label} must be a whole number of cents and cannot be negative`)
+    }
+  }
+
+  /**
+   * Blocks invoices that would drive a product below zero stock: the quantity
+   * requested (cartons + boxes) across all lines must not exceed the current
+   * running balance for each product.
+   */
+  private assertSufficientStock(items: InvoiceItemRow[]): void {
+    const needed = new Map<number, { name: string; quantity: number }>()
+    for (const item of items) {
+      const quantity = item.cartonCount + item.boxCount
+      const existing = needed.get(item.productId)
+      if (existing) existing.quantity += quantity
+      else needed.set(item.productId, { name: item.productName, quantity })
+    }
+    for (const [productId, need] of needed) {
+      const available = this.stockService.currentQuantity(productId)
+      if (available < need.quantity) {
+        throw new Error(
+          `Insufficient stock for "${need.name}" — available ${available}, requested ${need.quantity}. Restock the product first.`
+        )
+      }
     }
   }
 }

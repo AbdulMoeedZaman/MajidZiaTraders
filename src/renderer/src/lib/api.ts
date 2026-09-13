@@ -4,7 +4,8 @@ import type { Route, RouteWithCount } from '@shared/types/route'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO, CustomerImportResult } from '@shared/types/customer'
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
-import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
+import type { StockMovement, StockMovementWithProduct, StockLevel, CreateRestockDTO } from '@shared/types/stock'
+import type { ActionLog } from '@shared/types/history'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
 import type { DashboardSummary } from '@shared/types/dashboard'
@@ -98,6 +99,14 @@ export const api = {
     list: () => ipc<StockMovementWithProduct[]>('stock:list'),
     listByProduct: (productId: number) => ipc<StockMovementWithProduct[]>('stock:list-by-product', productId),
     restock: (data: CreateRestockDTO) => ipc<StockMovement>('stock:restock', data),
+    levels: () => ipc<StockLevel[]>('stock:levels'),
+  },
+
+  history: {
+    list: () => ipc<ActionLog[]>('history:list'),
+    recent: (limit = 8) => ipc<ActionLog[]>('history:recent', limit),
+    undo: () => ipc<ActionLog>('history:undo'),
+    redo: () => ipc<ActionLog>('history:redo'),
   },
 
   settings: {

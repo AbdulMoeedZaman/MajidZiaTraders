@@ -161,6 +161,54 @@ export class InvoiceRepository extends BaseRepository {
     this.db.prepare('DELETE FROM invoices WHERE id = ?').run(id) // invoice_items cascade
   }
 
+  /** Re-inserts an invoice and its line items with their original ids (redo). */
+  restore(invoice: Invoice, items: InvoiceItem[]): void {
+    this.db
+      .prepare(
+        `INSERT INTO invoices
+           (id, invoiceNumber, customerId, ownerId, brokerId, date, filerStatus, subtotal,
+            remaining, tax, grandTotal, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        invoice.id,
+        invoice.invoiceNumber,
+        invoice.customerId,
+        invoice.ownerId,
+        invoice.brokerId,
+        invoice.date,
+        invoice.filerStatus,
+        invoice.subtotal,
+        invoice.remaining,
+        invoice.tax,
+        invoice.grandTotal,
+        invoice.createdAt,
+        invoice.updatedAt
+      )
+    for (const item of items) {
+      this.db
+        .prepare(
+          `INSERT INTO invoice_items
+             (id, invoiceId, productId, productName, rate, minRate, boxesPerCarton,
+              cartonCount, boxCount, amount, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          item.id,
+          invoice.id,
+          item.productId,
+          item.productName,
+          item.rate,
+          item.minRate,
+          item.boxesPerCarton,
+          item.cartonCount,
+          item.boxCount,
+          item.amount,
+          item.createdAt
+        )
+    }
+  }
+
   updatePaymentState(id: number, paidAmount: number, status: string): void {
     this.db
       .prepare(

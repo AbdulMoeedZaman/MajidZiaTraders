@@ -7,6 +7,7 @@ import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
 import { ProjectOwnerService } from '../../src/main/services/project-owner.service'
 import { BrokerService } from '../../src/main/services/broker.service'
+import { StockService } from '../../src/main/services/stock.service'
 import { RouteRepository } from '../../src/main/repositories/route.repository'
 import type { Product } from '../../src/shared/types/product'
 
@@ -58,4 +59,15 @@ export function seedBasics(routeName = 'Monday'): {
     routeId,
   })
   return { product, customerId: customer.id, ownerId: owner.id, brokerId: broker.id, routeId }
+}
+
+/**
+ * `seedBasics()` plus `quantity` stock for the seeded product — invoices can no
+ * longer be created without enough stock (negative stock is blocked), so tests
+ * that create invoices must start from stock.
+ */
+export function seedStocked(quantity = 100): ReturnType<typeof seedBasics> {
+  const seed = seedBasics()
+  new StockService().restock({ productId: seed.product.id, quantity })
+  return seed
 }

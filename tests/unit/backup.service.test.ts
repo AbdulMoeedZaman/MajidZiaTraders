@@ -7,7 +7,7 @@ import { AppDatabase } from '../../src/main/database/sqlite'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
 import { LATEST_MIGRATION_VERSION } from '../../src/main/database/migrations/migrate'
-import { useTestDatabase, seedBasics } from './helpers'
+import { useTestDatabase, seedBasics, seedStocked } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 describe('BackupService', () => {
@@ -80,7 +80,7 @@ describe('BackupService', () => {
     const service = new BackupService()
     const invoices = new InvoiceService()
     const products = new ProductService()
-    const seed = seedBasics()
+    const seed = seedStocked(7)
     invoices.create(invoiceInput(seed))
 
     const backupPath = path.join(process.env.TEST_USER_DATA!, 'for-restore.db')

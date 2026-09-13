@@ -20,6 +20,7 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [stockLevels, setStockLevels] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,16 +28,20 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const [r, c, b, p] = await Promise.all([
+      const [r, c, b, p, levels] = await Promise.all([
         api.routes.list(),
         api.customers.list(),
         api.brokers.list(),
         api.products.list(),
+        api.stock.levels(),
       ])
       setRoutes(r)
       setCustomers(c)
       setBrokers(b)
       setProducts(p)
+      const map: Record<number, number> = {}
+      for (const lv of levels) map[lv.productId] = lv.quantity
+      setStockLevels(map)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load invoice data')
     } finally {
@@ -75,6 +80,7 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
       customers={customers}
       brokers={brokers}
       products={products}
+      stockLevels={stockLevels}
       preselectCustomerId={preselectCustomerId}
       onSubmit={submit}
     />

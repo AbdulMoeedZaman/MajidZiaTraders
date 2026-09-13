@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { StockService } from '../../src/main/services/stock.service'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
-import { useTestDatabase, seedBasics } from './helpers'
+import { useTestDatabase, seedBasics, seedStocked } from './helpers'
 import { localDate } from '../../src/shared/date'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
@@ -52,19 +52,19 @@ describe('StockService', () => {
   it('invoice create records sale movements with negative quantity, date and price snapshot', () => {
     const stock = new StockService()
     const invoice = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(7)
 
     invoice.create(invoiceInput(seed))
 
     const movements = stock.list()
-    expect(movements).toHaveLength(1)
-    const m = movements[0]
+    expect(movements).toHaveLength(2)
+    const m = movements.find((x) => x.type === 'sale')!
     expect(m.productId).toBe(seed.product.id)
     expect(m.productName).toBe('Widget 1')
     expect(m.type).toBe('sale')
     expect(m.quantity).toBe(-7) // 2 cartons + 5 boxes
-    expect(m.previousQuantity).toBe(0)
-    expect(m.newQuantity).toBe(-7)
+    expect(m.previousQuantity).toBe(7)
+    expect(m.newQuantity).toBe(0)
     expect(m.date).toBe('2026-09-10')
     expect(m.price).toBe(500)
     expect(m.customerName).toBe('Bilal Auto Shop')
@@ -74,13 +74,13 @@ describe('StockService', () => {
   it('invoice delete removes its stock movements', () => {
     const invoice = new InvoiceService()
     const stock = new StockService()
-    const seed = seedBasics()
+    const seed = seedStocked(100)
 
     const created = invoice.create(invoiceInput(seed))
-    expect(stock.list()).toHaveLength(1)
+    expect(stock.list()).toHaveLength(2)
 
     invoice.delete(created.id)
-    expect(stock.list()).toHaveLength(0)
+    expect(stock.list()).toHaveLength(1) // the purchase movement remains
   })
 
   it('deleting a product also removes its stock ledger entries', () => {

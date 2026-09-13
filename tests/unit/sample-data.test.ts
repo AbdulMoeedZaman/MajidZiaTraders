@@ -14,6 +14,7 @@ import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProjectOwnerService } from '../../src/main/services/project-owner.service'
 import { BrokerService } from '../../src/main/services/broker.service'
 import { SettingsService } from '../../src/main/services/settings.service'
+import { StockService } from '../../src/main/services/stock.service'
 import { localDate } from '../../src/shared/date'
 import { useTestDatabase, routeIdFor } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
@@ -35,6 +36,7 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   const ownerService = new ProjectOwnerService()
   const brokerService = new BrokerService()
   const settingsService = new SettingsService()
+  const stockService = new StockService()
 
   const today = localDate()
   const d1 = today
@@ -53,6 +55,12 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   const gasket = productService.create({ name: 'Gasket Kit', rate: 45000, boxesPerCarton: 6 })
   const valve = productService.create({ name: 'Valve Spring', rate: 15000, boxesPerCarton: 20 })
   const clutch = productService.create({ name: 'Clutch Plate 240mm', rate: 320000, boxesPerCarton: 5 })
+
+  // ---- Stock: invoices are blocked below zero stock, so give each product a
+  // ---- working balance before the sales below are recorded.
+  for (const product of [market, axle, rings, gasket, valve, clutch]) {
+    stockService.restock({ productId: product.id, quantity: 50 })
+  }
 
   // ---- Customers spread across the six delivery routes ----
   const routes = ['Monday', 'Tuesday', 'Wednesday', 'Thursday']

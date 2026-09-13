@@ -10,4 +10,5 @@ export function registerStockIpc(): void {
     stockService.listByProduct(productId)
   )
   ipcMain.handle('stock:restock', (_event, data: CreateRestockDTO) => stockService.restock(data))
+  ipcMain.handle('stock:levels', () => stockService.levels())
 }

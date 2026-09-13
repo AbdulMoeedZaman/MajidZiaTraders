@@ -3,7 +3,7 @@ import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
 import { BrokerService } from '../../src/main/services/broker.service'
-import { useTestDatabase, seedBasics, routeIdFor } from './helpers'
+import { useTestDatabase, seedBasics, seedStocked, routeIdFor } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 describe('InvoiceService', () => {
@@ -20,7 +20,7 @@ describe('InvoiceService', () => {
 
   it('creates invoices with sequential INV-xxxxxx numbers starting at 000001', () => {
     const service = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(4)
 
     const first = service.create(invoiceInput(seed))
     expect(first.invoiceNumber).toBe('INV-000001')
@@ -32,7 +32,7 @@ describe('InvoiceService', () => {
 
   it('computes the box-portion of each line and auto-calculates grand total and remaining from tax', () => {
     const service = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(5)
     const created = service.create({
       customerId: seed.customerId,
       brokerId: seed.brokerId,
@@ -84,7 +84,7 @@ describe('InvoiceService', () => {
 
   it('rejects deleting a product that is used on an invoice', () => {
     const service = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(2)
     service.create(invoiceInput(seed))
 
     expect(() => new ProductService().delete(seed.product.id)).toThrow(/invoice/i)
@@ -93,7 +93,7 @@ describe('InvoiceService', () => {
 
   it('deletes an invoice cleanly so the product can be deleted afterwards', () => {
     const service = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(2)
     const created = service.create(invoiceInput(seed))
 
     service.delete(created.id)
@@ -131,7 +131,7 @@ describe('InvoiceService', () => {
 
   it('builds a load form report aggregating products and customer totals', () => {
     const service = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(7)
     const secondCustomer = new CustomerService().create({
       code: 'C-002',
       shopName: 'Emerald Parts',

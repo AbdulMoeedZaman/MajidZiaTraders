@@ -1,5 +1,6 @@
 import fs from 'fs'
 import { ProductRepository } from '../repositories/product.repository'
+import { HistoryService } from './history.service'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 
 const MONEY_LABEL = 'Rate'
@@ -7,6 +8,7 @@ const COUNT_LABEL = 'Boxes per carton'
 
 export class ProductService {
   private productRepo = new ProductRepository()
+  private history = new HistoryService()
 
   list(): Product[] {
     return this.productRepo.findAll()
@@ -30,7 +32,19 @@ export class ProductService {
     }
     this.assertMoneyField(data.rate, MONEY_LABEL)
     this.assertCountField(data.boxesPerCarton, COUNT_LABEL)
-    return this.productRepo.create(data)
+
+    const product = this.productRepo.runInTransaction(() => {
+      const created = this.productRepo.create(data)
+      this.history.append({
+        action: 'product_created',
+        targetType: 'product',
+        targetId: created.id,
+        summary: `Created product "${created.name}"`,
+        snapshot: { product: created },
+      })
+      return created
+    })
+    return product
   }
 
   update(id: number, data: UpdateProductDTO): Product {
@@ -124,6 +138,13 @@ export class ProductService {
 
       const boxesPerCarton = parseBoxesPerCarton(name)
       const product = this.productRepo.create({ name, rate, boxesPerCarton } satisfies CreateProductDTO)
+      this.history.append({
+        action: 'product_created',
+        targetType: 'product',
+        targetId: product.id,
+        summary: `Created product "${product.name}" (import)`,
+        snapshot: { product },
+      })
       result.created++
       result.products.push(product)
     }

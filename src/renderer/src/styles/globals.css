@@ -1961,6 +1961,12 @@ body {
   margin: 0;
 }
 
+.activity-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ---------- Expenses page ---------- */
 .expense-summary {
   display: flex;

@@ -4,7 +4,7 @@ import { InvoiceService } from '../../src/main/services/invoice.service'
 import { StockService } from '../../src/main/services/stock.service'
 import { ExpenseService } from '../../src/main/services/expense.service'
 import { localDate } from '@shared/date'
-import { useTestDatabase, seedBasics } from './helpers'
+import { useTestDatabase, seedBasics, seedStocked } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
 describe('DashboardService', () => {
@@ -32,7 +32,7 @@ describe('DashboardService', () => {
   it('computes total and per-customer profit as billed minus product price within the range', () => {
     const dashboard = new DashboardService()
     const invoices = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(8)
 
     // amount = 1000*2 + round(1000*6/12) = 2500; cost = 500*2 + round(500*6/12) = 1250 → profit 1250
     invoices.create(
@@ -51,7 +51,7 @@ describe('DashboardService', () => {
   it('a sale at exactly the product price contributes zero profit', () => {
     const dashboard = new DashboardService()
     const invoices = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(8)
 
     invoices.create(invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 500 }))
 
@@ -63,7 +63,7 @@ describe('DashboardService', () => {
   it('counts and lists only the invoices inside the selected date range', () => {
     const dashboard = new DashboardService()
     const invoices = new InvoiceService()
-    const seed = seedBasics()
+    const seed = seedStocked(16)
 
     const inRange = invoices.create(
       invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10' })

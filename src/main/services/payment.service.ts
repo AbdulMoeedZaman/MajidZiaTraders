@@ -1,5 +1,7 @@
 import { PaymentRepository } from '../repositories/payment.repository'
 import { InvoiceRepository } from '../repositories/invoice.repository'
+import { CustomerRepository } from '../repositories/customer.repository'
+import { HistoryService } from './history.service'
 import { localDate } from '@shared/date'
 import { invoiceDue, invoiceRemaining } from '@shared/types/invoice'
 import type { Invoice, InvoiceStatus } from '@shared/types/invoice'
@@ -17,6 +19,8 @@ import type { CustomerPayResult, Payment, PaymentApplication } from '@shared/typ
 export class PaymentService {
   private paymentRepo = new PaymentRepository()
   private invoiceRepo = new InvoiceRepository()
+  private customerRepo = new CustomerRepository()
+  private history = new HistoryService()
 
   payInvoice(invoiceId: number, amount: number): Invoice {
     this.assertPaymentAmount(amount)
@@ -44,10 +48,16 @@ export class PaymentService {
         date: localDate(),
         note: null,
       })
-      void payment
       const paidAmount = invoice.paidAmount + amount
       const status = newStatus(paidAmount, invoiceDue(invoice))
       this.invoiceRepo.updatePaymentState(invoice.id, paidAmount, status)
+      this.history.append({
+        action: 'payment_recorded',
+        targetType: 'payment',
+        targetId: payment.id,
+        summary: `Received ${formatPaisa(amount)} for ${invoice.invoiceNumber}`,
+        snapshot: { entries: [paymentToEntry(payment)] },
+      })
       return this.invoiceRepo.findById(invoice.id)!
     })
   }
@@ -66,6 +76,7 @@ export class PaymentService {
 
     let left = amount
     const applied: PaymentApplication[] = []
+    const entries: PaymentEntry[] = []
 
     this.paymentRepo.runInTransaction(() => {
       for (const inv of open) {
@@ -73,7 +84,7 @@ export class PaymentService {
         const next = invoiceRemaining(inv)
         if (next <= 0) continue
         const take = Math.min(next, left)
-        this.paymentRepo.insert({
+        const payment = this.paymentRepo.insert({
           invoiceId: inv.id,
           customerId,
           amount: take,
@@ -84,8 +95,18 @@ export class PaymentService {
         const status = newStatus(paidAmount, invoiceDue(inv))
         this.invoiceRepo.updatePaymentState(inv.id, paidAmount, status)
         applied.push({ invoiceId: inv.id, invoiceNumber: inv.invoiceNumber, amount: take, status })
+        entries.push(paymentToEntry(payment))
         left -= take
       }
+    })
+
+    const customer = this.customerRepo.findById(customerId)
+    this.history.append({
+      action: 'payment_recorded',
+      targetType: 'payment',
+      targetId: entries[0]?.id ?? null,
+      summary: `Received ${formatPaisa(amount)} from ${customer?.shopName || customer?.ownerName || 'customer'}`,
+      snapshot: { entries },
     })
 
     return { applied, total: amount }
@@ -113,4 +134,31 @@ function newStatus(paidAmount: number, due: number): InvoiceStatus {
   if (paidAmount >= due) return 'paid'
   if (paidAmount > 0) return 'partial'
   return 'unpaid'
+}
+
+/** The fields HistoryService needs to reverse / replay a recorded payment. */
+interface PaymentEntry {
+  id: number
+  invoiceId: number
+  customerId: number
+  amount: number
+  date: string
+  note: string | null
+  createdAt: string
+}
+
+function paymentToEntry(payment: Payment): PaymentEntry {
+  return {
+    id: payment.id,
+    invoiceId: payment.invoiceId,
+    customerId: payment.customerId,
+    amount: payment.amount,
+    date: payment.date,
+    note: payment.note,
+    createdAt: payment.createdAt,
+  }
+}
+
+function formatPaisa(cents: number): string {
+  return `Rs. ${(cents / 100).toFixed(2)}`
 }

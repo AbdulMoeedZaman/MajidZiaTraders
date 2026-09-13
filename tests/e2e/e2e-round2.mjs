@@ -52,6 +52,11 @@ try {
     invoices.length >= 3 && products.length >= 3 && customers.length >= 3,
     { invoices: invoices.length, products: products.length, customers: customers.length })
 
+  // X-1b: stock the product used by the invoices below — round 1 sold out Axle Bearing 6204
+  const productsSorted = [...products].sort((a, b) => a.name.localeCompare(b.name))
+  const stockLead = productsSorted[0] // 'Axle Bearing 6204' (created first in round 1)
+  must(await inv('stock:restock', { productId: stockLead.id, quantity: 3 }), 'stock P1 +3 for round2 invoices')
+
   // X-2: the invoice numbering counter carried on in the same session after UI-created invoices
   const B = must(await inv('brokers:list'), 'brokers')
   const customerId = invoices[0].customerId
@@ -63,7 +68,7 @@ try {
     remaining: null,
     tax: null,
     grandTotal: null,
-    items: [{ productId: products[0].id, rate: products[0].rate, cartonCount: 1, boxCount: 0 }],
+    items: [{ productId: stockLead.id, rate: stockLead.rate, cartonCount: 1, boxCount: 0 }],
   }), 'next invoice')
   check('X-2', 'Next invoice is numbered INV-000004 (counter persisted through the UI round trip)', next.invoiceNumber === 'INV-000004', next.invoiceNumber)
   await inv('invoices:delete', next.id)
@@ -105,8 +110,8 @@ try {
 
   // X-7: the UI restock from round 1 persisted as a purchase movement dated today
   const rg = stockRows.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
-  check('X-7', 'UI restock persisted: GAUGE 2026 +50 purchase movement with running balance carried to 47',
-    !!rg && rg.quantity === 50 && rg.date === TODAY && rg.previousQuantity === -3 && rg.newQuantity === 47,
+  check('X-7', 'UI restock persisted: GAUGE 2026 +50 purchase movement with running balance carried to 50',
+    !!rg && rg.quantity === 50 && rg.date === TODAY && rg.previousQuantity === 0 && rg.newQuantity === 50,
     rg ?? null)
 
   // X-8: backup create → validate → restore round trip (data intact, safety copy kept)
@@ -125,7 +130,7 @@ try {
   const invoicesAfter = must(await inv('invoices:list'), 'invoices after restore')
   const stockAfter = must(await inv('stock:list'), 'stock after restore')
   check('X-8', 'Backup create/validate/restore round trip: valid backup, garbage rejected, safety copy saved, data intact after restore',
-    createdOnDisk && validated.valid && validated.version === 6 && !garbage.valid &&
+    createdOnDisk && validated.valid && validated.version === 7 && !garbage.valid &&
     safetyOnDisk && invoicesAfter.length === invoices.length && stockAfter.length === stockRows.length,
     { createdOnDisk, fileBytes: created.size, validation: { valid: validated.valid, version: validated.version }, garbageRejected: { valid: garbage.valid, message: garbage.message }, safetyOnDisk, invoicesAfter: invoicesAfter.length, stockAfter: stockAfter.length })
 
@@ -165,7 +170,7 @@ try {
     remaining: null,
     tax: null,
     grandTotal: null,
-    items: [{ productId: products[0].id, rate: products[0].rate, cartonCount: 2, boxCount: 0 }],
+    items: [{ productId: stockLead.id, rate: stockLead.rate, cartonCount: 2, boxCount: 0 }],
   }), 'fresh invoice for cancel')
   await inv('invoices:pay', fresh.id, 5000)
   const cancelled = must(await inv('invoices:cancel', fresh.id), 'cancel fresh invoice')

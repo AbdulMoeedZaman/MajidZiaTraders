@@ -30,6 +30,10 @@ export function PayModal({ customerName, outstanding, openInvoices, onConfirm, o
       setError('Enter an amount greater than zero')
       return
     }
+    if (cents > outstanding) {
+      setError(`Cannot exceed the outstanding balance (${formatMoney(outstanding)})`)
+      return
+    }
     setSaving(true)
     try {
       await onConfirm(cents)

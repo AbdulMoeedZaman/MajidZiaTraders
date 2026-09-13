@@ -57,6 +57,7 @@ export const IPC_CHANNELS = {
   STOCK_LIST: 'stock:list',
   STOCK_LIST_BY_PRODUCT: 'stock:list-by-product',
   STOCK_RESTOCK: 'stock:restock',
+  STOCK_LEVELS: 'stock:levels',
 
   DASHBOARD_SUMMARY: 'dashboard:summary',
 
@@ -79,6 +80,11 @@ export const IPC_CHANNELS = {
   SETTINGS_UPDATE: 'settings:update',
   SETTINGS_BULK_UPDATE: 'settings:bulk-update',
   SETTINGS_DELETE: 'settings:delete',
+
+  HISTORY_LIST: 'history:list',
+  HISTORY_RECENT: 'history:recent',
+  HISTORY_UNDO: 'history:undo',
+  HISTORY_REDO: 'history:redo',
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

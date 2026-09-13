@@ -10,6 +10,7 @@ import { registerBackupIpc } from './backup.ipc'
 import { registerDashboardIpc } from './dashboard.ipc'
 import { registerExpenseIpc } from './expense.ipc'
 import { registerPaymentIpc } from './payment.ipc'
+import { registerHistoryIpc } from './history.ipc'
 
 export function registerAllIpc(): void {
   registerProjectOwnerIpc()
@@ -24,4 +25,5 @@ export function registerAllIpc(): void {
   registerDashboardIpc()
   registerExpenseIpc()
   registerPaymentIpc()
+  registerHistoryIpc()
 }

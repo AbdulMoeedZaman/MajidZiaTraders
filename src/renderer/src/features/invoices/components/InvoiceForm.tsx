@@ -26,6 +26,8 @@ interface Props {
   customers: Customer[]
   brokers: Broker[]
   products: Product[]
+  /** Current stock per product id (used to block negative stock). */
+  stockLevels: Record<number, number>
   preselectCustomerId?: number | null
   onSubmit: (values: InvoiceFormValues) => Promise<void>
 }
@@ -34,7 +36,7 @@ function emptyLine() {
   return { productId: null as number | null, rate: '', cartonCount: '', boxCount: '' }
 }
 
-export function InvoiceForm({ routes, customers, brokers, products, preselectCustomerId, onSubmit }: Props) {
+export function InvoiceForm({ routes, customers, brokers, products, stockLevels, preselectCustomerId, onSubmit }: Props) {
   const [routeId, setRouteId] = useState<number | null>(null)
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [brokerId, setBrokerId] = useState<number | null>(null)
@@ -134,8 +136,13 @@ export function InvoiceForm({ routes, customers, brokers, products, preselectCus
     if (rateCents < product.rate) {
       return `Cannot go below minimum rate ${formatMoney(product.rate)}`
     }
-    if (countToInt(line.cartonCount) + countToInt(line.boxCount) === 0) {
+    const quantity = countToInt(line.cartonCount) + countToInt(line.boxCount)
+    if (quantity === 0) {
       return 'Enter cartons or boxes'
+    }
+    const stock = stockLevels[line.productId] ?? 0
+    if (quantity > stock) {
+      return `Only ${stock} in stock — requested ${quantity}`
     }
     return null
   }
@@ -295,6 +302,11 @@ export function InvoiceForm({ routes, customers, brokers, products, preselectCus
             >
               ✕
             </button>
+            {product && (
+              <div className="line-hint muted fine-text">
+                In stock: {stockLevels[product.id] ?? 0}
+              </div>
+            )}
             {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}
           </div>
         )

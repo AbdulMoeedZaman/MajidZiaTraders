@@ -36,3 +36,10 @@ export interface CreateRestockDTO {
   /** Quantity to add; must be a whole number greater than zero. */
   quantity: number
 }
+
+/** Current running balance for every product (last ledger entry's newQuantity). */
+export interface StockLevel {
+  productId: number
+  productName: string
+  quantity: number
+}

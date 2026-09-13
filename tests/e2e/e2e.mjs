@@ -123,6 +123,12 @@ try {
   check('V-4', 'Only one project owner can be set up (and its name is unique)', !ownerDup.ok, ownerDup.e ?? 'accepted')
   const B1 = must(await inv('brokers:create', { name: 'Bashir Ahmad', phone: '0322-1112223' }), 'B1')
 
+  // =============== Stock the invoices below will sell (negative-stock guard) ===============
+  // INV-000001 sells 2 cartons + 5 boxes of Axle Bearing 6204 (qty 7), INV-000002 sells
+  // 4 cartons of Valve Spring (qty 4) — both need enough stock before they can be made.
+  must(await inv('stock:restock', { productId: P1.id, quantity: 7 }), 'prestock P1 +7')
+  must(await inv('stock:restock', { productId: P2.id, quantity: 4 }), 'prestock P2 +4')
+
   // =============== Invoice ring & maths ===============
   const item = (productId, rate, cartonCount, boxCount) => ({ productId, rate, cartonCount, boxCount })
   const I1 = must(await inv('invoices:create', {
@@ -153,6 +159,14 @@ try {
   const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 1, 0)] })
   check('I-3', 'Invoice guards: below-min rate, empty items, invalid date, unknown customer all rejected',
     !belowMin.ok && !noItems.ok && !badDate.ok && !badCust.ok, [belowMin.e, noItems.e, badDate.e, badCust.e])
+
+  const overStock = await inv('invoices:create', {
+    customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
+    tax: null,
+    items: [item(P1.id, 65000, 1, 0)],
+  })
+  check('I-3b', 'An invoice needing more stock than available is rejected (negative-stock guard)',
+    !overStock.ok && /Insufficient stock/.test(overStock.e), overStock.e ?? 'accepted')
 
   // =============== Delete integrity ===============
   const delCust = await inv('customers:delete', C1.id)
@@ -270,6 +284,8 @@ try {
     { renamedTab, name: tueRoute?.name, day: tueRoute?.day })
 
   // =============== UI-5: create an invoice through the UI form and inspect the print sheet ===============
+  // The UI-created invoice below sells 3 cartons of GAUGE 2026, so stock it first.
+  must(await inv('stock:restock', { productId: gauge.id, quantity: 3 }), 'gauge prestock +3')
   await nav('Invoices'); await wait(900)
   await clickBtn('+ New Invoice'); await wait(700)
   await pick('Route', 'Monday')
@@ -376,7 +392,7 @@ try {
   const uiRestock = stockList.find((m) => m.productName === 'GAUGE 2026' && m.type === 'purchase')
   check('UI-8', 'Restock modal adds stock as a purchase movement and shows a success toast',
     restockModalOpen && restockSuccess.includes('50') && restockSuccess.includes('GAUGE 2026') &&
-    !!uiRestock && uiRestock.quantity === 50 && uiRestock.previousQuantity === -3 && uiRestock.newQuantity === 47 && uiRestock.date === TODAY,
+    !!uiRestock && uiRestock.quantity === 50 && uiRestock.previousQuantity === 0 && uiRestock.newQuantity === 50 && uiRestock.date === TODAY,
     { modalOpen: restockModalOpen, success: restockSuccess, restock: uiRestock })
 
   await clickBtn('Inventory'); await wait(1000)
@@ -392,9 +408,9 @@ try {
   await clickRowWith('GAUGE 2026'); await wait(1000)
   const detailHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
   const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
-  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*47/.test(detailText)
+  const detailHasInStock = detailText.includes('In stock') && /In stock\s*\n?\s*50/.test(detailText)
   const detailHasHistory = detailText.includes('+50 Restocks') && detailText.includes('-3')
-  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +50, sale -3 and In stock 47',
+  check('UI-10', 'Product detail page shows a per-product history (no product column) with restock +50, sale -3 and In stock 50',
     detailHeaders === 'Date,Customer,Price,Quantity' && detailHasInStock && detailHasHistory,
     { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory })
   await clickBtn('Back to Products'); await wait(500)
@@ -425,8 +441,8 @@ try {
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Remaining stock')?.click()`)
   await wait(700)
   const stockRows = await ev(`[...document.querySelectorAll('.detail-panel tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
-  const stockHasGauge = /GAUGE 202647/.test(stockRows)
-  const stockHasOthers = stockRows.includes('Axle Bearing 6204-7') && stockRows.includes('Valve Spring-4')
+  const stockHasGauge = /GAUGE 202650/.test(stockRows)
+  const stockHasOthers = stockRows.includes('Axle Bearing 62040') && stockRows.includes('Valve Spring0')
   check('UI-11c', 'Clicking the Remaining stock matrix opens the per-product remaining detail',
     stockHasGauge && stockHasOthers, { stockRows, stockHasGauge, stockHasOthers })
   await clickBtn('Close'); await wait(400)
@@ -443,8 +459,9 @@ try {
   const shortHeaders = await ev(`[...document.querySelectorAll('.short-list-header h3')].map((h)=>h.textContent.trim()).join(',')`)
   const moreButtons = await ev(`[...document.querySelectorAll('.short-list-header .btn')].map((b)=>b.textContent.trim()).join(',')`)
   const shortHasProducts = await ev(`document.querySelectorAll('.short-list')[0]?.innerText.includes('GAUGE 2026') || document.querySelectorAll('.short-list')[0]?.innerText.includes('Axle Bearing 6204')`)
-  check('UI-11e', 'Short lists show recent products/invoices/customers, each with a More button',
-    shortHeaders === 'Products,Invoices,Customers' && moreButtons.split(',').filter((b) => b.includes('More')).length === 3 && shortHasProducts,
+  check('UI-11e', 'Short lists show recent products/invoices/customers/activity, each with a More button',
+    shortHeaders === 'Products,Invoices,Customers,Recent activity' &&
+    moreButtons.split(',').filter((b) => b.includes('More')).length === 4 && shortHasProducts,
     { shortHeaders, moreButtons, shortHasProducts })
 
   await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Invoices')?.querySelector('.btn')?.click()`)
@@ -554,11 +571,44 @@ try {
   const pagePayErr = await ev(`document.querySelector('.feature .form-error')?.textContent ?? ''`)
   const modalStillOpen = await ev(`document.querySelector('.modal')?.innerText ?? ''`)
   const backend = await inv('customers:pay', 1, 500)
-  check('UI-13c', 'Customer Pay modal shows the backend error and stays open when no open invoice remains',
+  check('UI-13c', 'Customer Pay modal blocks amounts above the outstanding balance and stays open',
     payOpenOk && modalAfterOpen && confirmClicked &&
-    (payModalErr.includes('no open invoice') || pagePayErr.includes('no open invoice')) &&
+    (payModalErr.includes('Cannot exceed the outstanding balance') || payModalErr.includes('no open invoice') || pagePayErr.includes('no open invoice')) &&
     modalStillOpen.includes('Confirm Payment') && !backend.ok,
     { payOpenOk, modalAfterOpen, confirmClicked, payModalErr, pagePayErr, modalOpen: modalStillOpen.includes('Confirm Payment'), backend: backend.e ?? 'accepted' })
+
+  // =============== H: activity feed, History page, undo/redo of the last payment ===============
+  await nav('Dashboard'); await wait(1200)
+  const activityHeader = await ev(`[...document.querySelectorAll('.short-list-header h3')].map((h)=>h.textContent.trim()).join(',')`)
+  const activityText = await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.innerText ?? ''`)
+  const activityHasUndo = await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.querySelector('button')?.textContent.trim() === 'Undo'`)
+  check('H-1', 'Dashboard shows a "Recent activity" list with Undo/Redo controls and the recorded customer payment',
+    activityHeader.includes('Recent activity') && activityHasUndo && activityText.includes('Received Rs. 6.00'),
+    { headers: activityHeader, hasUndo: activityHasUndo, activity: activityText.replace(/\s+/g, ' ').slice(0, 220) })
+
+  await nav('History'); await wait(1200)
+  const histHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
+  const histRows = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const histButtons = await ev(`[...document.querySelectorAll('.feature .toolbar button')].map((b)=>b.textContent.trim()).join(',')`)
+  check('H-2', 'History page lists the action log (time/action/details/status) with Undo and Redo buttons',
+    histHeaders === 'Time,Action,Details,Status' && histButtons.split(',').filter((b) => b === 'Undo' || b === 'Redo').length === 2 && histRows.split('|').length >= 8,
+    { headers: histHeaders, buttons: histButtons, rows: histRows.split('|').length })
+
+  await clickBtn('Undo'); await wait(1200)
+  const undone3 = must(await inv('invoices:list'), 'invoices after undo').find((i) => i.invoiceNumber === 'INV-000003')
+  const undoneLatest = must(await inv('history:list'), 'history after undo')[0]
+  check('H-3', 'History page Undo reverses the customer payment and INV-000003 returns to Unpaid',
+    undoneLatest.action === 'payment_recorded' && undoneLatest.status === 'undone' &&
+    undone3.status === 'unpaid' && undone3.paidAmount === 0,
+    { latest: { action: undoneLatest.action, status: undoneLatest.status }, inv3: { status: undone3.status, paid: undone3.paidAmount } })
+
+  await clickBtn('Redo'); await wait(1200)
+  const redone3 = must(await inv('invoices:list'), 'invoices after redo').find((i) => i.invoiceNumber === 'INV-000003')
+  const redoneLatest = must(await inv('history:list'), 'history after redo')[0]
+  check('H-4', 'History page Redo replays the payment and restores INV-000003 to Paid',
+    redoneLatest.action === 'payment_recorded' && redoneLatest.status === 'applied' &&
+    redone3.status === 'paid' && redone3.paidAmount === 600,
+    { latest: { action: redoneLatest.action, status: redoneLatest.status }, inv3: { status: redone3.status, paid: redone3.paidAmount } })
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
   check('I-4', 'Earlier invoices are still intact after the UI flow', i3.invoice.invoiceNumber === 'INV-000002', i3.invoice.invoiceNumber)
