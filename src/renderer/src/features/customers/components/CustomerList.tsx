@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function CustomerList({ onSelect, onNewInvoice }: Props) {
-  const { routes, customers, activeRouteId, loading, error, setRoute, create, remove, reload } =
+  const { routes, customers, activeRouteId, loading, error, setRoute, create, update, remove, reload } =
     useCustomers()
   const [query, setQuery] = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -20,6 +20,7 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
+  const [editing, setEditing] = useState<CustomerWithRoute | null>(null)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -36,8 +37,13 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
   const handleSave = async (data: CustomerFormData) => {
     setFormError(null)
     try {
-      await create(data)
+      if (editing) {
+        await update(editing.id, data)
+      } else {
+        await create(data)
+      }
       setShowAdd(false)
+      setEditing(null)
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Failed to save customer')
       throw e
@@ -174,6 +180,9 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
                         <button className="btn ghost small" onClick={() => onNewInvoice(c.id)}>
                           New Invoice
                         </button>
+                        <button className="btn ghost small" onClick={() => setEditing(c)}>
+                          Edit
+                        </button>
                         <button className="btn danger small" onClick={() => setConfirmId(c.id)}>
                           Delete
                         </button>
@@ -187,12 +196,16 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
         </div>
       )}
 
-      {showAdd && activeRouteId !== null && (
+      {(showAdd || editing) && activeRouteId !== null && (
         <CustomerForm
           routes={routes}
-          initialRouteId={activeRouteId}
+          initialRouteId={editing?.routeId ?? activeRouteId}
+          initial={editing}
           onSave={handleSave}
-          onCancel={() => setShowAdd(false)}
+          onCancel={() => {
+            setShowAdd(false)
+            setEditing(null)
+          }}
         />
       )}
 
