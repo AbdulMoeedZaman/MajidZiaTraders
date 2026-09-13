@@ -1737,12 +1737,12 @@ body {
 /* Signature */
 .invoice-sheet .ip-signatures {
   display: flex;
-  gap: 56px;
+  justify-content: flex-end;
   margin-top: 30px;
 }
 
 .invoice-sheet .ip-signature-field {
-  flex: 1;
+  flex: 0 0 33%;
   text-align: center;
 }
 
