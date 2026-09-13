@@ -25,13 +25,6 @@ function printMoney(cents: number | null | undefined): string {
   )
 }
 
-const PAYMENT_LABELS = {
-  paid: 'Paid',
-  partial: 'Partially Paid',
-  unpaid: 'Unpaid',
-  cancelled: 'Cancelled',
-} as const
-
 export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
   const [data, setData] = useState<InvoiceDetails | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
@@ -192,7 +185,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
         )}
 
         <div className="ip-title">
-          <span className="ip-title-text">SALES INVOICE</span>
           <span className="ip-title-number">{invoice.invoiceNumber}</span>
         </div>
 
@@ -211,8 +203,12 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
           </div>
           <div className="ip-meta-right">
             <div className="ip-meta-line right"><span>Date:</span> <strong>{printDate(invoice.date)}</strong></div>
-            <div className="ip-meta-line right"><span>Payment:</span> <strong>{PAYMENT_LABELS[invoice.status]}</strong></div>
-            {broker && <div className="ip-meta-line right"><span>Booker:</span> <strong>{broker.name}</strong></div>}
+            {broker && (
+              <div className="ip-meta-line right">
+                <span>Booker:</span>
+                <strong>{broker.name}{broker.phone ? ` · ${broker.phone}` : ''}</strong>
+              </div>
+            )}
           </div>
         </div>
 
@@ -297,7 +293,6 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
               <strong>{printMoney(invoice.grandTotal ?? invoice.subtotal)}</strong>
             </div>
             <div className="ip-fin-row"><span>Received</span><strong>{printMoney(paidTotal)}</strong></div>
-            <div className="ip-fin-row"><span>Balance</span><strong>{printMoney(remaining)}</strong></div>
           </div>
         </div>
 

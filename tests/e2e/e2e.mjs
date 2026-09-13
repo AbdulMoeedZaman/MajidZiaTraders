@@ -326,14 +326,14 @@ try {
   const ownerBandText = await ev(`document.querySelector('.invoice-sheet .sheet-head')?.innerText ?? ''`)
   const bandLayout = ownerBandText.includes('Main Bazaar, Multan') && ownerBandText.includes('0300-1234567') && ownerBandText.includes(',')
   const boxHeadings = await ev(`[...document.querySelectorAll('.invoice-sheet .ip-box-heading')].map((h)=>h.textContent.trim()).join(',')`)
-  const hasTitle = sheetText.includes('SALES INVOICE')
+  const hasTitle = !sheetText.includes('SALES INVOICE')
   const hasQtyBreakdown = (boxHeadings.includes('Quantity Breakdown') || boxHeadings.includes('QUANTITY BREAKDOWN')) && sheetText.includes('Total Ctn (Cartons)') && sheetText.includes('Total Pcs')
   const hasBalances = sheetText.includes('Previous Balance')
   const hasFinancials = sheetText.includes('Total Gross Amount') && sheetText.includes('Previous Balance') && sheetText.includes('Tax') && sheetText.includes('Net Amount / Grand Total')
   const netStyle = await ev(`(()=>{const n=document.querySelector('.invoice-sheet .ip-net'); if(!n) return 'NOTFOUND'; const s=getComputedStyle(n); return JSON.stringify({top:s.borderTopWidth,bottom:s.borderBottomWidth,topStyle:s.borderTopStyle})})()`)
   const netParsed = JSON.parse(netStyle)
   const netBordered = netParsed.topStyle === 'solid' && parseFloat(netParsed.top) > 0 && parseFloat(netParsed.bottom) > 0
-  check('UI-5c', 'Sheet has Times New Roman font, underlined store name, address/comma/phone header band, SALES INVOICE title with number, quantity breakdown, previous balance, financial stack with bordered net row',
+  check('UI-5c', 'Sheet has Times New Roman font, underlined store name, address/comma/phone header band, invoice number without SALES INVOICE title, quantity breakdown, previous balance, financial stack with bordered net row',
     headerCentered && fontIsTimes && ownerUnderlined && bandLayout && hasTitle && hasQtyBreakdown && hasBalances && hasFinancials && netBordered,
     { headerCentered, fontTimesNewRoman: fontIsTimes, ownerUnderlined, bandLayout, title: hasTitle, quantityBreakdown: hasQtyBreakdown, balances: hasBalances, financials: hasFinancials, netRowBordered: netStyle })
 
@@ -543,10 +543,10 @@ try {
   const inv1AfterPay = must(await inv('invoices:get-by-id', I1.id), 'I1 after pay')
   check('UI-13', 'Invoice Pay button settles the exact remaining amount through a confirmation and marks the invoice Paid',
     hasPayBtn && unpaidBadge === 'Unpaid' && confirmPayShown && paidBadge === 'Paid' &&
-    sheetTextPaid.includes('Payment: Paid') && paysTable.includes('Rs.1,625.00') &&
+    !sheetTextPaid.includes('Payment: Paid') && paysTable.includes('Rs.1,625.00') &&
     paysRows.toUpperCase().includes('TOTAL RECEIVED') && paysRows.includes('Rs.1,625.00') &&
     inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
-    { payButton: hasPayBtn, before: unpaidBadge, confirmation: confirmPayShown, after: paidBadge, sheet: sheetTextPaid.includes('Payment: Paid'), payments: paysTable, footer: paysRows, invoice: { status: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
+    { payButton: hasPayBtn, before: unpaidBadge, confirmation: confirmPayShown, after: paidBadge, sheet: !sheetTextPaid.includes('Payment: Paid'), payments: paysTable, footer: paysRows, invoice: { status: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
 
   await clickBtn('Back to Invoices'); await wait(500)
 
