@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { invoiceRemaining } from '@shared/types/invoice'
 import type { InvoiceDetails } from '@shared/types/invoice'
@@ -180,9 +180,9 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
               <>
                 <div className="ip-meta-line"><span>Shop name:</span> <strong>{customer.shopName}</strong></div>
                 <div className="ip-meta-line"><span>Owner name:</span> <strong>{customer.ownerName}</strong></div>
-                <div className="ip-meta-line"><span>Address:</span> <strong>{customer.address}</strong></div>
-                <div className="ip-meta-line"><span>Phone:</span> <strong>{customer.phone}</strong></div>
-                <div className="ip-meta-line"><span>Status:</span> <strong>{invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</strong></div>
+                <div className="ip-meta-line"><span>Address:</span> {customer.address}</div>
+                <div className="ip-meta-line"><span>Phone:</span> {customer.phone}</div>
+                <div className="ip-meta-line"><span>Status:</span>{invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</div>
               </>
             )}
           </div>
@@ -201,58 +201,25 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
         <table className="ip-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Qty.</th>
-              <th>Unit</th>
+              <th>Products</th>
               <th>Rate</th>
+              <th>Cartons</th>
+              <th>Boxes</th>
+              <th>Scheme</th>
               <th>Amount</th>
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, i) => {
-              const cartonAmt = item.rate * item.cartonCount
-              const boxAmt = item.amount - cartonAmt
-              const hasCtn = item.cartonCount > 0
-              const hasPcs = item.boxCount > 0
-
-              if (!hasCtn && !hasPcs) {
-                return (
-                  <tr key={item.id ?? i}>
-                    <td>{item.productName}</td>
-                    <td className="ip-num">0</td>
-                    <td className="ip-unit">—</td>
-                    <td className="ip-num">—</td>
-                    <td className="ip-num">{printMoney(item.amount)}</td>
-                  </tr>
-                )
-              }
-
-              return (
-                <Fragment key={item.id ?? i}>
-                  {hasCtn && (
-                    <tr>
-                      <td>
-                        {item.productName}
-                        {hasPcs && <span className="ip-line-note"> ({item.boxesPerCarton} pcs/ctn)</span>}
-                      </td>
-                      <td className="ip-num">{item.cartonCount}</td>
-                      <td className="ip-unit">Ctn</td>
-                      <td className="ip-num">{printMoney(item.rate)}</td>
-                      <td className="ip-num">{printMoney(cartonAmt)}</td>
-                    </tr>
-                  )}
-                  {hasPcs && (
-                    <tr>
-                      <td>{hasCtn ? '' : item.productName}</td>
-                      <td className="ip-num">{item.boxCount}</td>
-                      <td className="ip-unit">Pcs</td>
-                      <td className="ip-num">—</td>
-                      <td className="ip-num">{printMoney(boxAmt)}</td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
+            {invoice.items.map((item, i) => (
+              <tr key={item.id ?? i}>
+                <td>{item.productName}</td>
+                <td className="ip-num">{printMoney(item.rate)}</td>
+                <td className="ip-num">{item.cartonCount}</td>
+                <td className="ip-num">{item.boxCount}</td>
+                <td className="ip-scheme" />
+                <td className="ip-num">{printMoney(item.amount)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 

@@ -314,7 +314,7 @@ try {
   const hasStatusLabel = sheetText.includes('Status:') && !sheetText.includes('Filer status')
   const dateCount = (sheetText.match(/Date:/g) ?? []).length
   check('UI-5', 'Invoicing through the UI lands on the printable sheet with centered header, owner/Booker metadata, matrix item columns, full value stack and a single signature',
-    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Description,Qty.,Unit,Rate,Amount' && hasSignature && hasDescription,
+    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Products,Rate,Cartons,Boxes,Scheme,Amount' && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
     dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('Rs.'),
