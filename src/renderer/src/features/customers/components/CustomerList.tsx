@@ -18,6 +18,7 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
   const [showAdd, setShowAdd] = useState(false)
   const [showRouteNames, setShowRouteNames] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [importMessage, setImportMessage] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
 
   const visible = useMemo(() => {
@@ -54,6 +55,30 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
     }
   }
 
+  const handleImportExcel = async () => {
+    setFormError(null)
+    setImportMessage(null)
+    try {
+      if (activeRouteId === null) {
+        setFormError('No route selected')
+        return
+      }
+      const pick = await api.dialogs.openExcel()
+      if (pick.canceled || !pick.path) return
+      const route = routes.find((r) => r.id === activeRouteId)
+      const result = await api.customers.importExcel(pick.path, activeRouteId)
+      const parts = [
+        `Imported ${result.created} customer${result.created === 1 ? '' : 's'} to ${route?.name ?? 'route'}`,
+      ]
+      if (result.skippedDuplicate > 0) parts.push(`${result.skippedDuplicate} skipped (code already exists)`)
+      if (result.skippedInvalid > 0) parts.push(`${result.skippedInvalid} skipped (invalid rows)`)
+      setImportMessage(parts.join(' · '))
+      await reload()
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to import Excel')
+    }
+  }
+
   const saveRouteNames = async (updates: Array<{ id: number; name: string }>) => {
     for (const u of updates) {
       await api.routes.rename(u.id, u.name)
@@ -86,6 +111,9 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
         <button className="btn primary" onClick={() => setShowAdd(true)} disabled={routes.length === 0}>
           + Add Customer
         </button>
+        <button className="btn ghost" onClick={() => void handleImportExcel()} disabled={routes.length === 0}>
+          Import Excel…
+        </button>
       </div>
 
       <div className="route-tabs">
@@ -102,6 +130,7 @@ export function CustomerList({ onSelect, onNewInvoice }: Props) {
       </div>
 
       {formError && <div className="form-error">{formError}</div>}
+      {importMessage && <div className="text-ok fine-text">{importMessage}</div>}
 
       {customers.length === 0 ? (
         <div className="empty-state">

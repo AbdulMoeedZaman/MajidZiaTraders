@@ -35,6 +35,8 @@ export const IPC_CHANNELS = {
   CUSTOMERS_UPDATE: 'customers:update',
   CUSTOMERS_DELETE: 'customers:delete',
   CUSTOMERS_COUNT: 'customers:count',
+  CUSTOMERS_IMPORT_EXCEL: 'customers:import-excel',
+  DIALOG_OPEN_EXCEL: 'dialog:open-excel',
 
   INVOICES_LIST: 'invoices:list',
   INVOICES_GET_BY_ID: 'invoices:get-by-id',

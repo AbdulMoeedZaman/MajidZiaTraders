@@ -2,7 +2,7 @@ import type { ProjectOwner, CreateProjectOwnerDTO, UpdateProjectOwnerDTO } from 
 import type { Broker, CreateBrokerDTO, UpdateBrokerDTO } from '@shared/types/broker'
 import type { Route, RouteWithCount } from '@shared/types/route'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
-import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
+import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO, CustomerImportResult } from '@shared/types/customer'
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
 import type { StockMovement, StockMovementWithProduct, CreateRestockDTO } from '@shared/types/stock'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
@@ -66,6 +66,8 @@ export const api = {
     update: (id: number, data: UpdateCustomerDTO) => ipc<Customer>('customers:update', id, data),
     delete: (id: number) => ipc<{ success: boolean }>('customers:delete', id),
     count: () => ipc<number>('customers:count'),
+    importExcel: (filePath: string, routeId: number) =>
+      ipc<CustomerImportResult>('customers:import-excel', filePath, routeId),
   },
 
   invoices: {
@@ -102,6 +104,7 @@ export const api = {
     saveBackup: () => ipc<DialogResult>('dialog:save-backup'),
     openBackup: () => ipc<DialogResult>('dialog:open-backup'),
     openCsv: () => ipc<DialogResult>('dialog:open-csv'),
+    openExcel: () => ipc<DialogResult>('dialog:open-excel'),
   },
 
   backup: {

@@ -1,7 +1,14 @@
+import * as XLSX from 'xlsx'
 import { CustomerRepository } from '../repositories/customer.repository'
 import { RouteRepository } from '../repositories/route.repository'
 import { InvoiceRepository } from '../repositories/invoice.repository'
-import type { Customer, CreateCustomerDTO, UpdateCustomerDTO, CustomerWithRoute } from '@shared/types/customer'
+import type {
+  Customer,
+  CreateCustomerDTO,
+  UpdateCustomerDTO,
+  CustomerWithRoute,
+  CustomerImportResult,
+} from '@shared/types/customer'
 
 export class CustomerService {
   private customerRepo = new CustomerRepository()
@@ -82,6 +89,83 @@ export class CustomerService {
 
   count(): number {
     return this.customerRepo.count()
+  }
+
+  /**
+   * Imports customers from an Excel (.xlsx) store listing. The sheet with the
+   * "Store Code" header is used and columns are matched by name (Store Code,
+   * Store Name, Owner Name, Owner Contact #, Address). Every imported customer
+   * is assigned to the given single route. Rows duplicating an existing store
+   * code are skipped and reported.
+   */
+  importFromExcel(filePath: string, routeId: number): CustomerImportResult {
+    this.assertRoute(routeId)
+
+    const workbook = XLSX.readFile(filePath, { cellDates: false })
+    let dataRows: string[][] | null = null
+    for (const sheetName of workbook.SheetNames) {
+      const rows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[sheetName], {
+        header: 1,
+        defval: '',
+        blankrows: false,
+      }) as string[][]
+      if (rows.length > 0 && rows[0].some((h) => h.trim() === 'Store Code')) {
+        dataRows = rows
+        break
+      }
+    }
+    if (!dataRows) {
+      throw new Error('Could not find a sheet with a "Store Code" column')
+    }
+
+    const header = dataRows[0]
+    const idxByName = (label: string): number => header.findIndex((h) => h.trim() === label)
+    const iCode = idxByName('Store Code')
+    const iName = idxByName('Store Name')
+    const iOwner = idxByName('Owner Name')
+    const iPhone = idxByName('Owner Contact #')
+    const iAddress = idxByName('Address')
+
+    const result: CustomerImportResult = {
+      file: filePath,
+      created: 0,
+      skippedDuplicate: 0,
+      skippedInvalid: 0,
+      customers: [],
+    }
+
+    for (const row of dataRows.slice(1)) {
+      const code = iCode >= 0 ? String(row[iCode] ?? '').trim() : ''
+      const shopName = iName >= 0 ? String(row[iName] ?? '').trim() : ''
+      const ownerName = iOwner >= 0 ? String(row[iOwner] ?? '').trim() : ''
+      if (!code) {
+        result.skippedInvalid++
+        continue
+      }
+      if (!shopName && !ownerName) {
+        result.skippedInvalid++
+        continue
+      }
+      if (this.customerRepo.findByCode(code)) {
+        result.skippedDuplicate++
+        continue
+      }
+
+      const phone = iPhone >= 0 ? String(row[iPhone] ?? '').trim() : ''
+      const address = iAddress >= 0 ? String(row[iAddress] ?? '').trim() : ''
+      const customer = this.customerRepo.create({
+        code,
+        shopName,
+        ownerName,
+        phone: phone || null,
+        address: address || null,
+        routeId,
+      })
+      result.created++
+      result.customers.push(customer)
+    }
+
+    return result
   }
 
   private assertRoute(routeId: number): void {

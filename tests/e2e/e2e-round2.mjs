@@ -72,10 +72,10 @@ try {
   const desc = must(await inv('settings:get-value', 'invoice_description'), 'desc')
   check('X-3', 'Invoice description saved in the first round is still stored', desc === 'Payment due within 7 days.', desc)
 
-  // X-4: route count reflects the customer added through the UI in round 1
+  // X-4: route count reflects the customers added through the UI and the Excel import in round 1
   const routes = must(await inv('routes:list-with-counts'), 'routes')
   const monday = routes.find((r) => r.name === 'Monday')
-  check('X-4', 'Monday route customer count matches the two customers created on it (Bilal Auto Shop + UI-added)', monday.customerCount === 2, { monday: monday.customerCount, routeName: monday.name })
+  check('X-4', 'Monday route customer count matches Bilal Auto Shop + UI-added + 2 Excel-imported stores', monday.customerCount === 4, { monday: monday.customerCount, routeName: monday.name })
 
   // X-5: rate-floor rule holds for the UI-created product (min rate 150)
   const gauge = products.find((p) => p.name === 'GAUGE 2026')

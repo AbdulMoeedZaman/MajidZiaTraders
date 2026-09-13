@@ -210,6 +210,33 @@ try {
   check('UI-4', 'Adding a customer via UI puts it on Monday (count updates); switching to Tuesday shows its customer',
     mondayTab && newCustRow && tueShowsEmerald, { newCustomerRow: newCustRow, mondayCount, switchedToTuesday: routeSwitch, tuesdayShowsEmerald: tueShowsEmerald })
 
+  // =============== UI-4b: Excel customer import into a single route ===============
+  const importExcelBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Import Excel…')`)
+  const Xlib = await import('xlsx')
+  const XLSX = Xlib.default ?? Xlib
+  const excelPath = path.join(TESTDIR, 'import-stores.xlsx')
+  const wb2 = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb2, XLSX.utils.aoa_to_sheet([['Selected National'], ['Selected Zone']]), 'Filters')
+  XLSX.utils.book_append_sheet(wb2, XLSX.utils.aoa_to_sheet([
+    ['Store Code', 'Store Name', 'Filer Status', 'Owner Name', 'Owner Contact #', 'Address'],
+    ['X0001', 'Super Mart', 'Filer', 'Ali', '03000000001', 'Main Bazaar'],
+    ['X0002', 'Corner Shop', 'Non-Filer', 'Umer', '03000000002', 'Tanda'],
+  ]), 'Stores')
+  XLSX.writeFile(wb2, excelPath)
+  const allRoutes4b = must(await inv('routes:list'), 'routes')
+  const mondayRoute = allRoutes4b.find((r) => r.day === 'Monday')
+  const custBefore = must(await inv('customers:count'), 'customer count before')
+  const impCust = must(await inv('customers:import-excel', excelPath, mondayRoute.id), 'import excel')
+  const mondayCusts = must(await inv('customers:list-by-route', mondayRoute.id), 'monday customers')
+  const custAfter = must(await inv('customers:count'), 'customer count after')
+  const x0001 = mondayCusts.find((c) => c.code === 'X0001')
+  check('UI-4b', 'Import Excel creates customers all on one route (Monday) with mapped fields, no stock touched',
+    importExcelBtn && impCust.created === 2 && impCust.skippedInvalid === 0 &&
+    custAfter === custBefore + 2 &&
+    !!x0001 && x0001.shopName === 'Super Mart' && x0001.ownerName === 'Ali' && x0001.phone === '03000000001' && x0001.address === 'Main Bazaar' &&
+    mondayCusts.some((c) => c.code === 'X0002'),
+    { importExcelBtn, impCust, mondayRoute: { id: mondayRoute.id, name: mondayRoute.name }, custBefore, custAfter, mondayCount: mondayCusts.length, imported: impCust.customers.map((c) => ({ code: c.code, shop: c.shopName, routeId: c.routeId })) })
+
   // =============== UI-6: rename a delivery route through the Route names modal ===============
   await nav('Customers'); await wait(900)
   await clickBtn('Route names'); await wait(700)

@@ -37,3 +37,11 @@ export interface UpdateCustomerDTO {
 export interface CustomerWithRoute extends Customer {
   routeName: string
 }
+
+export interface CustomerImportResult {
+  file: string
+  created: number
+  skippedDuplicate: number
+  skippedInvalid: number
+  customers: Customer[]
+}
