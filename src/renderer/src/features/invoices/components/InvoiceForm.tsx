@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
 import type { Customer } from '@shared/types/customer'
 import type { Route } from '@shared/types/route'
-import { SearchSelect } from '../../../components/SearchSelect'
+import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
@@ -45,6 +45,11 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const [tax, setTax] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const productRefs = useRef<Array<SearchSelectHandle | null>>([])
+  const rateRefs = useRef<Array<HTMLInputElement | null>>([])
+  const cartonRefs = useRef<Array<HTMLInputElement | null>>([])
+  const boxRefs = useRef<Array<HTMLInputElement | null>>([])
+  const [pendingProductFocus, setPendingProductFocus] = useState<number | null>(null)
 
   // When opened from a customer's "New Invoice" button, preselect both the
   // customer and its delivery route so the customer list matches it.
@@ -115,6 +120,57 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const setLine = (index: number, patch: Partial<InvoiceFormValues['items'][number]>) => {
     setItems((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
   }
+
+  // After a new line renders, move focus into its product search so the user can
+  // immediately start typing the next product.
+  useEffect(() => {
+    if (pendingProductFocus === null) return
+    productRefs.current[pendingProductFocus]?.open()
+    setPendingProductFocus(null)
+  }, [pendingProductFocus, items.length])
+
+  const focusRate = (index: number) => rateRefs.current[index]?.focus()
+  const focusCarton = (index: number) => cartonRefs.current[index]?.focus()
+  const focusBox = (index: number) => boxRefs.current[index]?.focus()
+
+  const handleBoxEnter = (index: number) => {
+    const line = items[index]
+    const next = items[index + 1]
+    if (line.productId === null) {
+      productRefs.current[index]?.open()
+      return
+    }
+    if (next && next.productId === null) {
+      setPendingProductFocus(index + 1)
+      return
+    }
+    if (index === items.length - 1) {
+      setItems((prev) => [...prev, emptyLine()])
+      setPendingProductFocus(index + 1)
+      return
+    }
+    setPendingProductFocus(index + 1)
+  }
+
+  const handleProductSelected = (index: number) => {
+    focusRate(index)
+  }
+
+  // A product already used on another line is hidden from this line's picker,
+  // so the same product cannot be billed twice.
+  const usedProductIds = useMemo(
+    () =>
+      items
+        .map((l) => l.productId)
+        .filter((id): id is number => id !== null)
+        .reduce<number[]>((acc, id) => (acc.includes(id) ? acc : [...acc, id]), []),
+    [items]
+  )
+
+  const productOptions = (index: number, product: Product | undefined) =>
+    products
+      .filter((p) => p.id === product?.id || !usedProductIds.includes(p.id))
+      .map((p) => ({ value: p.id, label: p.name }))
 
   const lineAmount = (index: number): number => {
     const line = items[index]
@@ -250,7 +306,10 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
             <label className="field line-product">
               <span>Product</span>
               <SearchSelect
-                options={products.map((p) => ({ value: p.id, label: p.name }))}
+                ref={(handle) => {
+                  productRefs.current[i] = handle
+                }}
+                options={productOptions(i, product)}
                 value={line.productId}
                 onChange={(pid) => {
                   const p = pid !== null ? productById.get(pid) : undefined
@@ -258,6 +317,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                     productId: pid,
                     rate: p ? (p.rate / 100).toFixed(2) : line.rate,
                   })
+                  if (pid !== null) handleProductSelected(i)
                 }}
                 placeholder="Select product…"
                 allowClear
@@ -266,32 +326,50 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
             <label className="field line-qty">
               <span>Rate (Rs.)</span>
               <input
+                ref={(el) => {
+                  rateRefs.current[i] = el
+                }}
                 type="number"
                 min="0"
                 step="0.01"
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') focusCarton(i)
+                }}
                 placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">
               <span>Carton no.</span>
               <input
+                ref={(el) => {
+                  cartonRefs.current[i] = el
+                }}
                 type="number"
                 min="0"
                 step="1"
                 value={line.cartonCount}
                 onChange={(e) => setLine(i, { cartonCount: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') focusBox(i)
+                }}
               />
             </label>
             <label className="field line-qty">
               <span>Box no.</span>
               <input
+                ref={(el) => {
+                  boxRefs.current[i] = el
+                }}
                 type="number"
                 min="0"
                 step="1"
                 value={line.boxCount}
                 onChange={(e) => setLine(i, { boxCount: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleBoxEnter(i)
+                }}
               />
             </label>
             <div className="line-total">

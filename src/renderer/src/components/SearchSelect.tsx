@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import type { Ref } from 'react'
 
 export interface SearchSelectOption<TValue extends string | number = string | number> {
   value: TValue
   label: string
   /** Optional secondary hint line shown beside the label (also searched). */
   hint?: string
+}
+
+/** Imperative API so parent forms can open / focus the search input. */
+export interface SearchSelectHandle {
+  open: () => void
+  close: () => void
 }
 
 interface Props<TValue extends string | number> {
@@ -16,6 +23,8 @@ interface Props<TValue extends string | number> {
   emptyText?: string
   /** When true (default) a ✕ lets the user reset the selection to null. */
   allowClear?: boolean
+  /** React 19 ref prop: imperative handle to open/focus this combobox. */
+  ref?: Ref<SearchSelectHandle>
 }
 
 /**
@@ -30,12 +39,18 @@ export function SearchSelect<TValue extends string | number>({
   placeholder = 'Select…',
   emptyText = 'No matches',
   allowClear = true,
+  ref,
 }: Props<TValue>) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+  }))
 
   const selected = options.find((o) => o.value === value)
 
