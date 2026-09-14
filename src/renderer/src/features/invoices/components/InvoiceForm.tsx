@@ -17,7 +17,8 @@ export interface InvoiceFormValues {
   items: Array<{
     productId: number | null
     rate: string
-    quantity: string
+    cartons: string
+    pieces: string
   }>
 }
 
@@ -33,7 +34,7 @@ interface Props {
 }
 
 function emptyLine() {
-  return { productId: null as number | null, rate: '', quantity: '' }
+  return { productId: null as number | null, rate: '', cartons: '', pieces: '' }
 }
 
 export function InvoiceForm({ routes, customers, brokers, products, stockLevels, preselectCustomerId, onSubmit }: Props) {
@@ -97,9 +98,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
       if (line.productId === null) continue
       const product = productById.get(line.productId)
       if (!product) continue
-      const qty = countToInt(line.quantity)
-      if (qty <= 0) continue
-      const c = canonicalComposition(qty, product.piecesPerCarton)
+      const pcs = countToInt(line.cartons) * product.piecesPerCarton + countToInt(line.pieces)
+      if (pcs <= 0) continue
+      const c = canonicalComposition(pcs, product.piecesPerCarton)
       total += calculateLineAmount({
         rate: moneyToCents(line.rate),
         piecesPerCarton: product.piecesPerCarton,
@@ -132,7 +133,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   }, [pendingProductFocus, items.length])
 
   const focusRate = (index: number) => rateRefs.current[index]?.focus()
-  const focusQty = (index: number) => qtyRefs.current[index]?.focus()
+  const focusPieces = (index: number) => qtyRefs.current[index]?.focus()
 
   const handleQtyEnter = (index: number) => {
     const line = items[index]
@@ -178,9 +179,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (line.productId === null) return 0
     const product = productById.get(line.productId)
     if (!product) return 0
-    const qty = countToInt(line.quantity)
-    if (qty <= 0) return 0
-    const c = canonicalComposition(qty, product.piecesPerCarton)
+    const pcs = countToInt(line.cartons) * product.piecesPerCarton + countToInt(line.pieces)
+    if (pcs <= 0) return 0
+    const c = canonicalComposition(pcs, product.piecesPerCarton)
     return calculateLineAmount({
       rate: moneyToCents(line.rate),
       piecesPerCarton: product.piecesPerCarton,
@@ -198,13 +199,15 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (rateCents < product.rate) {
       return `Cannot go below minimum rate ${formatMoney(product.rate)}`
     }
-    const quantity = countToInt(line.quantity)
-    if (quantity === 0) {
-       return 'Enter quantity in pieces'
+    const cartons = countToInt(line.cartons)
+    const pieces = countToInt(line.pieces)
+    if (cartons === 0 && pieces === 0) {
+      return 'Enter cartons or pieces'
     }
     const stock = stockLevels[line.productId] ?? 0
-    if (quantity > stock) {
-      return `Only ${stock} pcs in stock — requested ${quantity} pcs`
+    const pcs = cartons * product.piecesPerCarton + pieces
+    if (pcs > stock) {
+      return `Only ${stock} pcs in stock — requested ${pcs} pcs`
     }
     return null
   }
@@ -242,7 +245,8 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
         items: validLines.map((l) => ({
           productId: l.productId,
           rate: l.rate,
-          quantity: l.quantity,
+          cartons: l.cartons,
+          pieces: l.pieces,
         })),
       })
     } catch (e) {
@@ -336,14 +340,28 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 step="0.01"
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') focusQty(i)
-                }}
+onKeyDown={(e) => {
+                    if (e.key === 'Enter') focusPieces(i)
+                  }}
                 placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">
-              <span>Quantity (pcs)</span>
+              <span>Cartons</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={line.cartons}
+                onChange={(e) => setLine(i, { cartons: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') focusPieces(i)
+                }}
+                placeholder="0"
+              />
+            </label>
+            <label className="field line-qty">
+              <span>Pieces</span>
               <input
                 ref={(el) => {
                   qtyRefs.current[i] = el
@@ -351,11 +369,12 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 type="number"
                 min="0"
                 step="1"
-                value={line.quantity}
-                onChange={(e) => setLine(i, { quantity: e.target.value })}
+                value={line.pieces}
+                onChange={(e) => setLine(i, { pieces: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleQtyEnter(i)
                 }}
+                placeholder="0"
               />
             </label>
             <div className="line-total">
@@ -374,12 +393,17 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 In stock: {(stockLevels[product.id] ?? 0)} pcs
                 {' '}({Math.floor((stockLevels[product.id] ?? 0) / Math.max(1, product.piecesPerCarton))} ctn +{' '}
                  {(stockLevels[product.id] ?? 0) % Math.max(1, product.piecesPerCarton)} pcs)
-                {' · '}
-                {countToInt(line.quantity) > 0 &&
-                  (() => {
-                    const c = canonicalComposition(countToInt(line.quantity), product.piecesPerCarton)
-                    return `${c.cartons} ctn + ${c.loosePieces} pcs`
-                  })()}
+                {(() => {
+                  const cartons = countToInt(line.cartons)
+                  const pieces = countToInt(line.pieces)
+                  if (cartons + pieces === 0) return null
+                  const c = canonicalComposition(
+                    cartons * product.piecesPerCarton + pieces,
+                    product.piecesPerCarton
+                  )
+                  const overflow = pieces >= product.piecesPerCarton
+                  return ` · ${c.cartons} ctn + ${c.loosePieces} pcs${overflow ? ' (pieces auto-converted to cartons)' : ''}`
+                })()}
               </div>
             )}
             {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}

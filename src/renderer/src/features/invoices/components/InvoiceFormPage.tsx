@@ -63,7 +63,8 @@ export function InvoiceFormPage({ preselectCustomerId, onCreated }: Props) {
       items: values.items.map((l) => ({
         productId: l.productId as number,
         rate: moneyToCents(l.rate),
-        quantity: Number(l.quantity) || 0,
+        cartonCount: Number(l.cartons) || 0,
+        boxCount: Number(l.pieces) || 0,
       })),
     }
     const created = await api.invoices.create(dto)

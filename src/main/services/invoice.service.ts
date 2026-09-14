@@ -263,11 +263,33 @@ export class InvoiceService {
           `Rate for "${product.name}" cannot be lower than its minimum rate (${product.rate} cents)`
         )
       }
-      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-        throw new Error(`Quantity for "${product.name}" must be a whole number of at least 1 piece`)
+
+      let pieces: number
+      if (item.cartonCount !== undefined || item.boxCount !== undefined) {
+        // Separate cartons + loose pieces entered on the invoice form. Both are
+        // stored independently; any pieces that form a full carton are carried
+        // into the whole-carton count so the line is always canonical.
+        const cartons = item.cartonCount ?? 0
+        const boxes = item.boxCount ?? 0
+        if (!Number.isInteger(cartons) || cartons < 0) {
+          throw new Error(`Cartons for "${product.name}" must be a whole number and cannot be negative`)
+        }
+        if (!Number.isInteger(boxes) || boxes < 0) {
+          throw new Error(`Pieces for "${product.name}" must be a whole number and cannot be negative`)
+        }
+        if (cartons + boxes < 1) {
+          throw new Error(`Enter cartons or pieces for "${product.name}": the line is empty`)
+        }
+        pieces = cartons * product.piecesPerCarton + boxes
+      } else {
+        // Legacy: total quantity in pieces, split canonically.
+        if (!Number.isInteger(item.quantity) || item.quantity! < 1) {
+          throw new Error(`Quantity for "${product.name}" must be a whole number of at least 1 piece`)
+        }
+        pieces = item.quantity!
       }
 
-      const composition = canonicalComposition(item.quantity, product.piecesPerCarton)
+      const composition = canonicalComposition(pieces, product.piecesPerCarton)
       const amount = calculateLineAmount({
         rate: item.rate,
         piecesPerCarton: product.piecesPerCarton,

@@ -64,8 +64,18 @@ export interface CreateInvoiceItemDTO {
   productId: number
   /** Rate per carton in minor units, must be >= the product's minimum rate. */
   rate: number
-  /** Total quantity in pieces; the system splits it into cartons + loose pieces canonically. */
-  quantity: number
+  /**
+   * Whole cartons on the line. When provided together with boxCount these are
+   * stored as entered (overflow pieces are carried into whole cartons).
+   */
+  cartonCount?: number
+  /** Loose pieces on the line (not forming a full carton). */
+  boxCount?: number
+  /**
+   * Legacy fallback: total quantity in pieces; the system splits it into
+   * cartons + loose pieces canonically when cartonCount/boxCount are not given.
+   */
+  quantity?: number
 }
 
 export interface CreateInvoiceDTO {
