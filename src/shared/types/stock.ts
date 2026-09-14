@@ -42,6 +42,19 @@ export interface CreateRestockDTO {
   loosePieces?: number
 }
 
+/** A manual stock correction after a mistaken restock / sale / entry. */
+export interface AdjustStockDTO {
+  productId: number
+  /** Whole cartons to add or remove (must be a whole number of at least 0). */
+  cartons: number
+  /** Loose pieces (boxes) to add or remove on top of the cartons. Defaults to 0. */
+  loosePieces?: number
+  /** When true stock is removed; otherwise stock is added. */
+  remove: boolean
+  /** Free-text reason, e.g. "wrong entry yesterday". */
+  note?: string | null
+}
+
 /** Current running balance for every product (last ledger entry's newQuantity, in pieces). */
 export interface StockLevel {
   productId: number

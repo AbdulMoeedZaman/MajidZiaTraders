@@ -53,10 +53,13 @@ export const IPC_CHANNELS = {
 
   PAYMENTS_LIST_BY_INVOICE: 'payments:list-by-invoice',
   PAYMENTS_LIST_BY_CUSTOMER: 'payments:list-by-customer',
+  PAYMENTS_LIST_RECENT: 'payments:list-recent',
+  PAYMENTS_REMOVE: 'payments:remove',
 
   STOCK_LIST: 'stock:list',
   STOCK_LIST_BY_PRODUCT: 'stock:list-by-product',
   STOCK_RESTOCK: 'stock:restock',
+  STOCK_ADJUST: 'stock:adjust',
   STOCK_LEVELS: 'stock:levels',
 
   DASHBOARD_SUMMARY: 'dashboard:summary',

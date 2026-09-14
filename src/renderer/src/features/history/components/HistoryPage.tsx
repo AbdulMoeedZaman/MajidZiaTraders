@@ -7,6 +7,8 @@ const ACTION_LABELS: Record<HistoryActionType, string> = {
   product_created: 'Product created',
   restocked: 'Restocked',
   payment_recorded: 'Payment received',
+  payment_reversed: 'Payment removed',
+  stock_adjusted: 'Stock adjusted',
   invoice_created: 'Invoice created',
 }
 

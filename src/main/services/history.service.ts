@@ -110,6 +110,12 @@ export class HistoryService {
       case 'payment_recorded':
         this.reversePaymentRecorded(snapshot)
         break
+      case 'payment_reversed':
+        this.reversePaymentReversed(snapshot)
+        break
+      case 'stock_adjusted':
+        this.reverseStockAdjusted(snapshot, row)
+        break
       case 'invoice_created':
         this.reverseInvoiceCreated(snapshot)
         break
@@ -165,6 +171,52 @@ export class HistoryService {
     }
   }
 
+  private reverseStockAdjusted(snapshot: Snapshot, row: ActionLogRow): void {
+    const movement = snapshot.movement as StockMovement | undefined
+    if (!movement) throw new Error('Cannot undo: adjustment snapshot is missing')
+    const balance = this.stockRepo.lastNewQuantity(movement.productId) ?? 0
+    const compensation = -movement.quantity
+    if (compensation < 0 && balance < -compensation) {
+      throw new Error(
+        `Cannot undo adjustment: only ${balance} pcs in stock (adjustment was ${movement.quantity})`
+      )
+    }
+    const reversal = this.stockRepo.insert({
+      productId: movement.productId,
+      type: 'adjustment',
+      quantity: compensation,
+      previousQuantity: balance,
+      newQuantity: balance + compensation,
+      referenceType: 'adjustment',
+      referenceId: null,
+      note: 'Undo adjustment',
+      date: localDate(),
+      price: null,
+    })
+    this.logRepo.updateSnapshot(row.id, { ...snapshot, compensationMovementId: reversal.id })
+  }
+
+  private reversePaymentReversed(snapshot: Snapshot): void {
+    const entries = (snapshot.entries as PaymentEntry[] | undefined) ?? []
+    const touched = new Set<number>()
+    for (const entry of entries) {
+      this.paymentRepo.insertExplicit({
+        id: entry.id,
+        invoiceId: entry.invoiceId,
+        customerId: entry.customerId,
+        amount: entry.amount,
+        date: entry.date,
+        note: entry.note,
+        createdAt: entry.createdAt,
+        updatedAt: entry.createdAt,
+      } satisfies Payment)
+      touched.add(entry.invoiceId)
+    }
+    for (const invoiceId of touched) {
+      this.refreshInvoicePaymentState(invoiceId)
+    }
+  }
+
   private reverseInvoiceCreated(snapshot: Snapshot): void {
     const invoice = snapshot.invoice as Invoice | undefined
     if (!invoice) throw new Error('Cannot undo: invoice snapshot is missing')
@@ -194,6 +246,12 @@ export class HistoryService {
         break
       case 'payment_recorded':
         this.replayPaymentRecorded(snapshot)
+        break
+      case 'payment_reversed':
+        this.replayPaymentReversed(snapshot)
+        break
+      case 'stock_adjusted':
+        this.replayStockAdjusted(snapshot)
         break
       case 'invoice_created':
         this.replayInvoiceCreated(snapshot)
@@ -243,6 +301,28 @@ export class HistoryService {
         updatedAt: entry.createdAt,
       } satisfies Payment)
       this.refreshInvoicePaymentState(entry.invoiceId)
+    }
+  }
+
+  private replayStockAdjusted(snapshot: Snapshot): void {
+    const compensationMovementId = snapshot.compensationMovementId as number | undefined
+    if (compensationMovementId === undefined) {
+      throw new Error('Cannot redo: no adjustment reversal recorded')
+    }
+    const reversal = this.stockRepo.findById(compensationMovementId)
+    if (!reversal) throw new Error('Cannot redo: adjustment reversal no longer exists')
+    this.stockRepo.deleteById(reversal.id)
+  }
+
+  private replayPaymentReversed(snapshot: Snapshot): void {
+    const entries = (snapshot.entries as PaymentEntry[] | undefined) ?? []
+    const touched = new Set<number>()
+    for (const entry of entries) {
+      this.paymentRepo.deleteById(entry.id)
+      touched.add(entry.invoiceId)
+    }
+    for (const invoiceId of touched) {
+      this.refreshInvoicePaymentState(invoiceId)
     }
   }
 

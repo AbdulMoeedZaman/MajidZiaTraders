@@ -1,5 +1,5 @@
 import { BaseRepository } from './base.repository'
-import type { Payment } from '@shared/types/payment'
+import type { Payment, RecentPayment } from '@shared/types/payment'
 import type { InvoiceWithCustomer } from '@shared/types/invoice'
 
 export class PaymentRepository extends BaseRepository {
@@ -35,6 +35,20 @@ export class PaymentRepository extends BaseRepository {
     return this.db
       .prepare('SELECT * FROM payments WHERE customerId = ? ORDER BY date DESC, id DESC')
       .all(customerId) as Payment[]
+  }
+
+  /** Newest payments with invoice number + customer name (adjustments screen). */
+  findRecent(limit: number): RecentPayment[] {
+    return this.db
+      .prepare(
+        `SELECT p.*, i.invoiceNumber, c.shopName AS customerName
+         FROM payments p
+         JOIN invoices i ON i.id = p.invoiceId
+         JOIN customers c ON c.id = p.customerId
+         ORDER BY p.date DESC, p.id DESC
+         LIMIT ?`
+      )
+      .all(limit) as RecentPayment[]
   }
 
   /**

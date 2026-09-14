@@ -3,6 +3,8 @@ export const HISTORY_ACTIONS = [
   'product_created',
   'restocked',
   'payment_recorded',
+  'payment_reversed',
+  'stock_adjusted',
   'invoice_created',
 ] as const
 

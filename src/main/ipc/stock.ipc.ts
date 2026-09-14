@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { StockService } from '../services/stock.service'
-import type { CreateRestockDTO } from '@shared/types/stock'
+import type { CreateRestockDTO, AdjustStockDTO } from '@shared/types/stock'
 
 const stockService = new StockService()
 
@@ -10,5 +10,6 @@ export function registerStockIpc(): void {
     stockService.listByProduct(productId)
   )
   ipcMain.handle('stock:restock', (_event, data: CreateRestockDTO) => stockService.restock(data))
+  ipcMain.handle('stock:adjust', (_event, data: AdjustStockDTO) => stockService.adjust(data))
   ipcMain.handle('stock:levels', () => stockService.levels())
 }

@@ -28,3 +28,9 @@ export interface CustomerPayResult {
   /** Sum of the applied payments (always equals the amount entered). */
   total: number
 }
+
+/** A payment shown on the adjustments screen, with invoice / customer context. */
+export interface RecentPayment extends Payment {
+  invoiceNumber: string
+  customerName: string
+}

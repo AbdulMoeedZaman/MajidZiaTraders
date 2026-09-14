@@ -5,7 +5,7 @@ import { HistoryService } from './history.service'
 import { localDate } from '@shared/date'
 import { invoiceDue, invoiceRemaining } from '@shared/types/invoice'
 import type { Invoice, InvoiceStatus } from '@shared/types/invoice'
-import type { CustomerPayResult, Payment, PaymentApplication } from '@shared/types/payment'
+import type { CustomerPayResult, Payment, PaymentApplication, RecentPayment } from '@shared/types/payment'
 
 /**
  * Records payments and derives the invoice's payment status.
@@ -118,6 +118,48 @@ export class PaymentService {
 
   listByCustomer(customerId: number): Payment[] {
     return this.paymentRepo.findByCustomer(customerId)
+  }
+
+  /** Newest payments with their invoice / customer context (adjustments screen). */
+  listRecent(limit = 50): RecentPayment[] {
+    return this.paymentRepo.findRecent(limit)
+  }
+
+  /**
+   * Reverses a mistaken payment: deletes the payment row and recomputes the
+   * invoice's paid amount + status from whatever payments remain.
+   */
+  removePayment(paymentId: number): Payment {
+    return this.paymentRepo.runInTransaction(() => {
+      const payment = this.paymentRepo.findById(paymentId)
+      if (!payment) {
+        throw new Error('Payment not found')
+      }
+      this.paymentRepo.deleteById(payment.id)
+      this.refreshInvoicePaymentState(payment.invoiceId)
+      this.history.append({
+        action: 'payment_reversed',
+        targetType: 'payment',
+        targetId: payment.id,
+        summary: `Removed ${formatPaisa(payment.amount)} received against invoice ${this.invoiceNumber(payment.invoiceId)}`,
+        snapshot: { entries: [paymentToEntry(payment)] },
+      })
+      return payment
+    })
+  }
+
+  private invoiceNumber(invoiceId: number): string {
+    const invoice = this.invoiceRepo.findById(invoiceId)
+    return invoice?.invoiceNumber ?? `#${invoiceId}`
+  }
+
+  /** Re-derives an invoice's paid amount and status from the payments that remain. */
+  private refreshInvoicePaymentState(invoiceId: number): void {
+    const invoice = this.invoiceRepo.findById(invoiceId)
+    if (!invoice || invoice.status === 'cancelled') return
+    const paid = this.paymentRepo.sumByInvoice(invoiceId)
+    const due = invoiceDue(invoice)
+    this.invoiceRepo.updatePaymentState(invoiceId, paid, newStatus(paid, due))
   }
 
   private assertPaymentAmount(amount: number): void {

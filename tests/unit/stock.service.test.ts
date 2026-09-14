@@ -115,4 +115,55 @@ describe('StockService', () => {
     expect(() => products.delete(seed.product.id)).not.toThrow()
     expect(stock.list()).toHaveLength(0)
   })
+
+  it('adjust adds stock with a positive adjustment movement when remove is false', () => {
+    const service = new StockService()
+    const seed = seedBasics()
+
+    service.restock({ productId: seed.product.id, quantity: 5 }) // 60 pcs
+    const m = service.adjust({ productId: seed.product.id, cartons: 2, loosePieces: 3, remove: false, note: 'added back' })
+
+    expect(m.type).toBe('adjustment')
+    expect(m.quantity).toBe(27) // 2 cartons × 12 + 3
+    expect(m.previousQuantity).toBe(60)
+    expect(m.newQuantity).toBe(87)
+    expect(m.note).toBe('added back')
+    expect(service.currentQuantity(seed.product.id)).toBe(87)
+  })
+
+  it('adjust removes stock with a negative adjustment movement when remove is true', () => {
+    const service = new StockService()
+    const seed = seedBasics()
+    service.restock({ productId: seed.product.id, quantity: 5 }) // 60 pcs
+
+    const m = service.adjust({ productId: seed.product.id, cartons: 1, loosePieces: 0, remove: true })
+
+    expect(m.type).toBe('adjustment')
+    expect(m.quantity).toBe(-12)
+    expect(m.previousQuantity).toBe(60)
+    expect(m.newQuantity).toBe(48)
+    expect(service.currentQuantity(seed.product.id)).toBe(48)
+  })
+
+  it('adjust blocks removing more stock than is available', () => {
+    const service = new StockService()
+    const seed = seedBasics()
+    service.restock({ productId: seed.product.id, quantity: 1 }) // 12 pcs
+
+    expect(() =>
+      service.adjust({ productId: seed.product.id, cartons: 2, remove: true })
+    ).toThrow(/only 12 pcs/)
+    expect(service.currentQuantity(seed.product.id)).toBe(12)
+  })
+
+  it('adjust rejects an unknown product, zero quantity and invalid numbers', () => {
+    const service = new StockService()
+    const seed = seedBasics()
+    service.restock({ productId: seed.product.id, quantity: 5 })
+
+    expect(() => service.adjust({ productId: 9999, cartons: 1, remove: false })).toThrow(/Product not found/)
+    expect(() => service.adjust({ productId: seed.product.id, cartons: 0, remove: false })).toThrow(/Enter cartons or loose pieces/)
+    expect(() => service.adjust({ productId: seed.product.id, cartons: -2, remove: false })).toThrow(/whole number/)
+    expect(() => service.adjust({ productId: seed.product.id, cartons: 1, loosePieces: -1, remove: false })).toThrow(/whole number/)
+  })
 })

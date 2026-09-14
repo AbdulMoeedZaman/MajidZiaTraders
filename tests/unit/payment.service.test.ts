@@ -166,4 +166,51 @@ describe('PaymentService', () => {
     invoices.cancel(created.id)
     expect(dashboard.summary('2026-09-01', '2026-09-30').profit.total).toBe(0)
   })
+
+  it('removing a payment restores the invoice paid amount and status', () => {
+    const base = seed()
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+
+    const inv = invoices.create(invoiceInput(base, { tax: 1000 })) // due 2000
+    const first = payments.payInvoice(inv.id, 800)
+    expect(first.status).toBe('partial')
+
+    const second = payments.payInvoice(inv.id, 1200)
+    expect(second.status).toBe('paid')
+    expect(second.paidAmount).toBe(2000)
+
+    const recent = new PaymentService().listRecent()
+    expect(recent).toHaveLength(2)
+    expect(recent[0]).toMatchObject({ invoiceNumber: inv.invoiceNumber, customerName: 'Bilal Auto Shop' })
+
+    // A mistaken entry removed: the invoice falls back to partial with 800 paid.
+    const pay = new PaymentService().listByInvoice(inv.id).find((p) => p.amount === 1200)!
+    const reversed = payments.removePayment(pay.id)
+    expect(reversed.amount).toBe(1200)
+
+    const updated = invoices.getById(inv.id)!
+    expect(updated.status).toBe('partial')
+    expect(updated.paidAmount).toBe(800)
+    expect(payments.listByInvoice(inv.id)).toHaveLength(1)
+  })
+
+  it('removing the only payment returns the invoice to unpaid', () => {
+    const base = seed()
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+
+    const inv = invoices.create(invoiceInput(base)) // due 1000
+    payments.payInvoice(inv.id, 1000)
+    payments.removePayment(new PaymentService().listByInvoice(inv.id)[0].id)
+
+    const updated = invoices.getById(inv.id)!
+    expect(updated.status).toBe('unpaid')
+    expect(updated.paidAmount).toBe(0)
+    expect(payments.listByInvoice(inv.id)).toHaveLength(0)
+  })
+
+  it('removing an unknown payment is rejected', () => {
+    expect(() => new PaymentService().removePayment(99999)).toThrow(/Payment not found/)
+  })
 })

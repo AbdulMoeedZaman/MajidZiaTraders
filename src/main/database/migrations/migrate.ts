@@ -6,6 +6,7 @@ import { up as stockMovementDisplayFields } from './004_stock_movement_display_f
 import { up as expenses } from './005_expenses'
 import { up as invoicePayments } from './006_invoice_payments'
 import { up as actionLogs } from './007_action_logs'
+import { up as actionLogActions } from './008_action_logger_actions'
 
 interface Migration {
   version: number
@@ -38,6 +39,7 @@ const migrations: Migration[] = [
   { version: 5, name: '005_expenses', up: expenses },
   { version: 6, name: '006_invoice_payments', up: invoicePayments },
   { version: 7, name: '007_action_logs', up: actionLogs },
+  { version: 8, name: '008_action_logger_actions', up: actionLogActions },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

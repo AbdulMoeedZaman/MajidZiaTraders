@@ -16,4 +16,10 @@ export function registerPaymentIpc(): void {
   ipcMain.handle('payments:list-by-customer', (_event, customerId: number) =>
     paymentService.listByCustomer(customerId)
   )
+  ipcMain.handle('payments:list-recent', (_event, limit: number) =>
+    paymentService.listRecent(limit ?? 50)
+  )
+  ipcMain.handle('payments:remove', (_event, paymentId: number) =>
+    paymentService.removePayment(paymentId)
+  )
 }

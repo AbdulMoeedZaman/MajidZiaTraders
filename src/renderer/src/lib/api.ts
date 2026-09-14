@@ -4,13 +4,13 @@ import type { Route, RouteWithCount } from '@shared/types/route'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 import type { Customer, CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO, CustomerImportResult } from '@shared/types/customer'
 import type { Invoice, InvoiceWithCustomer, InvoiceDetails, CreateInvoiceDTO, LoadFormSummary } from '@shared/types/invoice'
-import type { StockMovement, StockMovementWithProduct, StockLevel, CreateRestockDTO } from '@shared/types/stock'
+import type { StockMovement, StockMovementWithProduct, StockLevel, CreateRestockDTO, AdjustStockDTO } from '@shared/types/stock'
 import type { ActionLog } from '@shared/types/history'
 import type { Setting, UpdateSettingDTO, BulkUpdateSettingsDTO } from '@shared/types/setting'
 import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResult } from '@shared/types/backup'
 import type { DashboardSummary } from '@shared/types/dashboard'
 import type { CreateExpenseDTO, Expense, ExpenseDaySummary, ExpenseRangeSummary } from '@shared/types/expense'
-import type { CustomerPayResult, Payment } from '@shared/types/payment'
+import type { CustomerPayResult, Payment, RecentPayment } from '@shared/types/payment'
 
 declare global {
   interface Window {
@@ -79,6 +79,8 @@ export const api = {
   payments: {
     listByInvoice: (invoiceId: number) => ipc<Payment[]>('payments:list-by-invoice', invoiceId),
     listByCustomer: (customerId: number) => ipc<Payment[]>('payments:list-by-customer', customerId),
+    listRecent: (limit = 50) => ipc<RecentPayment[]>('payments:list-recent', limit),
+    remove: (paymentId: number) => ipc<Payment>('payments:remove', paymentId),
   },
 
   invoices: {
@@ -101,6 +103,7 @@ export const api = {
     list: () => ipc<StockMovementWithProduct[]>('stock:list'),
     listByProduct: (productId: number) => ipc<StockMovementWithProduct[]>('stock:list-by-product', productId),
     restock: (data: CreateRestockDTO) => ipc<StockMovement>('stock:restock', data),
+    adjust: (data: AdjustStockDTO) => ipc<StockMovement>('stock:adjust', data),
     levels: () => ipc<StockLevel[]>('stock:levels'),
   },
 

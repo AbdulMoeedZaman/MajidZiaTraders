@@ -7,6 +7,7 @@ import type {
   StockMovementWithProduct,
   StockLevel,
   CreateRestockDTO,
+  AdjustStockDTO,
 } from '@shared/types/stock'
 
 export class StockService {
@@ -32,6 +33,67 @@ export class StockService {
   /** Current running balance of one product (0 when the ledger has no rows yet). */
   currentQuantity(productId: number): number {
     return this.stockRepo.lastNewQuantity(productId) ?? 0
+  }
+
+  /**
+   * Manual correction to a product's balance — the wrong-step fix on the
+   * adjustments screen. A positive quantity adds stock, a negative quantity
+   * removes it, always recorded with an `adjustment` movement so the ledger
+   * stays traceable. Removing more than the current balance is blocked.
+   */
+  adjust(data: AdjustStockDTO): StockMovement {
+    const product = this.productRepo.findById(data.productId)
+    if (!product) {
+      throw new Error('Product not found')
+    }
+    const cartons = data.cartons
+    const loose = data.loosePieces ?? 0
+    if (!Number.isInteger(cartons) || cartons < 0) {
+      throw new Error('Cartons must be a whole number of at least 0')
+    }
+    if (!Number.isInteger(loose) || loose < 0) {
+      throw new Error('Loose pieces must be a whole number of at least 0')
+    }
+    if (cartons === 0 && loose === 0) {
+      throw new Error('Enter cartons or loose pieces to adjust')
+    }
+
+    const pieces = cartons * product.boxesPerCarton + loose
+    const current = this.stockRepo.lastNewQuantity(data.productId) ?? 0
+    if (data.remove && pieces > current) {
+      throw new Error(
+        `Cannot remove ${pieces} pcs — only ${current} pcs of "${product.name}" in stock`
+      )
+    }
+
+    const quantity = data.remove ? -pieces : pieces
+    const note = data.note?.trim() || (data.remove ? 'Stock removed (manual adjustment)' : 'Stock added (manual adjustment)')
+
+    return this.stockRepo.runInTransaction(() => {
+      const previous = this.stockRepo.lastNewQuantity(data.productId) ?? 0
+      const movement = this.stockRepo.insert({
+        productId: data.productId,
+        type: 'adjustment',
+        quantity,
+        previousQuantity: previous,
+        newQuantity: previous + quantity,
+        referenceType: 'adjustment',
+        referenceId: null,
+        note,
+        date: localDate(new Date()),
+        price: null,
+      })
+      const detail = cartons > 0 ? `${cartons} ctn` : ''
+      const loosePart = loose > 0 ? `${loose} pcs` : ''
+      this.history.append({
+        action: 'stock_adjusted',
+        targetType: 'stock',
+        targetId: movement.id,
+        summary: `Adjusted "${product.name}" ${data.remove ? '−' : '+'}${pieces} pcs (${[detail, loosePart].filter(Boolean).join(' + ') || `${pieces} pcs`})`,
+        snapshot: { movement, productName: product.name },
+      })
+      return movement
+    })
   }
 
   /**

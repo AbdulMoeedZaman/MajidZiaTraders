@@ -138,4 +138,41 @@ describe('HistoryService', () => {
     expect(() => history.undo()).toThrow(/Nothing to undo/)
     expect(() => history.redo()).toThrow(/Nothing to redo/)
   })
+
+  it('undo and redo a stock adjustment, restoring the balance', () => {
+    const seed = seedBasics()
+    const stock = new StockService()
+    const history = new HistoryService()
+    stock.restock({ productId: seed.product.id, quantity: 5 }) // 60 pcs
+
+    stock.adjust({ productId: seed.product.id, cartons: 1, loosePieces: 0, remove: false }) // +12 → 72
+    expect(stock.currentQuantity(seed.product.id)).toBe(72)
+
+    history.undo()
+    expect(stock.currentQuantity(seed.product.id)).toBe(60) // compensation -12
+
+    history.redo()
+    expect(stock.currentQuantity(seed.product.id)).toBe(72) // compensation removed
+  })
+
+  it('undo and redo a removed payment, restoring it exactly', () => {
+    const seed = seedStocked(2)
+    const invoices = new InvoiceService()
+    const payments = new PaymentService()
+    const history = new HistoryService()
+    const inv = invoices.create(invoiceInput(seed))
+    payments.payInvoice(inv.id, 1000)
+    payments.removePayment(new PaymentService().listByInvoice(inv.id)[0].id)
+
+    expect(invoices.getById(inv.id)!.status).toBe('unpaid')
+
+    history.undo()
+    expect(invoices.getById(inv.id)!.status).toBe('paid')
+    expect(invoices.getById(inv.id)!.paidAmount).toBe(1000)
+    expect(payments.listByInvoice(inv.id)).toHaveLength(1)
+
+    history.redo()
+    expect(invoices.getById(inv.id)!.status).toBe('unpaid')
+    expect(payments.listByInvoice(inv.id)).toHaveLength(0)
+  })
 })
