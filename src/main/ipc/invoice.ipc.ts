@@ -6,6 +6,9 @@ const invoiceService = new InvoiceService()
 
 export function registerInvoiceIpc(): void {
   ipcMain.handle('invoices:list', () => invoiceService.list())
+  ipcMain.handle('invoices:list-by-date', (_event, range: { from: string; to: string }) =>
+    invoiceService.listByDateRange(range.from, range.to)
+  )
   ipcMain.handle('invoices:get-by-id', (_, id: number) => invoiceService.getById(id))
   ipcMain.handle('invoices:get-with-details', (_, id: number) => invoiceService.getWithDetails(id))
   ipcMain.handle('invoices:list-by-customer', (_, customerId: number) =>

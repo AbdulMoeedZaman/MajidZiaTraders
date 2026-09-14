@@ -41,6 +41,12 @@ export class InvoiceService {
     return this.invoiceRepo.findAllWithCustomer()
   }
 
+  listByDateRange(from: string, to: string): InvoiceWithCustomer[] {
+    assertIsoDate(from, '"From" date')
+    assertIsoDate(to, '"To" date')
+    return this.invoiceRepo.findAllWithCustomer({ from, to })
+  }
+
   getById(id: number): Invoice | null {
     return this.invoiceRepo.findById(id)
   }

@@ -3,6 +3,7 @@ import { api } from '../../../lib/api'
 import { formatDate, formatMoney } from '../../../lib/format'
 import { LoadFormReport } from './LoadFormReport'
 import { StatusBadge } from '../../../components/StatusBadge'
+import { localDate } from '@shared/date'
 import type { InvoiceWithCustomer, LoadFormSummary } from '@shared/types/invoice'
 
 interface Props {
@@ -15,6 +16,8 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [from, setFrom] = useState(() => localDate(new Date()))
+  const [to, setTo] = useState(() => localDate(new Date()))
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [loadForm, setLoadForm] = useState<LoadFormSummary | null>(null)
@@ -22,10 +25,11 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
   const [building, setBuilding] = useState(false)
 
   const load = async () => {
+    if (!from || !to || from > to) return
     setLoading(true)
     setError(null)
     try {
-      setInvoices(await api.invoices.list())
+      setInvoices(await api.invoices.listByDate(from, to))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load invoices')
     } finally {
@@ -35,7 +39,7 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
 
   useEffect(() => {
     void load()
-  }, [])
+  }, [from, to])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -103,6 +107,14 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by number or customer…"
         />
+        <label className="field date-field">
+          <span>From</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="field date-field">
+          <span>To</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
         <div className="spacer" />
         <div className="icon-cluster">
           <button className="btn ghost icon" onClick={() => void load()} title="Refresh">
@@ -136,10 +148,15 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
 
       {loadFormError && <div className="form-error">{loadFormError}</div>}
 
-      {visible.length === 0 ? (
+      {from > to ? (
         <div className="empty-state">
-          <h3>No invoices yet</h3>
-          <p>Create your first invoice to get started.</p>
+          <h3>Invalid date range</h3>
+          <p>The "To" date cannot be earlier than the "From" date.</p>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="empty-state">
+          <h3>No invoices in this period</h3>
+          <p>Change the date range to see more invoices.</p>
         </div>
       ) : (
         <div className="table-wrap">

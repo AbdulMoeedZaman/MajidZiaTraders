@@ -83,6 +83,8 @@ export const api = {
 
   invoices: {
     list: () => ipc<InvoiceWithCustomer[]>('invoices:list'),
+    listByDate: (from: string, to: string) =>
+      ipc<InvoiceWithCustomer[]>('invoices:list-by-date', { from, to }),
     getById: (id: number) => ipc<Invoice | null>('invoices:get-by-id', id),
     getWithDetails: (id: number) => ipc<InvoiceDetails | null>('invoices:get-with-details', id),
     listByCustomer: (customerId: number) =>

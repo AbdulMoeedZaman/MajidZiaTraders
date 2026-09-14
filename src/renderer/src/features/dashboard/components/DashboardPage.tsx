@@ -16,12 +16,8 @@ interface Props {
   onNavigate: (view: AppView) => void
 }
 
-function monthStartISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-}
-
 export function DashboardPage({ onNavigate }: Props) {
-  const [start, setStart] = useState(monthStartISO(new Date()))
+  const [start, setStart] = useState(() => localDate(new Date()))
   const [end, setEnd] = useState(() => localDate(new Date()))
   const [detail, setDetail] = useState<DetailKind | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
