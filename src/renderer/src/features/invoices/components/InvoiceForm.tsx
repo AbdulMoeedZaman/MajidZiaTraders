@@ -49,6 +49,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const productRefs = useRef<Array<SearchSelectHandle | null>>([])
   const rateRefs = useRef<Array<HTMLInputElement | null>>([])
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([])
+  const cartonRefs = useRef<Array<HTMLInputElement | null>>([])
   const [pendingProductFocus, setPendingProductFocus] = useState<number | null>(null)
 
   // When opened from a customer's "New Invoice" button, preselect both the
@@ -133,6 +134,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   }, [pendingProductFocus, items.length])
 
   const focusRate = (index: number) => rateRefs.current[index]?.focus()
+  const focusCartons = (index: number) => cartonRefs.current[index]?.focus()
   const focusPieces = (index: number) => qtyRefs.current[index]?.focus()
 
   const handleQtyEnter = (index: number) => {
@@ -341,7 +343,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
 onKeyDown={(e) => {
-                    if (e.key === 'Enter') focusPieces(i)
+                    if (e.key === 'Enter') focusCartons(i)
                   }}
                 placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
@@ -349,6 +351,9 @@ onKeyDown={(e) => {
             <label className="field line-qty">
               <span>Cartons</span>
               <input
+                ref={(el) => {
+                  cartonRefs.current[i] = el
+                }}
                 type="number"
                 min="0"
                 step="1"
