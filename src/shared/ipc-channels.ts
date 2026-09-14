@@ -86,8 +86,6 @@ export const IPC_CHANNELS = {
 
   HISTORY_LIST: 'history:list',
   HISTORY_RECENT: 'history:recent',
-  HISTORY_UNDO: 'history:undo',
-  HISTORY_REDO: 'history:redo',
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

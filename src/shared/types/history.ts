@@ -1,4 +1,4 @@
-/** Actions the app records in the action log (each one is reversible). */
+/** Actions the app records in the audit action log. */
 export const HISTORY_ACTIONS = [
   'product_created',
   'restocked',
@@ -11,12 +11,9 @@ export const HISTORY_ACTIONS = [
 export type HistoryActionType = (typeof HISTORY_ACTIONS)[number]
 
 /**
- * Lifecycle of a logged action:
- *  - applied    : the action's effects are the current state of the world.
- *  - undone     : the action was reversed; the lowest-seq undone row is the next
- *                 redo candidate.
- *  - superseded : was undone, but a newer action was applied afterwards, so the
- *                 redo trail of this action is archived for history only.
+ * Status of a logged action. New rows are always stored as `applied`; the
+ * `undone` / `superseded` values only exist in databases upgraded from an app
+ * version that had undo/redo, and are retained purely as historical audit data.
  */
 export type ActionLogStatus = 'applied' | 'undone' | 'superseded'
 
@@ -28,7 +25,7 @@ export interface ActionLog {
   targetType: string
   targetId: number | null
   summary: string
-  /** Parsed JSON snapshot used by undo / redo. */
+  /** JSON snapshot of the state at record time. */
   snapshot: Record<string, unknown> | null
   status: ActionLogStatus
   createdAt: string

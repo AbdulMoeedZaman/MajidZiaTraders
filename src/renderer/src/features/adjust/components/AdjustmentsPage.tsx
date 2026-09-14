@@ -293,7 +293,7 @@ function PaymentAdjustTab() {
         <div className="section-title">Correct a recorded payment</div>
         <p className="muted fine-text">
           Removing a payment reverses it — the invoice's paid amount and status are recalculated
-          automatically, and the reversal appears in the action history so it can itself be undone.
+          automatically, and the removal is recorded in the action log.
         </p>
       </section>
 

@@ -110,8 +110,6 @@ export const api = {
   history: {
     list: () => ipc<ActionLog[]>('history:list'),
     recent: (limit = 8) => ipc<ActionLog[]>('history:recent', limit),
-    undo: () => ipc<ActionLog>('history:undo'),
-    redo: () => ipc<ActionLog>('history:redo'),
   },
 
   settings: {

@@ -48,16 +48,6 @@ export class ProductRepository extends BaseRepository {
     this.db.prepare('DELETE FROM products WHERE id = ?').run(id)
   }
 
-  /** Re-inserts a product with its original id (redo of product_created). */
-  restore(product: Product): void {
-    this.db
-      .prepare(
-        `INSERT INTO products (id, name, rate, boxesPerCarton, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(product.id, product.name, product.rate, product.boxesPerCarton, product.createdAt, product.updatedAt)
-  }
-
   count(): number {
     return (this.db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number }).count
   }

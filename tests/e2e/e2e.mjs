@@ -582,38 +582,29 @@ try {
     modalStillOpen.includes('Confirm Payment') && !backend.ok,
     { payOpenOk, modalAfterOpen, confirmClicked, payModalErr, pagePayErr, modalOpen: modalStillOpen.includes('Confirm Payment'), backend: backend.e ?? 'accepted' })
 
-  // =============== H: activity feed, History page, undo/redo of the last payment ===============
+  // =============== H: audit activity feed + read-only History page ===============
   await nav('Dashboard'); await wait(1200)
   const activityHeader = await ev(`[...document.querySelectorAll('.short-list-header h3')].map((h)=>h.textContent.trim()).join(',')`)
   const activityText = await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.innerText ?? ''`)
-  const activityHasUndo = await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.querySelector('button')?.textContent.trim() === 'Undo'`)
-  check('H-1', 'Dashboard shows a "Recent activity" list with Undo/Redo controls and the recorded customer payment',
-    activityHeader.includes('Recent activity') && activityHasUndo && activityText.includes('Received Rs. 6.00'),
-    { headers: activityHeader, hasUndo: activityHasUndo, activity: activityText.replace(/\s+/g, ' ').slice(0, 220) })
+  const activityBtnTexts = await ev(`[...(document.querySelectorAll('.short-list').find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.querySelectorAll('button') ?? [])].map((b)=>b.textContent.trim()).join(',')`)
+  const activityHasUndo = activityBtnTexts.split(',').includes('Undo')
+  check('H-1', 'Dashboard shows a "Recent activity" feed with no Undo/Redo buttons',
+    activityHeader.includes('Recent activity') && !activityHasUndo && activityText.includes('Received Rs. 6.00'),
+    { headers: activityHeader, buttons: activityBtnTexts, hasUndo: activityHasUndo, activity: activityText.replace(/\s+/g, ' ').slice(0, 220) })
 
   await nav('History'); await wait(1200)
   const histHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
   const histRows = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const histButtons = await ev(`[...document.querySelectorAll('.feature .toolbar button')].map((b)=>b.textContent.trim()).join(',')`)
-  check('H-2', 'History page lists the action log (time/action/details/status) with Undo and Redo buttons',
-    histHeaders === 'Time,Action,Details,Status' && histButtons.split(',').filter((b) => b === 'Undo' || b === 'Redo').length === 2 && histRows.split('|').length >= 8,
+  check('H-2', 'History page lists the action log (time/action/details) with no Undo/Redo buttons',
+    histHeaders === 'Time,Action,Details' && !histButtons.split(',').some((b) => b === 'Undo' || b === 'Redo') && histButtons.includes('Refresh') && histRows.split('|').length >= 8,
     { headers: histHeaders, buttons: histButtons, rows: histRows.split('|').length })
 
-  await clickBtn('Undo'); await wait(1200)
-  const undone3 = must(await inv('invoices:list'), 'invoices after undo').find((i) => i.invoiceNumber === 'INV-000003')
-  const undoneLatest = must(await inv('history:list'), 'history after undo')[0]
-  check('H-3', 'History page Undo reverses the customer payment and INV-000003 returns to Unpaid',
-    undoneLatest.action === 'payment_recorded' && undoneLatest.status === 'undone' &&
-    undone3.status === 'unpaid' && undone3.paidAmount === 0,
-    { latest: { action: undoneLatest.action, status: undoneLatest.status }, inv3: { status: undone3.status, paid: undone3.paidAmount } })
-
-  await clickBtn('Redo'); await wait(1200)
-  const redone3 = must(await inv('invoices:list'), 'invoices after redo').find((i) => i.invoiceNumber === 'INV-000003')
-  const redoneLatest = must(await inv('history:list'), 'history after redo')[0]
-  check('H-4', 'History page Redo replays the payment and restores INV-000003 to Paid',
-    redoneLatest.action === 'payment_recorded' && redoneLatest.status === 'applied' &&
-    redone3.status === 'paid' && redone3.paidAmount === 600,
-    { latest: { action: redoneLatest.action, status: redoneLatest.status }, inv3: { status: redone3.status, paid: redone3.paidAmount } })
+  const auditLatest = must(await inv('history:list'), 'history after actions')[0]
+  check('H-3', 'The action log is a pure record: every row stays applied and payments are untouched',
+    auditLatest.action === 'payment_recorded' && auditLatest.status === 'applied' &&
+    must(await inv('invoices:list'), 'invoices').find((i) => i.invoiceNumber === 'INV-000003')?.paidAmount === 600,
+    { latest: { action: auditLatest.action, status: auditLatest.status } })
 
   // =============== H-5: dashboard Owed + Cash flow modal breakdowns ===============
   await nav('Dashboard'); await wait(1200)

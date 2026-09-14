@@ -49,41 +49,6 @@ export class StockRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM stock_movements WHERE id = ?').get(id) as StockMovement | null
   }
 
-  deleteById(id: number): void {
-    this.db.prepare('DELETE FROM stock_movements WHERE id = ?').run(id)
-  }
-
-  /**
-   * Re-inserts a movement with its original id during redo. The running balance
-   * (previousQuantity / newQuantity) is recomputed from the current ledger so the
-   * chain stays coherent with whatever rows exist at redo time.
-   */
-  insertExplicit(move: StockMovement): StockMovement {
-    const previous = this.lastNewQuantity(move.productId) ?? 0
-    this.db
-      .prepare(
-        `INSERT INTO stock_movements
-           (id, productId, type, quantity, previousQuantity, newQuantity, referenceType,
-            referenceId, note, date, price, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        move.id,
-        move.productId,
-        move.type,
-        move.quantity,
-        previous,
-        previous + (move.quantity ?? 0),
-        move.referenceType,
-        move.referenceId,
-        move.note,
-        move.date,
-        move.price,
-        move.createdAt
-      )
-    return this.findById(move.id)!
-  }
-
   insert(row: {
     productId: number
     type: string

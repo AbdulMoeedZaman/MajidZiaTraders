@@ -22,8 +22,6 @@ export function DashboardPage({ onNavigate }: Props) {
   const [detail, setDetail] = useState<DetailKind | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [activity, setActivity] = useState<ActionLog[]>([])
-  const [activityMessage, setActivityMessage] = useState<string | null>(null)
-  const [activityBusy, setActivityBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,27 +60,6 @@ export function DashboardPage({ onNavigate }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [detail])
-
-  const runHistory = async (kind: 'undo' | 'redo') => {
-    setActivityBusy(true)
-    setActivityMessage(null)
-    try {
-      const log = kind === 'undo' ? await api.history.undo() : await api.history.redo()
-      setActivityMessage(`✓ ${kind === 'undo' ? 'Undid' : 'Redid'}: ${log.summary}`)
-      const [s, recent] = await Promise.all([
-        api.dashboard.summary(start, end),
-        api.history.recent(8),
-      ])
-      setSummary(s)
-      setActivity(recent)
-    } catch (e) {
-      setActivityMessage(
-        e instanceof Error ? e.message : `Failed to ${kind} the last action`
-      )
-    } finally {
-      setActivityBusy(false)
-    }
-  }
 
   const toggleDetail = (kind: DetailKind) =>
     setDetail((current) => (current === kind ? null : kind))
@@ -231,12 +208,6 @@ export function DashboardPage({ onNavigate }: Props) {
             />
           )}
 
-          {activityMessage && (
-            <div className={activityMessage.startsWith('✓') ? 'form-success' : 'form-error'}>
-              {activityMessage}
-            </div>
-          )}
-
           <div className="short-lists">
             <ShortList
               title="Products"
@@ -283,13 +254,7 @@ export function DashboardPage({ onNavigate }: Props) {
                 </li>
               ))}
             </ShortList>
-            <ActivityList
-              logs={activity}
-              busy={activityBusy}
-              onUndo={() => void runHistory('undo')}
-              onRedo={() => void runHistory('redo')}
-              onMore={() => onNavigate('history')}
-            />
+            <ActivityList logs={activity} onMore={() => onNavigate('history')} />
           </div>
         </>
       )}
@@ -947,30 +912,16 @@ function ShortList({
 
 function ActivityList({
   logs,
-  busy,
-  onUndo,
-  onRedo,
   onMore,
 }: {
   logs: ActionLog[]
-  busy: boolean
-  onUndo: () => void
-  onRedo: () => void
   onMore: () => void
 }) {
-  const canUndo = logs.some((l) => l.status === 'applied')
-  const canRedo = logs.some((l) => l.status === 'undone')
   return (
     <section className="short-list">
       <header className="short-list-header">
         <h3>Recent activity</h3>
         <span className="activity-actions">
-          <button className="btn ghost small" onClick={onUndo} disabled={busy || !canUndo}>
-            Undo
-          </button>
-          <button className="btn ghost small" onClick={onRedo} disabled={busy || !canRedo}>
-            Redo
-          </button>
           <button className="btn ghost small" onClick={onMore}>
             More →
           </button>
@@ -983,9 +934,6 @@ function ActivityList({
           {logs.map((log) => (
             <li key={log.id}>
               <span className="short-list-name">
-                <span className={`badge ${log.status === 'applied' ? 'ok' : log.status === 'undone' ? 'warn' : 'muted-badge'}`}>
-                  {log.status}
-                </span>
                 <span>{log.summary}</span>
               </span>
               <span className="muted fine-text">{formatDateTime(log.createdAt)}</span>

@@ -85,27 +85,6 @@ export class PaymentRepository extends BaseRepository {
     this.db.prepare('DELETE FROM payments WHERE id = ?').run(id)
   }
 
-  /** Re-inserts a payment with its original id (redo of payment_recorded). */
-  insertExplicit(payment: Payment): Payment {
-    this.db
-      .prepare(
-        `INSERT INTO payments (id, invoiceId, customerId, amount, date, note, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        payment.id,
-        payment.invoiceId,
-        payment.customerId,
-        payment.amount,
-        payment.date,
-        payment.note,
-        payment.createdAt
-      )
-    return this.db
-      .prepare('SELECT * FROM payments WHERE id = ?')
-      .get(payment.id) as Payment
-  }
-
   deleteForInvoice(invoiceId: number): void {
     this.db.prepare('DELETE FROM payments WHERE invoiceId = ?').run(invoiceId)
   }
