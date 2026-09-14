@@ -21,7 +21,13 @@ declare global {
 }
 
 function ipc<T>(channel: string, ...args: unknown[]): Promise<T> {
-  return window.api.invoke(channel, ...args) as Promise<T>
+  const bridge = window.api?.invoke
+  if (!bridge) {
+    return Promise.reject(
+      new Error('Electron bridge is not available. Run the app with `npm run dev` (not a plain browser).')
+    )
+  }
+  return bridge(channel, ...args) as Promise<T>
 }
 
 export const api = {

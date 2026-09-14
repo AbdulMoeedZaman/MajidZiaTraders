@@ -39,6 +39,7 @@ export const IPC_CHANNELS = {
   DIALOG_OPEN_EXCEL: 'dialog:open-excel',
 
   INVOICES_LIST: 'invoices:list',
+  INVOICES_LIST_BY_DATE: 'invoices:list-by-date',
   INVOICES_GET_BY_ID: 'invoices:get-by-id',
   INVOICES_GET_WITH_DETAILS: 'invoices:get-with-details',
   INVOICES_LIST_BY_CUSTOMER: 'invoices:list-by-customer',
