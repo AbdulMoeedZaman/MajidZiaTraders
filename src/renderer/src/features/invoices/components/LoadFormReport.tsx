@@ -17,8 +17,18 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
   const [preparing, setPreparing] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
 
-  /** Existing behavior: prints just the load form sheet on screen. */
-  const printLoadForm = () => window.print()
+  /** Prints just the load form on a portrait A4 page. */
+  const printLoadForm = () => {
+    const style = document.createElement('style')
+    style.id = 'lf-print-override'
+    style.textContent = '@page { size: A4 portrait; margin: 6mm; }'
+    document.head.appendChild(style)
+    try {
+      window.print()
+    } finally {
+      style.remove()
+    }
+  }
 
   /**
    * Prints the load form followed by every linked invoice, two invoices per

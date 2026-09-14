@@ -1336,14 +1336,8 @@ body {
     top: 0;
     width: 47%;
   }
-  /* Load form prints upright on a portrait A4 page. */
   .feature.load-form-print {
     width: 100%;
-    page: load-form-portrait;
-  }
-  @page load-form-portrait {
-    size: A4 portrait;
-    margin: 6mm;
   }
   .toolbar,
   .detail-actions,
@@ -1847,11 +1841,7 @@ body {
     break-after: auto;
   }
 
-  /* The load form keeps a full-width upright portrait page (the named page
-     keeps it from inheriting the landscape invoice pages around it). */
-  body.bulk-printing .bulk-print .lf-page {
-    page: load-form-portrait;
-  }
+  /* The load form keeps a full-width page. */
   body.bulk-printing .bulk-print .lf-page .invoice-sheet {
     max-width: none;
   }
