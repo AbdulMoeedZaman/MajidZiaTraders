@@ -62,6 +62,13 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
     })
   }
 
+  const toggleAll = () => {
+    setSelected((prev) => {
+      if (prev.size === visible.length) return new Set<number>()
+      return new Set(visible.map((inv) => inv.id))
+    })
+  }
+
   const enterSelectMode = () => {
     setSelected(new Set())
     setSelectMode(true)
@@ -169,7 +176,18 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
           <table className="data-table">
             <thead>
               <tr>
-                {selectMode && <th className="select-col"></th>}
+                {selectMode && (
+                  <th className="select-col">
+                    <input
+                      type="checkbox"
+                      checked={visible.length > 0 && selected.size === visible.length}
+                      ref={(el) => {
+                        if (el) el.indeterminate = selected.size > 0 && selected.size < visible.length
+                      }}
+                      onChange={toggleAll}
+                    />
+                  </th>
+                )}
                 <th>Invoice no.</th>
                 <th>Date</th>
                 <th>Customer</th>
