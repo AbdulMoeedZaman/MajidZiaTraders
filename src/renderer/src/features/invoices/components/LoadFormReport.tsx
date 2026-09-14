@@ -52,7 +52,7 @@ export function LoadFormReport({ summary, onClose }: Props) {
               <tr>
                 <th>Product</th>
                 <th>Cartons</th>
-                <th>Boxes</th>
+                 <th>Pcs</th>
                 <th>Total qty</th>
               </tr>
             </thead>

@@ -150,7 +150,7 @@ export function ProductList({ onOpen }: Props) {
               <tr>
                 <th>Product</th>
                 <th className="num">Minimum rate</th>
-                <th className="num">Boxes / carton</th>
+                 <th className="num">Pieces / carton</th>
                 <th className="num">Cartons</th>
                 <th className="num">Loose pcs</th>
                 <th className="actions-col">Actions</th>

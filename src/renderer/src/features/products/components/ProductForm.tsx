@@ -44,7 +44,7 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
     }
     const boxes = countToInt(boxesPerCarton)
     if (boxes < 1) {
-      setError('Boxes per carton must be at least 1')
+       setError('Pieces per carton must be at least 1')
       return
     }
     setSaving(true)
@@ -87,7 +87,7 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
             />
           </label>
           <label className="field">
-            <span>Boxes per carton</span>
+             <span>Pieces per carton</span>
             <input
               type="number"
               min="1"

@@ -197,7 +197,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     const quantity =
       countToInt(line.cartonCount) * product.boxesPerCarton + countToInt(line.boxCount)
     if (quantity === 0) {
-      return 'Enter cartons or boxes'
+       return 'Enter cartons or loose pcs'
     }
     const stock = stockLevels[line.productId] ?? 0
     if (quantity > stock) {
@@ -357,7 +357,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
               />
             </label>
             <label className="field line-qty">
-              <span>Box no.</span>
+               <span>Loose pcs</span>
               <input
                 ref={(el) => {
                   boxRefs.current[i] = el
@@ -387,7 +387,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
               <div className="line-hint muted fine-text">
                 In stock: {(stockLevels[product.id] ?? 0)} pcs
                 {' '}({Math.floor((stockLevels[product.id] ?? 0) / Math.max(1, product.boxesPerCarton))} ctn +{' '}
-                {(stockLevels[product.id] ?? 0) % Math.max(1, product.boxesPerCarton)} loose)
+                 {(stockLevels[product.id] ?? 0) % Math.max(1, product.boxesPerCarton)} pcs)
               </div>
             )}
             {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}

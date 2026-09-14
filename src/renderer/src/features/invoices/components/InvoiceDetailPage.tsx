@@ -203,7 +203,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
               <th>Products</th>
               <th>Rate</th>
               <th>Cartons</th>
-              <th>Boxes</th>
+               <th>Pcs</th>
               <th>Scheme</th>
               <th>Amount</th>
             </tr>

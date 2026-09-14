@@ -24,11 +24,8 @@ while (!page && Date.now() < deadline) {
   if (!page) await wait(500)
 }
 if (!page) { console.log('FAIL: app window never appeared'); process.exit(1) }
-await wait(2500)
-const testDb = path.join(TESTDIR, 'majidzia.db')
-if (!fs.existsSync(testDb)) { console.log('ISOLATION FAIL: test DB not found at', testDb, '— aborting, no tests run'); process.exit(2) }
-console.log('Isolation OK — test DB:', testDb, '\n')
 
+// ---------- wait for the renderer to be ready ----------
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise((r) => (ws.onopen = r))
 const exceptions = []
@@ -45,8 +42,19 @@ const call = (method, params = {}) => new Promise((res) => {
   const h = (e) => { const m = JSON.parse(e.data); if (m.id === my) { ws.removeEventListener('message', h); res(m) } }
   ws.addEventListener('message', h); ws.send(JSON.stringify({ id: my, method, params }))
 })
-const ev = async (expression) => (await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value
 await call('Runtime.enable')
+const ev = async (expression) => (await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value
+
+const apiReady = Date.now() + 30000
+let ready = false
+while (!ready && Date.now() < apiReady) {
+  ready = await ev('!!window.api')
+  if (!ready) await wait(300)
+}
+if (!ready) { console.log('FAIL: window.api never appeared on the renderer'); process.exit(1) }
+const testDb = path.join(TESTDIR, 'majidzia.db')
+if (!fs.existsSync(testDb)) { console.log('ISOLATION FAIL: test DB not found at', testDb, '— aborting, no tests run'); process.exit(2) }
+console.log('Isolation OK — test DB:', testDb, '\n')
 
 const inv = (ch, ...args) => ev(`(async()=>{try{return {ok:true,v:await window.api.invoke(${JSON.stringify(ch)}, ...${JSON.stringify(args)})}}catch(e){return {ok:false,e:String(e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')}}})()`)
 const must = (r, what) => { if (!r?.ok) throw new Error(`setup step "${what}" failed: ${r?.e}`); return r.v }
@@ -195,7 +203,7 @@ try {
   await clickBtn('+ Add Product'); await wait(700)
   await ev(`(()=>{
     const set=(name,val)=>{const i=[...document.querySelectorAll('.modal input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(i){Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true}));}};
-    set('Product name','GAUGE 2026'); set('Minimum rate (Rs.)','1.50'); set('Boxes per carton','12'); return true
+    set('Product name','GAUGE 2026'); set('Minimum rate (Rs.)','1.50'); set('Pieces per carton','12'); return true
   })()`)
   await clickBtn('Save'); await wait(1200)
   const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE 2026'))`)
@@ -315,7 +323,7 @@ try {
   const hasStatusLabel = sheetText.includes('Status:') && !sheetText.includes('Filer status')
   const dateCount = (sheetText.match(/Date:/g) ?? []).length
   check('UI-5', 'Invoicing through the UI lands on the printable sheet with centered header, owner/Booker metadata, matrix item columns, full value stack and a single signature',
-    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Products,Rate,Cartons,Boxes,Scheme,Amount' && hasSignature && hasDescription,
+    detailNumber && hasOwner && hasBand && hasCustomer && hasBroker && hasMatrixCols === 'Products,Rate,Cartons,Pcs,Scheme,Amount' && hasSignature && hasDescription,
     { lineAmountDuringEntry: lineAmountShown, invoiceNumberVisible: detailNumber, owner: hasOwner, band: hasBand, customer: hasCustomer, booker: hasBroker, matrixColumns: hasMatrixCols, signatures: hasSignature, description: hasDescription })
   check('UI-5b', 'Sheet shows a single date, labeled shop/owner fields, "Status" (not "Filer status") and rupee symbols',
     dateCount === 1 && hasShopNameLabel && hasOwnerNameLabel && hasStatusLabel && sheetText.includes('Rs.'),
@@ -411,12 +419,12 @@ try {
   await clickRowWith('GAUGE 2026'); await wait(1000)
   const detailHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
   const detailText = await ev(`document.querySelector('.feature')?.innerText ?? ''`)
-  const detailHasInStock = detailText.includes('In stock') && /600\s*pcs\s*\(50\s*ctn\s*\+\s*0\s*box\)/.test(detailText)
+  const detailHasInStock = detailText.includes('In stock') && /600\s*pcs\s*\(50\s*ctn\s*\+\s*0\s*pcs\)/.test(detailText)
   const detailHasHistory = detailText.includes('+50') && detailText.includes('-3')
   const detailToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
   const detailPrintExport = detailToolbarBtns.includes('Print') && detailToolbarBtns.includes('Export CSV')
-  check('UI-10', 'Product detail page shows a per-product history with separate cartons and boxes columns (restock +50 ctn / +0 box, sale -3 ctn / 0 box, In stock 600 pcs (50 ctn + 0 box))',
-    detailHeaders === 'Date,Customer,Price,Cartons,Boxes' && detailHasInStock && detailHasHistory && detailPrintExport,
+  check('UI-10', 'Product detail page shows a per-product history with cartons and pcs columns (restock +50 ctn / +0 pcs, sale -3 ctn / 0 pcs, In stock 600 pcs (50 ctn + 0 pcs))',
+    detailHeaders === 'Date,Customer,Price,Cartons,Pcs' && detailHasInStock && detailHasHistory && detailPrintExport,
     { headers: detailHeaders, inStock: detailHasInStock, history: detailHasHistory, printExport: detailPrintExport, toolbar: detailToolbarBtns })
   await clickBtn('Back to Products'); await wait(500)
   const backToProducts = await ev(`!!document.querySelector('.toolbar input.search-input')`)

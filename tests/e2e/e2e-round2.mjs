@@ -36,7 +36,17 @@ const call = (method, params = {}) => new Promise((res) => {
   const h = (e) => { const m = JSON.parse(e.data); if (m.id === my) { ws.removeEventListener('message', h); res(m) } }
   ws.addEventListener('message', h); ws.send(JSON.stringify({ id: my, method, params }))
 })
+await call('Runtime.enable')
 const ev = async (expression) => (await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value
+
+const apiReady = Date.now() + 15000
+let ready = false
+while (!ready && Date.now() < apiReady) {
+  ready = await ev('!!window.api')
+  if (!ready) await wait(300)
+}
+if (!ready) { console.log('FAIL: window.api never appeared on the renderer'); process.exit(1) }
+
 const inv = (ch, ...args) => ev(`(async()=>{try{return {ok:true,v:await window.api.invoke(${JSON.stringify(ch)}, ...${JSON.stringify(args)})}}catch(e){return {ok:false,e:String(e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')}}})()`)
 const must = (r, w) => { if (!r?.ok) throw new Error(`setup "${w}" failed: ${r?.e}`); return r.v }
 const results = []

@@ -131,7 +131,7 @@ function StockAdjustTab() {
                 return {
                   value: p.id,
                   label: p.name,
-                  hint: `${Math.floor(level / bpc)}c + ${level % bpc}p (${level} pcs)`,
+                  hint: `${Math.floor(level / bpc)} ctn + ${level % bpc} pcs (${level} pcs)`,
                 }
               })}
               value={productId}

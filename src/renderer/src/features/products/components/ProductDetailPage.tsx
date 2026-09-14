@@ -55,7 +55,7 @@ export function ProductDetailPage({ productId, onBack }: Props) {
   const sections: ReportSection[] = [
     {
       title: 'Stock history',
-      columns: ['Date', 'Customer', 'Price', 'Cartons', 'Boxes'],
+      columns: ['Date', 'Customer', 'Price', 'Cartons', 'Pcs'],
       rows: movements.map((m) => {
         const u = splitUnits(m.quantity, perCarton)
         return [
@@ -104,12 +104,12 @@ export function ProductDetailPage({ productId, onBack }: Props) {
               <dd className="mono">{formatMoney(product.rate)}</dd>
             </div>
             <div>
-              <dt>Boxes / carton</dt>
+               <dt>Pieces / carton</dt>
               <dd>{product.boxesPerCarton}</dd>
             </div>
             <div>
               <dt>In stock</dt>
-              <dd>{inStock != null && inStockUnits ? `${inStock} pcs (${inStockUnits.cartons} ctn + ${inStockUnits.boxes} box)` : '—'}</dd>
+               <dd>{inStock != null && inStockUnits ? `${inStock} pcs (${inStockUnits.cartons} ctn + ${inStockUnits.boxes} pcs)` : '—'}</dd>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ export function ProductDetailPage({ productId, onBack }: Props) {
                 <th>Customer</th>
                 <th className="num">Price</th>
                 <th className="num">Cartons</th>
-                <th className="num">Boxes</th>
+                 <th className="num">Pcs</th>
               </tr>
             </thead>
             <tbody>

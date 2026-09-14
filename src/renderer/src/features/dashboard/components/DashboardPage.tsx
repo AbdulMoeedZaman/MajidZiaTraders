@@ -117,7 +117,7 @@ export function DashboardPage({ onNavigate }: Props) {
             <MetricCard
               open={detail === 'stock'}
               label="Remaining stock"
-              value={`${stockCartons.toLocaleString()}c + ${stockLoose.toLocaleString()}p`}
+              value={`${stockCartons.toLocaleString()} ctn + ${stockLoose.toLocaleString()} pcs`}
               hint={`${summary.stock.perProduct.length} products · ${summary.stock.total.toLocaleString()} pcs total`}
               onClick={() => toggleDetail('stock')}
             />
@@ -540,7 +540,7 @@ function StockValueModal({
   const sections: ReportSection[] = [
     {
       title: 'Stock value by product',
-      columns: ['Product', 'Cartons', 'Loose', 'Total pcs', 'Rate / carton', 'Value'],
+      columns: ['Product', 'Cartons', 'Pcs', 'Total pcs', 'Rate / pcs', 'Value'],
       rows: perProduct.map((p) => {
         const bpc = Math.max(1, p.boxesPerCarton)
         return [
@@ -571,10 +571,10 @@ function StockValueModal({
             <thead>
               <tr>
                 <th>Product</th>
-                <th className="num">Cartons</th>
-                <th className="num">Loose</th>
-                <th className="num">Total pcs</th>
-                <th className="num">Rate / carton</th>
+                 <th className="num">Cartons</th>
+                 <th className="num">Pcs</th>
+                 <th className="num">Total pcs</th>
+                 <th className="num">Rate / pcs</th>
                 <th className="num">Value</th>
               </tr>
             </thead>
