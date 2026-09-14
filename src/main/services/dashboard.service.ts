@@ -68,8 +68,15 @@ export class DashboardService {
       .filter((c) => c.profit !== 0)
       .sort((a, b) => b.profit - a.profit)
 
-    const perProduct = this.dashboardRepo.remainingPerProduct()
+    const rawPerProduct = this.dashboardRepo.remainingPerProduct()
+    const perProduct = rawPerProduct
+      .map((p) => ({
+        ...p,
+        value: Math.round((p.remaining * p.rate) / Math.max(1, p.boxesPerCarton)),
+      }))
+      .sort((a, b) => b.value - a.value || a.productName.localeCompare(b.productName))
     const stockTotal = perProduct.reduce((sum, p) => sum + p.remaining, 0)
+    const stockTotalValue = perProduct.reduce((sum, p) => sum + p.value, 0)
 
     const today = localDate()
     const todayItems = this.dashboardRepo.expensesFrom(today)
@@ -97,7 +104,7 @@ export class DashboardService {
     return {
       range: { start, end },
       profit: { total: profitTotal, perCustomer },
-      stock: { total: stockTotal, perProduct },
+      stock: { total: stockTotal, perProduct, totalValue: stockTotalValue },
       invoices: {
         total: invoiceList.length,
         list: invoiceList,

@@ -177,6 +177,9 @@ describe('DashboardService', () => {
     expect(row?.boxesPerCarton).toBe(12)
     expect(s.stock.total).toBe(330)
     expect(s.stock.perProduct.length).toBeGreaterThan(0)
+    // 330 pcs at rate 500 / carton (12 pcs) → round(330 × 500 / 12) = 13750
+    expect(row?.value).toBe(13750)
+    expect(s.stock.totalValue).toBe(13750)
   })
 
   it('rejects an invalid range', () => {

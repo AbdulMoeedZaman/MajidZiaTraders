@@ -10,7 +10,7 @@ import type { ActionLog } from '@shared/types/history'
 import type { AppView } from '../../../components/layout/nav'
 import { StatusBadge } from '../../../components/StatusBadge'
 
-type DetailKind = 'profit' | 'stock' | 'invoices' | 'expenses' | 'owed' | 'cashflow'
+type DetailKind = 'profit' | 'stock' | 'stockValue' | 'invoices' | 'expenses' | 'owed' | 'cashflow'
 
 interface Props {
   onNavigate: (view: AppView) => void
@@ -99,6 +99,15 @@ export function DashboardPage({ onNavigate }: Props) {
 
   const cashNet = summary.cashFlow.inward.total - summary.cashFlow.outward.total
 
+  const stockCartons = summary.stock.perProduct.reduce(
+    (sum, p) => sum + Math.floor(p.remaining / Math.max(1, p.boxesPerCarton)),
+    0
+  )
+  const stockLoose = summary.stock.perProduct.reduce(
+    (sum, p) => sum + (p.remaining % Math.max(1, p.boxesPerCarton)),
+    0
+  )
+
   return (
     <div className="feature dashboard">
       <div className="toolbar dashboard-toolbar">
@@ -131,9 +140,16 @@ export function DashboardPage({ onNavigate }: Props) {
             <MetricCard
               open={detail === 'stock'}
               label="Remaining stock"
-              value={summary.stock.total.toLocaleString()}
-              hint={`${summary.stock.perProduct.length} products tracked`}
+              value={`${stockCartons.toLocaleString()}c + ${stockLoose.toLocaleString()}p`}
+              hint={`${summary.stock.perProduct.length} products · ${summary.stock.total.toLocaleString()} pcs total`}
               onClick={() => toggleDetail('stock')}
+            />
+            <MetricCard
+              open={detail === 'stockValue'}
+              label="Stock worth"
+              value={formatMoney(summary.stock.totalValue)}
+              hint={`${summary.stock.perProduct.length} products · value at rate`}
+              onClick={() => toggleDetail('stockValue')}
             />
             <MetricCard
               open={detail === 'invoices'}
@@ -176,6 +192,13 @@ export function DashboardPage({ onNavigate }: Props) {
             <StockModal
               perProduct={summary.stock.perProduct}
               dispatchedToday={summary.invoices.dispatchedToday}
+              onClose={() => setDetail(null)}
+            />
+          )}
+          {detail === 'stockValue' && (
+            <StockValueModal
+              perProduct={summary.stock.perProduct}
+              totalValue={summary.stock.totalValue}
               onClose={() => setDetail(null)}
             />
           )}
@@ -536,6 +559,84 @@ function StockModal({
           </div>
         )}
       </section>
+    </DetailModal>
+  )
+}
+
+function StockValueModal({
+  perProduct,
+  totalValue,
+  onClose,
+}: {
+  perProduct: DashboardSummary['stock']['perProduct']
+  totalValue: number
+  onClose: () => void
+}) {
+  const sections: ReportSection[] = [
+    {
+      title: 'Stock value by product',
+      columns: ['Product', 'Cartons', 'Loose', 'Total pcs', 'Rate / carton', 'Value'],
+      rows: perProduct.map((p) => {
+        const bpc = Math.max(1, p.boxesPerCarton)
+        return [
+          p.productName,
+          String(Math.floor(p.remaining / bpc)),
+          String(p.remaining % bpc),
+          p.remaining.toLocaleString(),
+          formatMoney(p.rate),
+          formatMoney(p.value),
+        ]
+      }),
+      foot: [['Total', '', '', '', '', formatMoney(totalValue)]],
+    },
+  ]
+  return (
+    <DetailModal
+      title="Stock worth"
+      subtitle="remaining stock valued at each product's rate"
+      printMeta={`Stock worth · ${formatMoney(totalValue)}`}
+      sections={sections}
+      onClose={onClose}
+    >
+      {perProduct.length === 0 ? (
+        <EmptyMessage text="No products tracked yet." />
+      ) : (
+        <div className="table-wrap modal-table">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th className="num">Cartons</th>
+                <th className="num">Loose</th>
+                <th className="num">Total pcs</th>
+                <th className="num">Rate / carton</th>
+                <th className="num">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perProduct.map((p) => {
+                const bpc = Math.max(1, p.boxesPerCarton)
+                return (
+                  <tr key={p.productId}>
+                    <td>{p.productName}</td>
+                    <td className="num mono">{Math.floor(p.remaining / bpc)}</td>
+                    <td className="num mono">{p.remaining % bpc}</td>
+                    <td className="num mono">{p.remaining.toLocaleString()}</td>
+                    <td className="num mono">{formatMoney(p.rate)}</td>
+                    <td className="num mono">{formatMoney(p.value)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="modal-total-row">
+                <td colSpan={5}>Total</td>
+                <td className="num mono">{formatMoney(totalValue)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </DetailModal>
   )
 }

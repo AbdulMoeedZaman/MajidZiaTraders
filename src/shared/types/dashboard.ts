@@ -22,6 +22,10 @@ export interface ProductRemaining {
   /** Pieces per carton; together with `remaining` this yields whole cartons + loose pieces. */
   boxesPerCarton: number
   remaining: number
+  /** Product's rate per carton (minor units), used to value the remaining stock. */
+  rate: number
+  /** Worth of the remaining stock in minor units, valued at `rate`. */
+  value: number
 }
 
 /** Total a customer still owes across every open (unpaid/partial) invoice. */
@@ -62,6 +66,8 @@ export interface DashboardSummary {
   stock: {
     total: number
     perProduct: ProductRemaining[]
+    /** Total worth of the remaining stock across every product (minor units). */
+    totalValue: number
   }
   invoices: {
     total: number
