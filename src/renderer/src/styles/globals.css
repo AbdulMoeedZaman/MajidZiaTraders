@@ -1336,8 +1336,14 @@ body {
     top: 0;
     width: 47%;
   }
+  /* Load form prints upright on a portrait A4 page. */
   .feature.load-form-print {
     width: 100%;
+    page: load-form-portrait;
+  }
+  @page load-form-portrait {
+    size: A4 portrait;
+    margin: 6mm;
   }
   .toolbar,
   .detail-actions,
@@ -1807,7 +1813,7 @@ body {
   }
 }
 
-/* ============ Bulk print: load form + linked invoices, 2-up landscape A4 ============ */
+/* ============ Bulk print: load form (portrait) + linked invoices (landscape 2-up) ============ */
 /* The print-only tree is rendered via a portal into <body> (outside #root).
    It is invisible on screen and becomes the whole print job under `@media print`. */
 .bulk-print {
@@ -1841,7 +1847,11 @@ body {
     break-after: auto;
   }
 
-  /* The load form keeps a full-width page, matching its standalone print. */
+  /* The load form keeps a full-width upright portrait page (the named page
+     keeps it from inheriting the landscape invoice pages around it). */
+  body.bulk-printing .bulk-print .lf-page {
+    page: load-form-portrait;
+  }
   body.bulk-printing .bulk-print .lf-page .invoice-sheet {
     max-width: none;
   }
