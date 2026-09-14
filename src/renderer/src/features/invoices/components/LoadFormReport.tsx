@@ -68,7 +68,7 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
   }
 
   return (
-    <div className="feature">
+    <div className="feature load-form-print">
       <div className="toolbar">
         <div className="spacer" />
         {invoiceIds.length > 0 && (

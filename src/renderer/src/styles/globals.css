@@ -1336,6 +1336,9 @@ body {
     top: 0;
     width: 47%;
   }
+  .feature.load-form-print {
+    width: 100%;
+  }
   .toolbar,
   .detail-actions,
   .confirm-bar,
