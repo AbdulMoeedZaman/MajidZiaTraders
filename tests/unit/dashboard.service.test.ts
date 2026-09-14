@@ -13,7 +13,7 @@ describe('DashboardService', () => {
 
   const invoiceInput = (
     seed: ReturnType<typeof seedBasics>,
-    opts: { customerId: number; date: string; rate?: number; cartonCount?: number; boxCount?: number },
+    opts: { customerId: number; date: string; rate?: number; quantity?: number },
   ): CreateInvoiceDTO => ({
     customerId: opts.customerId,
     brokerId: seed.brokerId,
@@ -24,8 +24,7 @@ describe('DashboardService', () => {
       {
         productId: seed.product.id,
         rate: opts.rate ?? 1000,
-        cartonCount: opts.cartonCount ?? 2,
-        boxCount: opts.boxCount ?? 6,
+        quantity: opts.quantity ?? 30,
       },
     ],
   })
@@ -37,7 +36,7 @@ describe('DashboardService', () => {
 
     // amount = 1000*2 + round(1000*6/12) = 2500; cost = 500*2 + round(500*6/12) = 1250 → profit 1250
     invoices.create(
-      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, cartonCount: 2, boxCount: 6 })
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, quantity: 30 })
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
@@ -82,7 +81,7 @@ describe('DashboardService', () => {
     const seed = seedStocked(8)
 
     invoices.create(
-      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, cartonCount: 2, boxCount: 6 })
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, quantity: 30 })
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
@@ -148,14 +147,14 @@ describe('DashboardService', () => {
     const today = localDate()
 
     invoices.create(
-      invoiceInput(seed, { customerId: seed.customerId, date: today, rate: 1000, cartonCount: 2, boxCount: 6 })
+      invoiceInput(seed, { customerId: seed.customerId, date: today, rate: 1000, quantity: 30 })
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
     expect(s.invoices.dispatchedToday).toHaveLength(1)
     expect(s.invoices.dispatchedToday[0]).toMatchObject({
       productName: seed.product.name,
-      quantity: 8,
+      quantity: 30,
       amount: 2500,
     })
   })
@@ -174,7 +173,7 @@ describe('DashboardService', () => {
     const s = dashboard.summary('2026-01-01', '2026-12-31')
     const row = s.stock.perProduct.find((p) => p.productId === seed.product.id)
     expect(row?.remaining).toBe(330)
-    expect(row?.boxesPerCarton).toBe(12)
+    expect(row?.piecesPerCarton).toBe(12)
     expect(s.stock.total).toBe(330)
     expect(s.stock.perProduct.length).toBeGreaterThan(0)
     // 330 pcs at rate 500 / carton (12 pcs) → round(330 × 500 / 12) = 13750

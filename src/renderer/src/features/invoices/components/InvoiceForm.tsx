@@ -7,6 +7,7 @@ import { SearchSelect, type SearchSelectHandle } from '../../../components/Searc
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
+import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
 export interface InvoiceFormValues {
   customerId: number | null
@@ -16,8 +17,7 @@ export interface InvoiceFormValues {
   items: Array<{
     productId: number | null
     rate: string
-    cartonCount: string
-    boxCount: string
+    quantity: string
   }>
 }
 
@@ -33,7 +33,7 @@ interface Props {
 }
 
 function emptyLine() {
-  return { productId: null as number | null, rate: '', cartonCount: '', boxCount: '' }
+  return { productId: null as number | null, rate: '', quantity: '' }
 }
 
 export function InvoiceForm({ routes, customers, brokers, products, stockLevels, preselectCustomerId, onSubmit }: Props) {
@@ -47,8 +47,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const [saving, setSaving] = useState(false)
   const productRefs = useRef<Array<SearchSelectHandle | null>>([])
   const rateRefs = useRef<Array<HTMLInputElement | null>>([])
-  const cartonRefs = useRef<Array<HTMLInputElement | null>>([])
-  const boxRefs = useRef<Array<HTMLInputElement | null>>([])
+  const qtyRefs = useRef<Array<HTMLInputElement | null>>([])
   const [pendingProductFocus, setPendingProductFocus] = useState<number | null>(null)
 
   // When opened from a customer's "New Invoice" button, preselect both the
@@ -98,11 +97,14 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
       if (line.productId === null) continue
       const product = productById.get(line.productId)
       if (!product) continue
+      const qty = countToInt(line.quantity)
+      if (qty <= 0) continue
+      const c = canonicalComposition(qty, product.piecesPerCarton)
       total += calculateLineAmount({
         rate: moneyToCents(line.rate),
-        boxesPerCarton: product.boxesPerCarton,
-        cartonCount: countToInt(line.cartonCount),
-        boxCount: countToInt(line.boxCount),
+        piecesPerCarton: product.piecesPerCarton,
+        cartonCount: c.cartons,
+        boxCount: c.loosePieces,
       })
     }
     return total
@@ -130,10 +132,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   }, [pendingProductFocus, items.length])
 
   const focusRate = (index: number) => rateRefs.current[index]?.focus()
-  const focusCarton = (index: number) => cartonRefs.current[index]?.focus()
-  const focusBox = (index: number) => boxRefs.current[index]?.focus()
+  const focusQty = (index: number) => qtyRefs.current[index]?.focus()
 
-  const handleBoxEnter = (index: number) => {
+  const handleQtyEnter = (index: number) => {
     const line = items[index]
     const next = items[index + 1]
     if (line.productId === null) {
@@ -177,11 +178,14 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (line.productId === null) return 0
     const product = productById.get(line.productId)
     if (!product) return 0
+    const qty = countToInt(line.quantity)
+    if (qty <= 0) return 0
+    const c = canonicalComposition(qty, product.piecesPerCarton)
     return calculateLineAmount({
       rate: moneyToCents(line.rate),
-      boxesPerCarton: product.boxesPerCarton,
-      cartonCount: countToInt(line.cartonCount),
-      boxCount: countToInt(line.boxCount),
+      piecesPerCarton: product.piecesPerCarton,
+      cartonCount: c.cartons,
+      boxCount: c.loosePieces,
     })
   }
 
@@ -194,10 +198,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (rateCents < product.rate) {
       return `Cannot go below minimum rate ${formatMoney(product.rate)}`
     }
-    const quantity =
-      countToInt(line.cartonCount) * product.boxesPerCarton + countToInt(line.boxCount)
+    const quantity = countToInt(line.quantity)
     if (quantity === 0) {
-       return 'Enter cartons or loose pcs'
+       return 'Enter quantity in pieces'
     }
     const stock = stockLevels[line.productId] ?? 0
     if (quantity > stock) {
@@ -239,8 +242,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
         items: validLines.map((l) => ({
           productId: l.productId,
           rate: l.rate,
-          cartonCount: l.cartonCount,
-          boxCount: l.boxCount,
+          quantity: l.quantity,
         })),
       })
     } catch (e) {
@@ -335,40 +337,24 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') focusCarton(i)
+                  if (e.key === 'Enter') focusQty(i)
                 }}
                 placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">
-              <span>Carton no.</span>
+              <span>Quantity (pcs)</span>
               <input
                 ref={(el) => {
-                  cartonRefs.current[i] = el
+                  qtyRefs.current[i] = el
                 }}
                 type="number"
                 min="0"
                 step="1"
-                value={line.cartonCount}
-                onChange={(e) => setLine(i, { cartonCount: e.target.value })}
+                value={line.quantity}
+                onChange={(e) => setLine(i, { quantity: e.target.value })}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') focusBox(i)
-                }}
-              />
-            </label>
-            <label className="field line-qty">
-               <span>Loose pcs</span>
-              <input
-                ref={(el) => {
-                  boxRefs.current[i] = el
-                }}
-                type="number"
-                min="0"
-                step="1"
-                value={line.boxCount}
-                onChange={(e) => setLine(i, { boxCount: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleBoxEnter(i)
+                  if (e.key === 'Enter') handleQtyEnter(i)
                 }}
               />
             </label>
@@ -386,8 +372,14 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
             {product && (
               <div className="line-hint muted fine-text">
                 In stock: {(stockLevels[product.id] ?? 0)} pcs
-                {' '}({Math.floor((stockLevels[product.id] ?? 0) / Math.max(1, product.boxesPerCarton))} ctn +{' '}
-                 {(stockLevels[product.id] ?? 0) % Math.max(1, product.boxesPerCarton)} pcs)
+                {' '}({Math.floor((stockLevels[product.id] ?? 0) / Math.max(1, product.piecesPerCarton))} ctn +{' '}
+                 {(stockLevels[product.id] ?? 0) % Math.max(1, product.piecesPerCarton)} pcs)
+                {' · '}
+                {countToInt(line.quantity) > 0 &&
+                  (() => {
+                    const c = canonicalComposition(countToInt(line.quantity), product.piecesPerCarton)
+                    return `${c.cartons} ctn + ${c.loosePieces} pcs`
+                  })()}
               </div>
             )}
             {lineError(i) && <div className="line-hint text-danger">{lineError(i)}</div>}

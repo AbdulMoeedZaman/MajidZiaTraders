@@ -10,6 +10,7 @@ import { SettingsRepository } from '../repositories/settings.repository'
 import { HistoryService } from './history.service'
 import { assertIsoDate, localDate } from '@shared/date'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
+import { canonicalComposition } from '@shared/stock/stock-breakdown'
 import type {
   Invoice,
   InvoiceWithCustomer,
@@ -112,7 +113,7 @@ export class InvoiceService {
         invoice.date,
         items.map((item) => ({
           productId: item.productId,
-          quantity: item.cartonCount * item.boxesPerCarton + item.boxCount,
+          quantity: item.cartonCount * item.piecesPerCarton + item.boxCount,
           rate: item.rate,
         }))
       )
@@ -181,7 +182,7 @@ export class InvoiceService {
       throw new Error('Select at least one invoice for the load form')
     }
 
-    const productMap = new Map<number, LoadFormProductLine>()
+    const productMap = new Map<number, LoadFormProductLine & { piecesPerCarton: number }>()
     const customerMap = new Map<number, LoadFormCustomerLine>()
     const invoiceNumbers: string[] = []
 
@@ -210,25 +211,28 @@ export class InvoiceService {
       const items = this.invoiceRepo.getItems(id)
       for (const item of items) {
         const line = productMap.get(item.productId)
+        const pieces = item.cartonCount * item.piecesPerCarton + item.boxCount
         if (line) {
-          line.cartonCount += item.cartonCount
-          line.boxCount += item.boxCount
-          line.totalQuantity += item.cartonCount + item.boxCount
+          line.totalQuantity += pieces
         } else {
           productMap.set(item.productId, {
             productId: item.productId,
             productName: item.productName,
             cartonCount: item.cartonCount,
             boxCount: item.boxCount,
-            totalQuantity: item.cartonCount + item.boxCount,
+            totalQuantity: pieces,
+            piecesPerCarton: item.piecesPerCarton,
           })
         }
       }
     }
 
-    const products = [...productMap.values()].sort((a, b) =>
-      a.productName.localeCompare(b.productName)
-    )
+    const products = [...productMap.values()]
+      .map(({ piecesPerCarton, ...line }) => {
+        const composition = canonicalComposition(line.totalQuantity, piecesPerCarton)
+        return { ...line, cartonCount: composition.cartons, boxCount: composition.loosePieces }
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName))
     const customers = [...customerMap.values()].sort((a, b) =>
       a.customerName.localeCompare(b.customerName)
     )
@@ -259,21 +263,16 @@ export class InvoiceService {
           `Rate for "${product.name}" cannot be lower than its minimum rate (${product.rate} cents)`
         )
       }
-      if (!Number.isInteger(item.cartonCount) || item.cartonCount < 0) {
-        throw new Error(`Carton count for "${product.name}" must be a whole number`)
-      }
-      if (!Number.isInteger(item.boxCount) || item.boxCount < 0) {
-        throw new Error(`Box count for "${product.name}" must be a whole number`)
-      }
-      if (item.cartonCount + item.boxCount <= 0) {
-        throw new Error(`Line for "${product.name}" needs at least one carton or box`)
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        throw new Error(`Quantity for "${product.name}" must be a whole number of at least 1 piece`)
       }
 
+      const composition = canonicalComposition(item.quantity, product.piecesPerCarton)
       const amount = calculateLineAmount({
         rate: item.rate,
-        boxesPerCarton: product.boxesPerCarton,
-        cartonCount: item.cartonCount,
-        boxCount: item.boxCount,
+        piecesPerCarton: product.piecesPerCarton,
+        cartonCount: composition.cartons,
+        boxCount: composition.loosePieces,
       })
 
       return {
@@ -281,9 +280,9 @@ export class InvoiceService {
         productName: product.name,
         rate: item.rate,
         minRate: product.rate,
-        boxesPerCarton: product.boxesPerCarton,
-        cartonCount: item.cartonCount,
-        boxCount: item.boxCount,
+        piecesPerCarton: product.piecesPerCarton,
+        cartonCount: composition.cartons,
+        boxCount: composition.loosePieces,
         amount,
       }
     })
@@ -298,23 +297,23 @@ export class InvoiceService {
 
   /**
    * Blocks invoices that would drive a product below zero stock: the quantity
-   * requested in pieces (cartons × boxesPerCarton + loose boxes) across all
+   * requested in pieces (cartons × piecesPerCarton + loose boxes) across all
    * lines must not exceed the current running balance (also in pieces) for each
    * product.
    */
   private assertSufficientStock(items: InvoiceItemRow[]): void {
-    const needed = new Map<number, { name: string; quantity: number }>()
+    const needed = new Map<number, { name: string; pieces: number }>()
     for (const item of items) {
-      const quantity = item.cartonCount * item.boxesPerCarton + item.boxCount
+      const pieces = item.cartonCount * item.piecesPerCarton + item.boxCount
       const existing = needed.get(item.productId)
-      if (existing) existing.quantity += quantity
-      else needed.set(item.productId, { name: item.productName, quantity })
+      if (existing) existing.pieces += pieces
+      else needed.set(item.productId, { name: item.productName, pieces })
     }
-    for (const [productId, need] of needed) {
+    for (const [productId, { name, pieces }] of needed) {
       const available = this.stockService.currentQuantity(productId)
-      if (available < need.quantity) {
+      if (available < pieces) {
         throw new Error(
-          `Insufficient stock for "${need.name}" — available ${available} pcs, requested ${need.quantity} pcs. Restock the product first.`
+          `Insufficient stock for "${name}" — available ${available} pcs, requested ${pieces} pcs. Restock the product first.`
         )
       }
     }

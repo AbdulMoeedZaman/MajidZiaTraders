@@ -5,8 +5,8 @@
 export interface InvoiceLineInput {
   /** Rate per carton in minor units (already >= the product's minimum rate). */
   rate: number
-  /** Boxes per carton of the product. */
-  boxesPerCarton: number
+  /** Pieces per carton of the product. */
+  piecesPerCarton: number
   /** Whole cartons on the line. */
   cartonCount: number
   /** Additional loose boxes on the line. */
@@ -27,15 +27,15 @@ export function roundToTen(amount: number): number {
 
 /**
  * Amount of one invoice line:
- *   amount = rate × cartons  +  rate / boxesPerCarton × boxes
+ *   amount = rate × cartons  +  rate / piecesPerCarton × boxes
  *
- * The box part uses integer math (rate × boxes / boxesPerCarton) with a single
+ * The box part uses integer math (rate × boxes / piecesPerCarton) with a single
  * rounding, so it never carries float error. The line total is then rounded to
  * the nearest ten paisa (see `roundToTen`) so every invoice figure ends clean.
  */
-export function calculateLineAmount({ rate, boxesPerCarton, cartonCount, boxCount }: InvoiceLineInput): number {
+export function calculateLineAmount({ rate, piecesPerCarton, cartonCount, boxCount }: InvoiceLineInput): number {
   const rateMinor = Math.max(0, int(rate))
-  const bpc = Math.max(1, int(boxesPerCarton))
+  const bpc = Math.max(1, int(piecesPerCarton))
   const cartons = Math.max(0, int(cartonCount))
   const boxes = Math.max(0, int(boxCount))
   const cartonsAmount = rateMinor * cartons

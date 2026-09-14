@@ -14,7 +14,7 @@ export interface InvoiceItemRow {
   productName: string
   rate: number
   minRate: number
-  boxesPerCarton: number
+  piecesPerCarton: number
   cartonCount: number
   boxCount: number
   amount: number
@@ -109,7 +109,7 @@ export class InvoiceRepository extends BaseRepository {
     const subtotal = calculateInvoiceSubtotal(
       items.map<InvoiceLineInput>((item) => ({
         rate: item.rate,
-        boxesPerCarton: item.boxesPerCarton,
+        piecesPerCarton: item.piecesPerCarton,
         cartonCount: item.cartonCount,
         boxCount: item.boxCount,
       }))
@@ -140,7 +140,7 @@ export class InvoiceRepository extends BaseRepository {
       this.db
         .prepare(
           `INSERT INTO invoice_items
-             (invoiceId, productId, productName, rate, minRate, boxesPerCarton, cartonCount, boxCount, amount)
+             (invoiceId, productId, productName, rate, minRate, piecesPerCarton, cartonCount, boxCount, amount)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
@@ -149,7 +149,7 @@ export class InvoiceRepository extends BaseRepository {
           item.productName,
           item.rate,
           item.minRate,
-          item.boxesPerCarton,
+          item.piecesPerCarton,
           item.cartonCount,
           item.boxCount,
           item.amount

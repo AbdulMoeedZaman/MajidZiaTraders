@@ -30,7 +30,7 @@ export class DashboardService {
     for (const line of this.dashboardRepo.profitLines(start, end)) {
       const costBasis =
         line.minRate * line.cartonCount +
-        Math.round((line.minRate * line.boxCount) / Math.max(1, line.boxesPerCarton))
+        Math.round((line.minRate * line.boxCount) / Math.max(1, line.piecesPerCarton))
       const profit = line.amount - costBasis
       profitTotal += profit
 
@@ -72,7 +72,7 @@ export class DashboardService {
     const perProduct = rawPerProduct
       .map((p) => ({
         ...p,
-        value: Math.round((p.remaining * p.rate) / Math.max(1, p.boxesPerCarton)),
+        value: Math.round((p.remaining * p.rate) / Math.max(1, p.piecesPerCarton)),
       }))
       .sort((a, b) => b.value - a.value || a.productName.localeCompare(b.productName))
     const stockTotal = perProduct.reduce((sum, p) => sum + p.remaining, 0)

@@ -15,7 +15,7 @@ describe('StockService', () => {
     date: '2026-09-10',
     filerStatus: 'filer',
     tax: null,
-    items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 5 }],
+    items: [{ productId: seed.product.id, rate: 500, quantity: 29 }],
   })
 
   it('restock adds a purchase movement with a running balance, in pieces (cartons × boxes per carton)', () => {

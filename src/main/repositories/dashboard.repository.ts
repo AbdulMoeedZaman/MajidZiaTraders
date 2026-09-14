@@ -11,7 +11,7 @@ export interface ProfitLineRow {
   customerName: string
   amount: number
   minRate: number
-  boxesPerCarton: number
+  piecesPerCarton: number
   cartonCount: number
   boxCount: number
 }
@@ -20,7 +20,7 @@ export interface ProductRemainingRow {
   productId: number
   productName: string
   /** Pieces per carton, so remaining can be split into whole cartons + loose pieces. */
-  boxesPerCarton: number
+  piecesPerCarton: number
   /** Product's rate per carton (minor units). */
   rate: number
   remaining: number
@@ -30,7 +30,7 @@ export class DashboardRepository extends BaseRepository {
   profitLines(from: string, to: string): ProfitLineRow[] {
     return this.db
       .prepare(
-        `SELECT ii.invoiceId, ii.amount, ii.minRate, ii.boxesPerCarton, ii.cartonCount, ii.boxCount,
+        `SELECT ii.invoiceId, ii.amount, ii.minRate, ii.piecesPerCarton, ii.cartonCount, ii.boxCount,
                 c.id AS customerId, c.shopName AS customerName
          FROM invoice_items ii
          JOIN invoices i ON i.id = ii.invoiceId
@@ -45,7 +45,7 @@ export class DashboardRepository extends BaseRepository {
   remainingPerProduct(): ProductRemainingRow[] {
     return this.db
       .prepare(
-        `SELECT p.id AS productId, p.name AS productName, p.boxesPerCarton AS boxesPerCarton,
+        `SELECT p.id AS productId, p.name AS productName, p.piecesPerCarton AS piecesPerCarton,
                 p.rate AS rate,
                 COALESCE((SELECT m.newQuantity FROM stock_movements m
                           WHERE m.productId = p.id ORDER BY m.id DESC LIMIT 1), 0) AS remaining
@@ -122,7 +122,7 @@ export class DashboardRepository extends BaseRepository {
     return this.db
       .prepare(
         `SELECT ii.productId, p.name AS productName,
-                SUM(ii.cartonCount + ii.boxCount) AS quantity,
+                SUM(ii.cartonCount * ii.piecesPerCarton + ii.boxCount) AS quantity,
                 SUM(ii.amount) AS amount
          FROM invoice_items ii
          JOIN invoices i ON i.id = ii.invoiceId

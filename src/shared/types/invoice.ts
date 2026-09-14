@@ -52,7 +52,7 @@ export interface InvoiceItem {
   /** The product's minimum rate snapshot (the floor this line respected). */
   minRate: number
   /** Snapshot of the product's boxes-per-carton. */
-  boxesPerCarton: number
+  piecesPerCarton: number
   cartonCount: number
   boxCount: number
   /** Computed line amount (minor units). */
@@ -64,8 +64,8 @@ export interface CreateInvoiceItemDTO {
   productId: number
   /** Rate per carton in minor units, must be >= the product's minimum rate. */
   rate: number
-  cartonCount: number
-  boxCount: number
+  /** Total quantity in pieces; the system splits it into cartons + loose pieces canonically. */
+  quantity: number
 }
 
 export interface CreateInvoiceDTO {
@@ -100,11 +100,11 @@ export interface InvoiceDetails {
 export interface LoadFormProductLine {
   productId: number
   productName: string
-  /** Combined carton count across all selected invoices. */
+  /** Combined carton count across all selected invoices (canonical composition). */
   cartonCount: number
-  /** Combined loose-box count across all selected invoices. */
+  /** Combined loose-piece count across all selected invoices (canonical composition). */
   boxCount: number
-  /** cartonCount + boxCount. */
+  /** Total quantity across all selected invoices, in pieces (cartons × piecesPerCarton + boxCount). */
   totalQuantity: number
 }
 

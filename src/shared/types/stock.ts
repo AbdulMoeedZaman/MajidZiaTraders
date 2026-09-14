@@ -15,6 +15,10 @@ export interface StockMovement {
   quantity: number
   previousQuantity: number | null
   newQuantity: number | null
+  /** Running balance expressed as whole cartons after this movement. */
+  newCartons: number | null
+  /** Running balance expressed as loose pieces after this movement. */
+  newLoosePieces: number | null
   referenceType: string | null
   referenceId: number | null
   note: string | null
@@ -35,7 +39,7 @@ export interface CreateRestockDTO {
   productId: number
   /**
    * Whole cartons to add (must be a whole number of at least 0). The ledger
-   * records pieces: cartons × the product's boxesPerCarton + loosePieces.
+   * records pieces: cartons × the product's piecesPerCarton + loosePieces.
    */
   quantity: number
   /** Loose pieces (boxes) to add on top of the cartons. Defaults to 0. */
@@ -60,4 +64,6 @@ export interface StockLevel {
   productId: number
   productName: string
   quantity: number
+  cartons: number
+  loosePieces: number
 }

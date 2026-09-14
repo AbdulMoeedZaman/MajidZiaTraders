@@ -20,7 +20,7 @@ export interface ProductRemaining {
   productId: number
   productName: string
   /** Pieces per carton; together with `remaining` this yields whole cartons + loose pieces. */
-  boxesPerCarton: number
+  piecesPerCarton: number
   remaining: number
   /** Product's rate per carton (minor units), used to value the remaining stock. */
   rate: number

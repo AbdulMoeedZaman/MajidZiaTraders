@@ -1,6 +1,7 @@
 import { StockRepository } from '../repositories/stock.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import { HistoryService } from './history.service'
+import { addStock, deductStock } from '@shared/stock/stock-breakdown'
 import { localDate } from '@shared/date'
 import type {
   StockMovement,
@@ -40,6 +41,9 @@ export class StockService {
    * adjustments screen. A positive quantity adds stock, a negative quantity
    * removes it, always recorded with an `adjustment` movement so the ledger
    * stays traceable. Removing more than the current balance is blocked.
+   *
+   * Adjustments are strict: the caller must provide exact cartons + loose
+   * pieces (no auto-breakdown).
    */
   adjust(data: AdjustStockDTO): StockMovement {
     const product = this.productRepo.findById(data.productId)
@@ -58,7 +62,7 @@ export class StockService {
       throw new Error('Enter cartons or loose pieces to adjust')
     }
 
-    const pieces = cartons * product.boxesPerCarton + loose
+    const pieces = cartons * product.piecesPerCarton + loose
     const current = this.stockRepo.lastNewQuantity(data.productId) ?? 0
     if (data.remove && pieces > current) {
       throw new Error(
@@ -70,13 +74,18 @@ export class StockService {
     const note = data.note?.trim() || (data.remove ? 'Stock removed (manual adjustment)' : 'Stock added (manual adjustment)')
 
     return this.stockRepo.runInTransaction(() => {
-      const previous = this.stockRepo.lastNewQuantity(data.productId) ?? 0
+      const currentComp = this.stockRepo.lastComposition(data.productId)
+      const result = data.remove
+        ? deductStock({ cartons: currentComp.cartons, loosePieces: currentComp.loosePieces }, pieces, product.piecesPerCarton)
+        : addStock({ cartons: currentComp.cartons, loosePieces: currentComp.loosePieces }, pieces, product.piecesPerCarton)
       const movement = this.stockRepo.insert({
         productId: data.productId,
         type: 'adjustment',
         quantity,
-        previousQuantity: previous,
-        newQuantity: previous + quantity,
+        previousQuantity: current,
+        newQuantity: result.newQuantity,
+        newCartons: result.newCartons,
+        newLoosePieces: result.newLoosePieces,
         referenceType: 'adjustment',
         referenceId: null,
         note,
@@ -99,7 +108,7 @@ export class StockService {
   /**
    * Adds stock via a `purchase` movement. The DTO's `quantity` is the number of
    * whole cartons and `loosePieces` the loose pieces on top; the ledger records
-   * the equivalent total pieces (cartons × boxesPerCarton + loosePieces) so
+   * the equivalent total pieces (cartons × piecesPerCarton + loosePieces) so
    * balances are always in pieces. At least one of the two must be present.
    */
   restock(data: CreateRestockDTO): StockMovement {
@@ -119,15 +128,18 @@ export class StockService {
       throw new Error('Enter cartons or loose pieces to restock')
     }
 
-    const pieces = cartons * product.boxesPerCarton + loose
+    const pieces = cartons * product.piecesPerCarton + loose
     return this.stockRepo.runInTransaction(() => {
-      const previous = this.stockRepo.lastNewQuantity(data.productId) ?? 0
+      const currentComp = this.stockRepo.lastComposition(data.productId)
+      const result = addStock({ cartons: currentComp.cartons, loosePieces: currentComp.loosePieces }, pieces, product.piecesPerCarton)
       const movement = this.stockRepo.insert({
         productId: data.productId,
         type: 'purchase',
         quantity: pieces,
-        previousQuantity: previous,
-        newQuantity: previous + pieces,
+        previousQuantity: currentComp.pieces,
+        newQuantity: result.newQuantity,
+        newCartons: result.newCartons,
+        newLoosePieces: result.newLoosePieces,
         referenceType: 'restock',
         referenceId: null,
         note: null,
@@ -149,7 +161,7 @@ export class StockService {
 
   /**
    * Records one `sale` movement per invoice line inside the invoice's own
-   * transaction. Quantity is negative (pieces = cartons × boxesPerCarton +
+   * transaction. Quantity is negative (pieces = cartons × piecesPerCarton +
    * loose boxes) and `price` snapshots the billed rate at that moment. Returns
    * the written movements so callers can snapshot them for the action log.
    */
@@ -160,14 +172,23 @@ export class StockService {
   ): StockMovement[] {
     const movements: StockMovement[] = []
     for (const line of lines) {
-      const previous = this.stockRepo.lastNewQuantity(line.productId) ?? 0
+      const product = this.productRepo.findById(line.productId)
+      const pcp = product?.piecesPerCarton ?? 1
+      const currentComp = this.stockRepo.lastComposition(line.productId)
+      const result = deductStock(
+        { cartons: currentComp.cartons, loosePieces: currentComp.loosePieces },
+        line.quantity,
+        pcp,
+      )
       movements.push(
         this.stockRepo.insert({
           productId: line.productId,
           type: 'sale',
           quantity: -line.quantity,
-          previousQuantity: previous,
-          newQuantity: previous - line.quantity,
+          previousQuantity: currentComp.pieces,
+          newQuantity: result.newQuantity,
+          newCartons: result.newCartons,
+          newLoosePieces: result.newLoosePieces,
           referenceType: 'invoice',
           referenceId: invoiceId,
           note: null,
@@ -192,13 +213,23 @@ export class StockService {
   revertSalesForInvoice(invoiceId: number, date: string): void {
     const sales = this.stockRepo.findSalesForInvoice(invoiceId)
     for (const sale of sales) {
-      const previous = this.stockRepo.lastNewQuantity(sale.productId) ?? 0
+      const product = this.productRepo.findById(sale.productId)
+      const pcp = product?.piecesPerCarton ?? 1
+      const currentComp = this.stockRepo.lastComposition(sale.productId)
+      // `sale.quantity` is negative (it was a deduction); `-sale.quantity` is the inbound quantity
+      const result = addStock(
+        { cartons: currentComp.cartons, loosePieces: currentComp.loosePieces },
+        -sale.quantity,
+        pcp,
+      )
       this.stockRepo.insert({
         productId: sale.productId,
         type: 'return',
         quantity: -sale.quantity,
-        previousQuantity: previous,
-        newQuantity: previous - sale.quantity,
+        previousQuantity: currentComp.pieces,
+        newQuantity: result.newQuantity,
+        newCartons: result.newCartons,
+        newLoosePieces: result.newLoosePieces,
         referenceType: 'invoice',
         referenceId: invoiceId,
         note: 'Invoice cancelled',

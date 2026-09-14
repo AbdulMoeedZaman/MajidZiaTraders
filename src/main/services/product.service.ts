@@ -1,13 +1,15 @@
 import fs from 'fs'
 import { ProductRepository } from '../repositories/product.repository'
+import { StockRepository } from '../repositories/stock.repository'
 import { HistoryService } from './history.service'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 
 const MONEY_LABEL = 'Rate'
-const COUNT_LABEL = 'Boxes per carton'
+const COUNT_LABEL = 'Pieces per carton'
 
 export class ProductService {
   private productRepo = new ProductRepository()
+  private stockRepo = new StockRepository()
   private history = new HistoryService()
 
   list(): Product[] {
@@ -31,7 +33,7 @@ export class ProductService {
       throw new Error('A product with this name already exists')
     }
     this.assertMoneyField(data.rate, MONEY_LABEL)
-    this.assertCountField(data.boxesPerCarton, COUNT_LABEL)
+    this.assertCountField(data.piecesPerCarton, COUNT_LABEL)
 
     const product = this.productRepo.runInTransaction(() => {
       const created = this.productRepo.create(data)
@@ -64,8 +66,13 @@ export class ProductService {
     if (data.rate !== undefined) {
       this.assertMoneyField(data.rate, MONEY_LABEL)
     }
-    if (data.boxesPerCarton !== undefined) {
-      this.assertCountField(data.boxesPerCarton, COUNT_LABEL)
+    if (data.piecesPerCarton !== undefined) {
+      this.assertCountField(data.piecesPerCarton, COUNT_LABEL)
+      if (data.piecesPerCarton !== existing.piecesPerCarton && this.stockRepo.hasMovements(id)) {
+        throw new Error(
+          'Pieces per carton cannot be changed after stock movement history exists — create a new product instead'
+        )
+      }
     }
     return this.productRepo.update(id, data)
   }
@@ -136,8 +143,8 @@ export class ProductService {
         continue
       }
 
-      const boxesPerCarton = parseBoxesPerCarton(name)
-      const product = this.productRepo.create({ name, rate, boxesPerCarton } satisfies CreateProductDTO)
+      const piecesPerCarton = parseBoxesPerCarton(name)
+      const product = this.productRepo.create({ name, rate, piecesPerCarton } satisfies CreateProductDTO)
       this.history.append({
         action: 'product_created',
         targetType: 'product',

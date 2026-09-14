@@ -19,7 +19,7 @@ describe('BackupService', () => {
     date: '2026-09-10',
     filerStatus: 'filer',
     tax: null,
-    items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 5 }],
+    items: [{ productId: seed.product.id, rate: 500, quantity: 29 }],
   })
 
   it('createBackup writes a file that validateBackup accepts', async () => {

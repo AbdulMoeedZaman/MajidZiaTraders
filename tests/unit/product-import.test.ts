@@ -34,11 +34,11 @@ describe('ProductService.importFromCsv', () => {
 
     const byName = Object.fromEntries(result.products.map((p) => [p.name, p]))
     expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].rate).toBe(457627)
-    expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].boxesPerCarton).toBe(18)
-    expect(byName['Bakeri Butter SP 33g 6x24 Rs.50'].boxesPerCarton).toBe(24)
-    expect(byName['TUC FP 80.96g 1x96 Rs.100'].boxesPerCarton).toBe(96)
-    expect(byName['Gala Egg FP 94g 96x1 Rs 90'].boxesPerCarton).toBe(1)
-    expect(byName['NoPattern Product'].boxesPerCarton).toBe(1)
+    expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].piecesPerCarton).toBe(18)
+    expect(byName['Bakeri Butter SP 33g 6x24 Rs.50'].piecesPerCarton).toBe(24)
+    expect(byName['TUC FP 80.96g 1x96 Rs.100'].piecesPerCarton).toBe(96)
+    expect(byName['Gala Egg FP 94g 96x1 Rs 90'].piecesPerCarton).toBe(1)
+    expect(byName['NoPattern Product'].piecesPerCarton).toBe(1)
     expect(byName['NoPattern Product'].rate).toBe(500000)
     expect(byName['Foo X, something 6x18 Rs.10'].rate).toBe(100000)
 

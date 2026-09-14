@@ -14,7 +14,7 @@ describe('HistoryService audit log', () => {
     date: '2026-09-10',
     filerStatus: 'filer',
     tax: null,
-    items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 0 }],
+    items: [{ productId: seed.product.id, rate: 500, quantity: 24 }],
   })
 
   it('records product, restock, invoice and payment actions, newest first', () => {

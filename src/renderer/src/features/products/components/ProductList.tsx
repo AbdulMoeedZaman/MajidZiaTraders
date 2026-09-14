@@ -45,7 +45,7 @@ export function ProductList({ onOpen }: Props) {
     return products.filter((p) => p.name.toLowerCase().includes(q))
   }, [products, query])
 
-  const handleSave = async (data: { name: string; rate: number; boxesPerCarton: number }) => {
+  const handleSave = async (data: { name: string; rate: number; piecesPerCarton: number }) => {
     setFormError(null)
     try {
       if (editing) {
@@ -159,12 +159,12 @@ export function ProductList({ onOpen }: Props) {
             <tbody>
               {visible.map((p) => {
                 const qty = stocks[p.id] ?? 0
-                const bpc = Math.max(1, p.boxesPerCarton)
+                const bpc = Math.max(1, p.piecesPerCarton)
                 return (
                   <tr key={p.id} className="clickable" onClick={() => onOpen?.(p.id)}>
                     <td>{p.name}</td>
                     <td className="num mono">{formatMoney(p.rate)}</td>
-                    <td className="num">{p.boxesPerCarton}</td>
+                    <td className="num">{p.piecesPerCarton}</td>
                     <td className="num">{Math.floor(qty / bpc)}</td>
                     <td className="num">{qty % bpc}</td>
                     <td className="actions-col" onClick={(e) => e.stopPropagation()}>

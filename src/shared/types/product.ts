@@ -4,7 +4,7 @@ export interface Product {
   /** Minimum allowable rate per carton, in integer minor units (paisa / cents). */
   rate: number
   /** Number of boxes per carton. */
-  boxesPerCarton: number
+  piecesPerCarton: number
   createdAt: string
   updatedAt: string
 }
@@ -12,13 +12,13 @@ export interface Product {
 export interface CreateProductDTO {
   name: string
   rate: number
-  boxesPerCarton: number
+  piecesPerCarton: number
 }
 
 export interface UpdateProductDTO {
   name?: string
   rate?: number
-  boxesPerCarton?: number
+  piecesPerCarton?: number
 }
 
 export interface ProductImportResult {

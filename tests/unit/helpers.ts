@@ -45,7 +45,7 @@ export function seedBasics(routeName = 'Monday'): {
   const product = new ProductService().create({
     name: 'Widget 1',
     rate: 500,
-    boxesPerCarton: 12,
+    piecesPerCarton: 12,
   })
   const owner = new ProjectOwnerService().create({ name: 'Majid Zia', phone: '0300-1234567', address: 'Main Bazaar' })
   const broker = new BrokerService().create({ name: 'Bashir', phone: '0301-7654321' })

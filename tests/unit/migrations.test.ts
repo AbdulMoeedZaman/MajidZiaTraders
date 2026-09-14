@@ -55,7 +55,7 @@ describe('schema migrations (PRAGMA user_version)', () => {
     const versions = (
       oldDb.prepare('SELECT version FROM _migrations ORDER BY version').all() as { version: number }[]
     ).map((row) => row.version)
-    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
     // end state of the later migrations is present
     const routeCols = (
       oldDb.prepare('PRAGMA table_info(routes)').all() as { name: string }[]
@@ -66,11 +66,23 @@ describe('schema migrations (PRAGMA user_version)', () => {
     ).map((c) => c.name)
     expect(stockCols).toContain('date')
     expect(stockCols).toContain('price')
+    expect(stockCols).toContain('newCartons')
+    expect(stockCols).toContain('newLoosePieces')
     const invoiceCols = (
       oldDb.prepare('PRAGMA table_info(invoices)').all() as { name: string }[]
     ).map((c) => c.name)
     expect(invoiceCols).toContain('status')
     expect(invoiceCols).toContain('paidAmount')
+    const productCols = (
+      oldDb.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+    ).map((c) => c.name)
+    expect(productCols).toContain('piecesPerCarton')
+    expect(productCols).not.toContain('boxesPerCarton')
+    const itemCols = (
+      oldDb.prepare('PRAGMA table_info(invoice_items)').all() as { name: string }[]
+    ).map((c) => c.name)
+    expect(itemCols).toContain('piecesPerCarton')
+    expect(itemCols).not.toContain('boxesPerCarton')
     const historyCols = (
       oldDb.prepare('PRAGMA table_info(action_logs)').all() as { name: string }[]
     ).map((c) => c.name)

@@ -48,7 +48,7 @@ export function ProductDetailPage({ productId, onBack }: Props) {
 
   const latest = [...movements].sort((a, b) => b.id - a.id)[0]
   const inStock = latest ? latest.newQuantity : null
-  const perCarton = product?.boxesPerCarton ?? 1
+  const perCarton = product?.piecesPerCarton ?? 1
   const inStockUnits = inStock != null ? splitUnits(inStock, perCarton) : null
 
   const title = `${product?.name ?? 'Product'} — stock history`
@@ -105,7 +105,7 @@ export function ProductDetailPage({ productId, onBack }: Props) {
             </div>
             <div>
                <dt>Pieces / carton</dt>
-              <dd>{product.boxesPerCarton}</dd>
+              <dd>{product.piecesPerCarton}</dd>
             </div>
             <div>
               <dt>In stock</dt>

@@ -77,11 +77,11 @@ export function DashboardPage({ onNavigate }: Props) {
   const cashNet = summary.cashFlow.inward.total - summary.cashFlow.outward.total
 
   const stockCartons = summary.stock.perProduct.reduce(
-    (sum, p) => sum + Math.floor(p.remaining / Math.max(1, p.boxesPerCarton)),
+    (sum, p) => sum + Math.floor(p.remaining / Math.max(1, p.piecesPerCarton)),
     0
   )
   const stockLoose = summary.stock.perProduct.reduce(
-    (sum, p) => sum + (p.remaining % Math.max(1, p.boxesPerCarton)),
+    (sum, p) => sum + (p.remaining % Math.max(1, p.piecesPerCarton)),
     0
   )
 
@@ -421,7 +421,7 @@ function StockModal({
       title: 'Remaining inventory',
       columns: ['Product', 'Cartons', 'Loose pcs', 'Total pcs'],
       rows: perProduct.map((p) => {
-        const bpc = Math.max(1, p.boxesPerCarton)
+        const bpc = Math.max(1, p.piecesPerCarton)
         return [
           p.productName,
           String(Math.floor(p.remaining / bpc)),
@@ -467,7 +467,7 @@ function StockModal({
               </thead>
               <tbody>
                 {perProduct.map((p) => {
-                  const bpc = Math.max(1, p.boxesPerCarton)
+                  const bpc = Math.max(1, p.piecesPerCarton)
                   return (
                     <tr key={p.productId}>
                       <td>{p.productName}</td>
@@ -542,7 +542,7 @@ function StockValueModal({
       title: 'Stock value by product',
       columns: ['Product', 'Cartons', 'Pcs', 'Total pcs', 'Rate / pcs', 'Value'],
       rows: perProduct.map((p) => {
-        const bpc = Math.max(1, p.boxesPerCarton)
+        const bpc = Math.max(1, p.piecesPerCarton)
         return [
           p.productName,
           String(Math.floor(p.remaining / bpc)),
@@ -580,7 +580,7 @@ function StockValueModal({
             </thead>
             <tbody>
               {perProduct.map((p) => {
-                const bpc = Math.max(1, p.boxesPerCarton)
+                const bpc = Math.max(1, p.piecesPerCarton)
                 return (
                   <tr key={p.productId}>
                     <td>{p.productName}</td>

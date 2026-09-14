@@ -49,12 +49,12 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   const rafiq = brokerService.create({ name: 'Rafiq Sons', phone: '0333-4445556' })
 
   // ---- Products (wholesale parts; prices in paisa 10000 = Rs. 100.00) ----
-  const market = productService.create({ name: 'Market Bearings', rate: 10000, boxesPerCarton: 12 })
-  const axle = productService.create({ name: 'Axle Bearing 6204', rate: 65000, boxesPerCarton: 10 })
-  const rings = productService.create({ name: 'Piston Rings Set', rate: 80000, boxesPerCarton: 8 })
-  const gasket = productService.create({ name: 'Gasket Kit', rate: 45000, boxesPerCarton: 6 })
-  const valve = productService.create({ name: 'Valve Spring', rate: 15000, boxesPerCarton: 20 })
-  const clutch = productService.create({ name: 'Clutch Plate 240mm', rate: 320000, boxesPerCarton: 5 })
+  const market = productService.create({ name: 'Market Bearings', rate: 10000, piecesPerCarton: 12 })
+  const axle = productService.create({ name: 'Axle Bearing 6204', rate: 65000, piecesPerCarton: 10 })
+  const rings = productService.create({ name: 'Piston Rings Set', rate: 80000, piecesPerCarton: 8 })
+  const gasket = productService.create({ name: 'Gasket Kit', rate: 45000, piecesPerCarton: 6 })
+  const valve = productService.create({ name: 'Valve Spring', rate: 15000, piecesPerCarton: 20 })
+  const clutch = productService.create({ name: 'Clutch Plate 240mm', rate: 320000, piecesPerCarton: 5 })
 
   // ---- Stock: invoices are blocked below zero stock, so give each product a
   // ---- working balance before the sales below are recorded.
@@ -92,8 +92,8 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
     brokerId: bashir.id,
     date: d1,
     items: [
-      { productId: market.id, rate: 10000, cartonCount: 5, boxCount: 6 },
-      { productId: axle.id, rate: 65000, cartonCount: 2, boxCount: 0 },
+      { productId: market.id, rate: 10000, quantity: 66 },
+      { productId: axle.id, rate: 65000, quantity: 20 },
     ],
   })
   // INV-2 Wazir: piston rings + clutch plate.
@@ -102,8 +102,8 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
     brokerId: rafiq.id,
     date: d2,
     items: [
-      { productId: rings.id, rate: 80000, cartonCount: 2, boxCount: 0 },
-      { productId: clutch.id, rate: 320000, cartonCount: 1, boxCount: 0 },
+      { productId: rings.id, rate: 80000, quantity: 16 },
+      { productId: clutch.id, rate: 320000, quantity: 5 },
     ],
   })
   // INV-3 Emerald: gasket kits with 3 loose boxes of 6/carton.
@@ -111,13 +111,13 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
     ...base(emerald.id),
     brokerId: bashir.id,
     date: d3,
-    items: [{ productId: gasket.id, rate: 45000, cartonCount: 0, boxCount: 3 }],
+    items: [{ productId: gasket.id, rate: 45000, quantity: 3 }],
   })
   // INV-4 Metro: valve springs, one rate held exactly at the minimum.
   const invD = invoiceService.create({
     ...base(metro.id),
     brokerId: rafiq.id,
-    items: [{ productId: valve.id, rate: 15000, cartonCount: 4, boxCount: 0 }],
+    items: [{ productId: valve.id, rate: 15000, quantity: 80 }],
   })
 
   // ---- Self checks: the seeded data must be internally consistent ----

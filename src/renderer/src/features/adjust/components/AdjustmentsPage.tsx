@@ -127,7 +127,7 @@ function StockAdjustTab() {
             <SearchSelect
               options={products.map((p) => {
                 const level = levels.find((l) => l.productId === p.id)?.quantity ?? 0
-                const bpc = Math.max(1, p.boxesPerCarton)
+                const bpc = Math.max(1, p.piecesPerCarton)
                 return {
                   value: p.id,
                   label: p.name,
@@ -218,7 +218,7 @@ function StockAdjustTab() {
               <tbody>
                 {levels.map((l) => {
                   const product = products.find((p) => p.id === l.productId)
-                  const bpc = Math.max(1, product?.boxesPerCarton ?? 1)
+                  const bpc = Math.max(1, product?.piecesPerCarton ?? 1)
                   return (
                     <tr
                       key={l.productId}

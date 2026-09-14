@@ -7,6 +7,7 @@ import { up as expenses } from './005_expenses'
 import { up as invoicePayments } from './006_invoice_payments'
 import { up as actionLogs } from './007_action_logs'
 import { up as actionLogActions } from './008_action_logger_actions'
+import { up as dualUnitStock } from './009_dual_unit_stock'
 
 interface Migration {
   version: number
@@ -40,6 +41,7 @@ const migrations: Migration[] = [
   { version: 6, name: '006_invoice_payments', up: invoicePayments },
   { version: 7, name: '007_action_logs', up: actionLogs },
   { version: 8, name: '008_action_logger_actions', up: actionLogActions },
+  { version: 9, name: '009_dual_unit_stock', up: dualUnitStock },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

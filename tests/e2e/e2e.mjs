@@ -93,14 +93,14 @@ try {
   check('UI-0', 'Fresh install lands on Invoices with the main navigation visible', defaultNav.includes('Invoices') && newInvoiceBtn, { activeNav: defaultNav })
 
   // =============== Product validation ===============
-  const P1 = must(await inv('products:create', { name: 'Axle Bearing 6204', rate: 65000, boxesPerCarton: 10 }), 'P1')
-  const dup = await inv('products:create', { name: 'Axle Bearing 6204', rate: 100, boxesPerCarton: 12 })
-  const empty = await inv('products:create', { name: '', rate: 100, boxesPerCarton: 12 })
-  const badBpc = await inv('products:create', { name: 'Frac', rate: 100, boxesPerCarton: 0 })
-  const frac = await inv('products:create', { name: 'Frac Paisa', rate: 1000.5, boxesPerCarton: 12 })
+  const P1 = must(await inv('products:create', { name: 'Axle Bearing 6204', rate: 65000, piecesPerCarton: 10 }), 'P1')
+  const dup = await inv('products:create', { name: 'Axle Bearing 6204', rate: 100, piecesPerCarton: 12 })
+  const empty = await inv('products:create', { name: '', rate: 100, piecesPerCarton: 12 })
+  const badBpc = await inv('products:create', { name: 'Frac', rate: 100, piecesPerCarton: 0 })
+  const frac = await inv('products:create', { name: 'Frac Paisa', rate: 1000.5, piecesPerCarton: 12 })
   check('V-1', 'Product validation: empty name, duplicate name, boxes 0 and fractional cents all rejected',
     !dup.ok && !empty.ok && !badBpc.ok && !frac.ok, [dup.e, empty.e, badBpc.e, frac.e])
-  const P2 = must(await inv('products:create', { name: 'Valve Spring', rate: 15000, boxesPerCarton: 20 }), 'P2')
+  const P2 = must(await inv('products:create', { name: 'Valve Spring', rate: 15000, piecesPerCarton: 20 }), 'P2')
 
   // =============== Customer & settings validation ===============
   const routes = must(await inv('routes:list'), 'routes')
@@ -121,7 +121,7 @@ try {
   const noOwner = await inv('invoices:create', {
     customerId: C1.id, brokerId: 9999, date: TODAY, filerStatus: 'filer',
     tax: null,
-    items: [{ productId: P1.id, rate: 65000, cartonCount: 1, boxCount: 0 }],
+    items: [{ productId: P1.id, rate: 65000, quantity: 10 }],
   })
   check('EO-1', 'Creating an invoice before a project owner is set up is rejected',
     !noOwner.ok && /Set up the project owner/.test(noOwner.e), noOwner.e ?? 'accepted')
@@ -138,11 +138,11 @@ try {
   must(await inv('stock:restock', { productId: P2.id, quantity: 4 }), 'prestock P2 4 cartons → 80 pcs')
 
   // =============== Invoice ring & maths ===============
-  const item = (productId, rate, cartonCount, boxCount) => ({ productId, rate, cartonCount, boxCount })
+  const item = (productId, rate, quantity) => ({ productId, rate, quantity })
   const I1 = must(await inv('invoices:create', {
     customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     tax: null,
-    items: [item(P1.id, 65000, 2, 5)],
+    items: [item(P1.id, 65000, 25)],
   }), 'I1')
   // 65000*2 + 65000*5/10 = 130000 + 32500
   check('I-1', `Invoice #1 subtotal = rate×cartons + rounded rate×boxes/bpc (${I1.subtotal})`, I1.invoiceNumber === 'INV-000001' && I1.subtotal === 162500, { number: I1.invoiceNumber, subtotal: I1.subtotal })
@@ -150,7 +150,7 @@ try {
   const I2 = must(await inv('invoices:create', {
     customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'non_filer',
     tax: 5000,
-    items: [item(P2.id, 15000, 4, 0)],
+    items: [item(P2.id, 15000, 80)],
   }), 'I2')
   const i2 = must(await inv('invoices:get-with-details', I2.id), 'I2 details')
   check('I-2', 'Invoice #2 sequential, grand total = subtotal + tax, details resolve customer/owner/broker',
@@ -160,11 +160,11 @@ try {
   const belowMin = await inv('invoices:create', {
     customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     tax: null,
-    items: [item(P1.id, 64999, 1, 0)],
+    items: [item(P1.id, 64999, 10)],
   })
   const noItems = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [] })
-  const badDate = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 1, 0)] })
-  const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 1, 0)] })
+  const badDate = await inv('invoices:create', { customerId: C1.id, brokerId: B1.id, date: 'not-a-date', filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 10)] })
+  const badCust = await inv('invoices:create', { customerId: 9999, brokerId: B1.id, date: TODAY, filerStatus: 'filer', tax: null, items: [item(P1.id, 65000, 10)] })
   check('I-3', 'Invoice guards: below-min rate, empty items, invalid date, unknown customer all rejected',
     !belowMin.ok && !noItems.ok && !badDate.ok && !badCust.ok, [belowMin.e, noItems.e, badDate.e, badCust.e])
 
@@ -172,7 +172,7 @@ try {
     customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'filer',
     tax: null,
     // Prestocked 7 cartons (70 pcs), I1 sold 2×10+5 = 25 → 45 left. 5 cartons (50 pcs) > 45.
-    items: [item(P1.id, 65000, 5, 0)],
+    items: [item(P1.id, 65000, 50)],
   })
   check('I-3b', 'An invoice needing more stock than available is rejected (negative-stock guard)',
     !overStock.ok && /Insufficient stock/.test(overStock.e), overStock.e ?? 'accepted')
@@ -208,7 +208,7 @@ try {
   await clickBtn('Save'); await wait(1200)
   const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE 2026'))`)
   const gauge = must(await inv('products:list'), 'products').find((p) => p.name === 'GAUGE 2026')
-  check('UI-3', 'Creating a product through the UI form stores it (rate 150 cents), 12/carton', gaugeRow && gauge?.rate === 150 && gauge.boxesPerCarton === 12, { id: gauge?.id, rate: gauge?.rate, boxesPerCarton: gauge?.boxesPerCarton })
+  check('UI-3', 'Creating a product through the UI form stores it (rate 150 cents), 12/carton', gaugeRow && gauge?.rate === 150 && gauge.piecesPerCarton === 12, { id: gauge?.id, rate: gauge?.rate, piecesPerCarton: gauge?.piecesPerCarton })
 
   // =============== UI-3b: CSV product import (no stock changes) ===============
   const importBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Import CSV…')`)
@@ -228,7 +228,7 @@ try {
   const impTouchedStock = stockAfterImport.some((m) => ['Irn Bru New 6x18 Rs.50', 'Prince New 1x48 Rs.100'].includes(m.productName))
   check('UI-3b', 'Import CSV creates products (rate in cents, boxes from NxM, duplicates/invalid skipped) without stock movements',
     importBtn && imp.created === 2 && imp.skippedDuplicate === 1 && imp.skippedInvalid === 2 &&
-    impProduct?.rate === 100050 && impProduct.boxesPerCarton === 18 &&
+    impProduct?.rate === 100050 && impProduct.piecesPerCarton === 18 &&
     stockBeforeImport.length === stockAfterImport.length && !impTouchedStock,
     { importBtn, imp: { created: imp.created, skippedDuplicate: imp.skippedDuplicate, skippedInvalid: imp.skippedInvalid } })
 
@@ -304,7 +304,7 @@ try {
   await wait(200)
   await ev(`(()=>{
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
-    num('Rate (Rs.)','2.00'); num('Carton no.','3'); return true
+    num('Rate (Rs.)','2.00'); num('Quantity (pcs)','36'); return true
   })()`)
   await wait(400)
   const lineAmountShown = await ev(`[...document.querySelectorAll('.invoice-line .line-total strong')].map((n)=>n.textContent.trim()).join('|')`)

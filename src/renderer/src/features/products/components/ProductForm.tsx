@@ -5,20 +5,20 @@ import { countToInt, moneyToCents } from '../../../lib/money'
 export interface ProductFormData {
   name: string
   rate: string
-  boxesPerCarton: string
+  piecesPerCarton: string
 }
 
 interface Props {
   initial?: Product | null
-  onSave: (data: { name: string; rate: number; boxesPerCarton: number }) => Promise<void>
+  onSave: (data: { name: string; rate: number; piecesPerCarton: number }) => Promise<void>
   onCancel: () => void
 }
 
 export function ProductForm({ initial, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [rate, setRate] = useState(initial ? (initial.rate / 100).toFixed(2) : '')
-  const [boxesPerCarton, setBoxesPerCarton] = useState(
-    initial ? String(initial.boxesPerCarton) : '12'
+  const [piecesPerCarton, setBoxesPerCarton] = useState(
+    initial ? String(initial.piecesPerCarton) : '12'
   )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -42,14 +42,14 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
       setError('Minimum rate must be greater than zero')
       return
     }
-    const boxes = countToInt(boxesPerCarton)
+    const boxes = countToInt(piecesPerCarton)
     if (boxes < 1) {
        setError('Pieces per carton must be at least 1')
       return
     }
     setSaving(true)
     try {
-      await onSave({ name: name.trim(), rate: rateCents, boxesPerCarton: boxes })
+      await onSave({ name: name.trim(), rate: rateCents, piecesPerCarton: boxes })
       onCancel()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save product')
@@ -92,7 +92,7 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
               type="number"
               min="1"
               step="1"
-              value={boxesPerCarton}
+              value={piecesPerCarton}
               onChange={(e) => setBoxesPerCarton(e.target.value)}
               placeholder="12"
             />

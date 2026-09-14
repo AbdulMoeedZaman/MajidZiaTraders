@@ -78,7 +78,7 @@ try {
     remaining: null,
     tax: null,
     grandTotal: null,
-    items: [{ productId: stockLead.id, rate: stockLead.rate, cartonCount: 1, boxCount: 0 }],
+    items: [{ productId: stockLead.id, rate: stockLead.rate, quantity: 10 }],
   }), 'next invoice')
   check('X-2', 'Next invoice is numbered INV-000004 (counter persisted through the UI round trip)', next.invoiceNumber === 'INV-000004', next.invoiceNumber)
   await inv('invoices:delete', next.id)
@@ -103,7 +103,7 @@ try {
     remaining: null,
     tax: null,
     grandTotal: null,
-    items: [{ productId: gauge.id, rate: 149, cartonCount: 1, boxCount: 0 }],
+    items: [{ productId: gauge.id, rate: 149, quantity: 12 }],
   })
   check('X-5', 'A rate of Rs.1.49 below the UI product\'s min (Rs.1.50) is rejected', !lowRate.ok, lowRate.e ?? 'accepted')
 
@@ -181,7 +181,7 @@ try {
     remaining: null,
     tax: null,
     grandTotal: null,
-    items: [{ productId: stockLead.id, rate: stockLead.rate, cartonCount: 2, boxCount: 0 }],
+    items: [{ productId: stockLead.id, rate: stockLead.rate, quantity: 20 }],
   }), 'fresh invoice for cancel')
   await inv('invoices:pay', fresh.id, 5000)
   const cancelled = must(await inv('invoices:cancel', fresh.id), 'cancel fresh invoice')

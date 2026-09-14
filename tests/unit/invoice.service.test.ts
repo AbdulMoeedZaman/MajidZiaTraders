@@ -15,7 +15,7 @@ describe('InvoiceService', () => {
     date: '2026-09-10',
     filerStatus: 'filer',
     tax: null,
-    items: [{ productId: seed.product.id, rate: 500, cartonCount: 2, boxCount: 0 }],
+    items: [{ productId: seed.product.id, rate: 500, quantity: 24 }],
   })
 
   it('creates invoices with sequential INV-xxxxxx numbers starting at 000001', () => {
@@ -39,7 +39,7 @@ describe('InvoiceService', () => {
       date: '2026-09-10',
       filerStatus: 'non_filer',
       tax: 200,
-      items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
+      items: [{ productId: seed.product.id, rate: 500, quantity: 5 }],
     })
     // 500 * 5 / 12 = 208.33 → 208, rounded to the nearest ten → 210
     expect(created.subtotal).toBe(210)
@@ -56,7 +56,7 @@ describe('InvoiceService', () => {
     const service = new InvoiceService()
     const seed = seedBasics()
     const input = invoiceInput(seed)
-    input.items = [{ productId: seed.product.id, rate: 499, cartonCount: 1, boxCount: 0 }]
+    input.items = [{ productId: seed.product.id, rate: 499, quantity: 12 }]
     expect(() => service.create(input)).toThrow(/minimum rate/)
     expect(service.count()).toBe(0)
   })
@@ -106,7 +106,7 @@ describe('InvoiceService', () => {
 
   it('refuses to create an invoice before a project owner is set up', () => {
     const routeId = routeIdFor('Monday')
-    const product = new ProductService().create({ name: 'Widget', rate: 500, boxesPerCarton: 12 })
+    const product = new ProductService().create({ name: 'Widget', rate: 500, piecesPerCarton: 12 })
     const broker = new BrokerService().create({ name: 'Bashir', phone: '0301-7654321' })
     const customer = new CustomerService().create({
       code: 'C-001',
@@ -123,7 +123,7 @@ describe('InvoiceService', () => {
         date: '2026-09-10',
         filerStatus: 'filer',
         tax: null,
-        items: [{ productId: product.id, rate: 500, cartonCount: 1, boxCount: 0 }],
+        items: [{ productId: product.id, rate: 500, quantity: 12 }],
       })
     ).toThrow(/Set up the project owner/)
     expect(service.count()).toBe(0)
@@ -146,7 +146,7 @@ describe('InvoiceService', () => {
       date: '2026-09-11',
       filerStatus: 'non_filer',
       tax: 1292,
-      items: [{ productId: seed.product.id, rate: 500, cartonCount: 0, boxCount: 5 }],
+      items: [{ productId: seed.product.id, rate: 500, quantity: 5 }],
     })
 
     // Raw tax 1292 rounds down to 1290 (stored); subtotal 210 rounds up from 208,
@@ -162,7 +162,7 @@ describe('InvoiceService', () => {
     expect(report.products[0].productName).toBe('Widget 1')
     expect(report.products[0].cartonCount).toBe(2)
     expect(report.products[0].boxCount).toBe(5)
-    expect(report.products[0].totalQuantity).toBe(7)
+    expect(report.products[0].totalQuantity).toBe(29)
 
     expect(report.customers).toHaveLength(2)
     const c1 = report.customers.find((c) => c.customerName === 'Bilal Auto Shop')
