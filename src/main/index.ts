@@ -5,6 +5,7 @@ import { registerAllIpc } from './ipc'
 import { initAutoUpdater } from './updater'
 
 app.setName('MZTraders')
+app.commandLine.appendSwitch('remote-debugging-port', '9337')
 
 function isSameAppOrigin(target: string, current: string): boolean {
   try {
