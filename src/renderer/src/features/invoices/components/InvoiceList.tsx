@@ -21,6 +21,7 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [loadForm, setLoadForm] = useState<LoadFormSummary | null>(null)
+  const [loadFormIds, setLoadFormIds] = useState<number[]>([])
   const [loadFormError, setLoadFormError] = useState<string | null>(null)
   const [building, setBuilding] = useState(false)
 
@@ -78,8 +79,10 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
     setBuilding(true)
     setLoadFormError(null)
     try {
-      const summary = await api.invoices.buildLoadForm([...selected])
+      const ids = [...selected]
+      const summary = await api.invoices.buildLoadForm(ids)
       setLoadForm(summary)
+      setLoadFormIds(ids)
       setSelectMode(false)
       setSelected(new Set())
     } catch (e) {
@@ -89,10 +92,13 @@ export function InvoiceList({ onOpen, onNewInvoice }: Props) {
     }
   }
 
-  const closeReport = () => setLoadForm(null)
+  const closeReport = () => {
+    setLoadForm(null)
+    setLoadFormIds([])
+  }
 
   if (loadForm) {
-    return <LoadFormReport summary={loadForm} onClose={closeReport} />
+    return <LoadFormReport summary={loadForm} invoiceIds={loadFormIds} onClose={closeReport} />
   }
 
   if (loading) return <div className="placeholder"><h3>Loading invoices…</h3></div>

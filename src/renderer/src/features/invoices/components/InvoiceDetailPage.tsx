@@ -2,25 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { invoiceRemaining } from '@shared/types/invoice'
 import type { InvoiceDetails } from '@shared/types/invoice'
+import { InvoiceSheet } from './InvoiceSheet'
 
 interface Props {
   invoiceId: number
   onBack: () => void
-}
-
-function printDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso
-}
-
-function printMoney(cents: number | null | undefined): string {
-  return (
-    'Rs.' +
-    ((cents ?? 0) / 100).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  )
 }
 
 export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
@@ -93,9 +79,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
   if (error) return <div className="error-screen">{error}</div>
   if (!data) return <div className="error-screen">This invoice does not exist anymore.</div>
 
-  const { invoice, customer, owner, broker } = data
-  const totalCtn = invoice.items.reduce((sum, it) => sum + it.cartonCount, 0)
-  const totalPcs = invoice.items.reduce((sum, it) => sum + it.boxCount, 0)
+  const { invoice } = data
   const remaining = invoiceRemaining(invoice)
   const cancelled = invoice.status === 'cancelled'
 
@@ -156,112 +140,7 @@ export function InvoiceDetailPage({ invoiceId, onBack }: Props) {
 
       {actionError && <div className="form-error">{actionError}</div>}
 
-      <div className="invoice-sheet">
-        {/* ── Company Header (centered) ────────────────────────────────── */}
-        {owner && (
-          <div className="sheet-head">
-            <div className="ip-owner">{owner.name}</div>
-            <div className="ip-subtitle">
-              {owner.address && <span className="ip-address">{owner.address}</span>}
-              {owner.address && owner.phone && <span className="ip-comma">,</span>}
-              {owner.phone && <span className="ip-phone">{owner.phone}</span>}
-            </div>
-          </div>
-        )}
-
-
-        {/* ── Metadata boxes ───────────────────────────────────────────── */}
-        <div className="ip-meta">
-          <div className="ip-customer-box">
-            {customer && (
-              <>
-                <div className="ip-meta-line"><span>Shop name:</span> <strong>{customer.shopName}</strong></div>
-                <div className="ip-meta-line"><span>Owner name:</span> <strong>{customer.ownerName}</strong></div>
-                <div className="ip-meta-line"><span>Address:</span> {customer.address}</div>
-                <div className="ip-meta-line"><span>Phone:</span> {customer.phone}</div>
-                <div className="ip-meta-line"><span>Status:</span>{invoice.filerStatus === 'filer' ? 'Filer' : 'Non Filer'}</div>
-              </>
-            )}
-          </div>
-          <div className="ip-meta-right">
-            <div className="ip-meta-line right"><span>Date:</span> <span>{printDate(invoice.date)}</span></div>
-            {broker && (
-              <>
-                <div className="ip-meta-line right"><span>Order Booker:</span> <span><strong>{broker.name}</strong></span></div>
-                <div className="ip-meta-line right"><span>PH#:</span> <span>{broker.phone ?? '—'}</span></div>
-                
-          <span className="ip-title-number">{invoice.invoiceNumber}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ── Items table ──────────────────────────────────────────────── */}
-        <table className="ip-table">
-          <thead>
-            <tr>
-              <th>Products</th>
-              <th>Rate</th>
-              <th>Cartons</th>
-               <th>Pcs</th>
-              <th>Scheme</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.items.map((item, i) => (
-              <tr key={item.id ?? i}>
-                <td>{item.productName}</td>
-                <td className="ip-num">{printMoney(item.rate)}</td>
-                <td className="ip-num">{item.cartonCount}</td>
-                <td className="ip-num">{item.boxCount}</td>
-                <td className="ip-scheme" />
-                <td className="ip-num">{printMoney(item.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* ── Footer: quantities / balances + financials ────────────────── */}
-        <div className="ip-footer">
-          <div className="ip-left-col">
-            <div className="ip-box">
-              <div className="ip-box-heading">Quantity Breakdown</div>
-              <div className="ip-sum-row"><span>Total Ctn (Cartons)</span><strong>{totalCtn}</strong></div>
-              <div className="ip-sum-row"><span>Total Pcs</span><strong>{totalPcs}</strong></div>
-            </div>
-          </div>
-
-          <div className="ip-finance">
-            <div className="ip-fin-row"><span>Total Gross Amount</span><strong>{printMoney(invoice.subtotal)}</strong></div>
-            <div className="ip-fin-row"><span>Previous Balance</span><strong>{'—'}</strong></div>
-            <div className="ip-fin-row">
-              <span>Tax</span>
-              <strong>{invoice.tax != null ? printMoney(invoice.tax) : '—'}</strong>
-            </div>
-            <div className="ip-fin-row ip-net">
-              <span>Net Amount / Grand Total</span>
-              <strong>{printMoney(invoice.grandTotal ?? invoice.subtotal)}</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Signature ────────────────────────────────────────────────── */}
-        <div className="ip-signatures">
-          <div className="ip-signature-field">
-            <div className="ip-signature-line" />
-            <span>Signature</span>
-          </div>
-        </div>
-
-        {description && (
-          <div
-            className="ip-description"
-            dangerouslySetInnerHTML={{ __html: description }}
-          />
-        )}
-
-      </div>
+      <InvoiceSheet details={data} description={description} />
     </div>
   )
 }
