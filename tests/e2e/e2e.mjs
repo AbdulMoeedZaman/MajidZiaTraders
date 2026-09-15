@@ -458,12 +458,16 @@ try {
   await wait(700)
   const stockRows = await ev(`[...document.querySelectorAll('.detail-modal tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const stockSections = await ev(`[...document.querySelectorAll('.modal-section h4')].map((h)=>h.textContent.trim()).join(',')`)
-  const stockHasGauge = stockRows.includes('GAUGE 2026500600') // 600 pcs → 50 ctn + 0 loose (cells join without spaces)
-  const stockHasOthers = stockRows.includes('Axle Bearing 62044545') && stockRows.includes('Valve Spring000')
+  const stockRowText = stockRows.replace(/,/g, '')
+  // Remaining inventory now prices each row: cartons + loose + total price
+  // (600 pcs → 50 ctn + 0 loose, worth Rs. 75.00; axle 45 pcs → 4+5, Rs. 2925; valve restocked and fully sold → 0).
+  const stockHasGauge = stockRowText.includes('GAUGE 2026 50 0 Rs. 75.00')
+  const stockHasOthers = stockRowText.includes('Axle Bearing 6204 4 5 Rs. 2925.00') && stockRowText.includes('Valve Spring 0 0 Rs. 0.00')
+  const stockHeaderHasPrice = stockRows.includes('Total price')
   const stockActions = await ev(`[...document.querySelectorAll('.detail-modal .modal-actions button')].map((b)=>b.textContent.trim()).join(',')`)
-  check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with cartons+loose inventory and today dispatches',
-    stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers && stockActions === 'Print,Export CSV,Close',
-    { stockRows, stockSections, stockHasGauge, stockHasOthers, actions: stockActions })
+  check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with cartons+loose priced inventory and today dispatches',
+    stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers && stockHeaderHasPrice && stockActions === 'Print,Export CSV,Close',
+    { stockRows, stockSections, stockHasGauge, stockHasOthers, stockHeaderHasPrice, actions: stockActions })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices')?.click()`)

@@ -413,23 +413,23 @@ function StockModal({
   dispatchedToday: TodayDispatch[]
   onClose: () => void
 }) {
-  const total = perProduct.reduce((sum, p) => sum + p.remaining, 0)
+  const totalValue = perProduct.reduce((sum, p) => sum + p.value, 0)
   const dispatchedUnits = dispatchedToday.reduce((sum, d) => sum + d.quantity, 0)
   const dispatchedAmount = dispatchedToday.reduce((sum, d) => sum + d.amount, 0)
   const sections: ReportSection[] = [
     {
       title: 'Remaining inventory',
-      columns: ['Product', 'Cartons', 'Loose pcs', 'Total pcs'],
+      columns: ['Product', 'Cartons', 'Loose pcs', 'Total price'],
       rows: perProduct.map((p) => {
         const bpc = Math.max(1, p.piecesPerCarton)
         return [
           p.productName,
           String(Math.floor(p.remaining / bpc)),
           String(p.remaining % bpc),
-          p.remaining.toLocaleString(),
+          formatMoney(p.value),
         ]
       }),
-      foot: [['Total', '', '', total.toLocaleString()]],
+      foot: [['Total', '', '', formatMoney(totalValue)]],
     },
     {
       title: 'Dispatched today',
@@ -462,7 +462,7 @@ function StockModal({
                   <th>Product</th>
                   <th className="num">Cartons</th>
                   <th className="num">Loose pcs</th>
-                  <th className="num">Total pcs</th>
+                  <th className="num">Total price</th>
                 </tr>
               </thead>
               <tbody>
@@ -473,7 +473,7 @@ function StockModal({
                       <td>{p.productName}</td>
                       <td className="num mono">{Math.floor(p.remaining / bpc)}</td>
                       <td className="num mono">{p.remaining % bpc}</td>
-                      <td className="num mono">{p.remaining.toLocaleString()}</td>
+                      <td className="num mono">{formatMoney(p.value)}</td>
                     </tr>
                   )
                 })}
@@ -482,7 +482,7 @@ function StockModal({
                 <tr className="modal-total-row">
                   <td>Total</td>
                   <td colSpan={2} />
-                  <td className="num mono">{total.toLocaleString()}</td>
+                  <td className="num mono">{formatMoney(totalValue)}</td>
                 </tr>
               </tfoot>
             </table>
