@@ -104,6 +104,10 @@ export function ProductDetailPage({ productId, onBack }: Props) {
               <dd className="mono">{formatMoney(product.rate)}</dd>
             </div>
             <div>
+              <dt>Sales price</dt>
+              <dd className="mono">{product.salesPrice != null ? formatMoney(product.salesPrice) : '—'}</dd>
+            </div>
+            <div>
                <dt>Pieces / carton</dt>
               <dd>{product.piecesPerCarton}</dd>
             </div>

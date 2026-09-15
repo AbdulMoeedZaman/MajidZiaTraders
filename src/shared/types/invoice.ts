@@ -62,8 +62,12 @@ export interface InvoiceItem {
 
 export interface CreateInvoiceItemDTO {
   productId: number
-  /** Rate per carton in minor units, must be >= the product's minimum rate. */
-  rate: number
+  /**
+   * Rate per carton in minor units, must be >= the product's minimum rate.
+   * When omitted/null the rate autofills to the product's default: its Sales
+   * Price if set, otherwise its minimum rate.
+   */
+  rate?: number
   /**
    * Whole cartons on the line. When provided together with boxCount these are
    * stored as entered (overflow pieces are carried into whole cartons).

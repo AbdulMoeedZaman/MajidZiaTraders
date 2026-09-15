@@ -3,6 +3,7 @@ import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
 import { CustomerService } from '../../src/main/services/customer.service'
 import { BrokerService } from '../../src/main/services/broker.service'
+import { StockService } from '../../src/main/services/stock.service'
 import { useTestDatabase, seedBasics, seedStocked, routeIdFor } from './helpers'
 import type { CreateInvoiceDTO } from '../../src/shared/types/invoice'
 
@@ -175,5 +176,70 @@ describe('InvoiceService', () => {
   it('rejects an empty invoice selection for a load form', () => {
     const service = new InvoiceService()
     expect(() => service.buildLoadReport([])).toThrow(/at least one/)
+  })
+
+  it('autofills a line rate with the product sales price when no rate is given', () => {
+    const product = new ProductService().create({
+      name: 'Priced Widget',
+      rate: 500,
+      salesPrice: 620,
+      piecesPerCarton: 12,
+    })
+    new StockService().restock({ productId: product.id, quantity: 12 })
+    const seed = seedBasics()
+
+    const created = new InvoiceService().create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-10',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: product.id, quantity: 12 }],
+    })
+
+    const details = new InvoiceService().getWithDetails(created.id)!
+    expect(details.invoice.items[0].rate).toBe(620)
+    // 620 cannot go below the 500 minimum, and no explicit rate means it wins.
+    expect(details.invoice.items[0].minRate).toBe(500)
+  })
+
+  it('falls back to the product minimum rate when no sales price is set', () => {
+    const seed = seedStocked(12)
+    const created = new InvoiceService().create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-10',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: seed.product.id, quantity: 12 }],
+    })
+
+    const details = new InvoiceService().getWithDetails(created.id)!
+    // seedBasics has no salesPrice, so the default rate is the minimum 500.
+    expect(details.invoice.items[0].rate).toBe(500)
+    expect(details.invoice.items[0].rate).toBe(seed.product.rate)
+  })
+
+  it('uses an explicit rate even when the product has a sales price', () => {
+    const product = new ProductService().create({
+      name: 'Override Widget',
+      rate: 500,
+      salesPrice: 620,
+      piecesPerCarton: 12,
+    })
+    new StockService().restock({ productId: product.id, quantity: 12 })
+    const seed = seedBasics()
+
+    const created = new InvoiceService().create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-10',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: product.id, rate: 580, quantity: 12 }],
+    })
+
+    const details = new InvoiceService().getWithDetails(created.id)!
+    expect(details.invoice.items[0].rate).toBe(580)
   })
 })

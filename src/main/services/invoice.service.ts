@@ -11,6 +11,7 @@ import { HistoryService } from './history.service'
 import { assertIsoDate, localDate } from '@shared/date'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
+import { defaultInvoiceRate } from '@shared/types/product'
 import type {
   Invoice,
   InvoiceWithCustomer,
@@ -255,10 +256,17 @@ export class InvoiceService {
         throw new Error('Invoice references an unknown product')
       }
 
-      if (!Number.isInteger(item.rate) || item.rate < 0) {
+      // The rate autofills to the product's default (Sales Price when set,
+      // otherwise its minimum rate); the user can still submit an explicit
+      // rate that respects the product floor.
+      const rate = item.rate === undefined || item.rate === null
+        ? defaultInvoiceRate(product)
+        : item.rate
+
+      if (!Number.isInteger(rate) || rate < 0) {
         throw new Error(`Rate for "${product.name}" must be a whole number of cents and cannot be negative`)
       }
-      if (item.rate < product.rate) {
+      if (rate < product.rate) {
         throw new Error(
           `Rate for "${product.name}" cannot be lower than its minimum rate (${product.rate} cents)`
         )
@@ -291,7 +299,7 @@ export class InvoiceService {
 
       const composition = canonicalComposition(pieces, product.piecesPerCarton)
       const amount = calculateLineAmount({
-        rate: item.rate,
+        rate,
         piecesPerCarton: product.piecesPerCarton,
         cartonCount: composition.cartons,
         boxCount: composition.loosePieces,
@@ -300,7 +308,7 @@ export class InvoiceService {
       return {
         productId: product.id,
         productName: product.name,
-        rate: item.rate,
+        rate,
         minRate: product.rate,
         piecesPerCarton: product.piecesPerCarton,
         cartonCount: composition.cartons,

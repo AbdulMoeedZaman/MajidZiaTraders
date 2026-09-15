@@ -26,8 +26,8 @@ export class ProductRepository extends BaseRepository {
 
   create(data: CreateProductDTO): Product {
     const result = this.db
-      .prepare('INSERT INTO products (name, rate, piecesPerCarton) VALUES (?, ?, ?)')
-      .run(data.name.trim(), data.rate, data.piecesPerCarton)
+      .prepare('INSERT INTO products (name, rate, salesPrice, piecesPerCarton) VALUES (?, ?, ?, ?)')
+      .run(data.name.trim(), data.rate, data.salesPrice ?? null, data.piecesPerCarton)
     return this.findById(result.lastInsertRowid as number)!
   }
 
@@ -36,6 +36,7 @@ export class ProductRepository extends BaseRepository {
     const values: unknown[] = []
     if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name.trim()) }
     if (data.rate !== undefined) { fields.push('rate = ?'); values.push(data.rate) }
+    if (data.salesPrice !== undefined) { fields.push('salesPrice = ?'); values.push(data.salesPrice) }
     if (data.piecesPerCarton !== undefined) { fields.push('piecesPerCarton = ?'); values.push(data.piecesPerCarton) }
     if (fields.length === 0) return this.findById(id)!
     fields.push("updatedAt = datetime('now')")

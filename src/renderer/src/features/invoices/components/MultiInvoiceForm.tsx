@@ -3,6 +3,7 @@ import type { Product } from '@shared/types/product'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
+import { defaultInvoiceRate } from '@shared/types/product'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
@@ -250,7 +251,7 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
-                    rate: p ? (p.rate / 100).toFixed(2) : line.rate,
+                    rate: p ? (defaultInvoiceRate(p) / 100).toFixed(2) : line.rate,
                   })
                   if (pid !== null) handleProductSelected(i)
                 }}
@@ -272,7 +273,7 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') focusCartons(i)
                 }}
-                placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
+                placeholder={product ? (defaultInvoiceRate(product) / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">

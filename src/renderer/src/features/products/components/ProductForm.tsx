@@ -5,18 +5,22 @@ import { countToInt, moneyToCents } from '../../../lib/money'
 export interface ProductFormData {
   name: string
   rate: string
+  salesPrice: string
   piecesPerCarton: string
 }
 
 interface Props {
   initial?: Product | null
-  onSave: (data: { name: string; rate: number; piecesPerCarton: number }) => Promise<void>
+  onSave: (data: { name: string; rate: number; salesPrice: number | null; piecesPerCarton: number }) => Promise<void>
   onCancel: () => void
 }
 
 export function ProductForm({ initial, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [rate, setRate] = useState(initial ? (initial.rate / 100).toFixed(2) : '')
+  const [salesPrice, setSalesPrice] = useState(
+    initial?.salesPrice != null ? (initial.salesPrice / 100).toFixed(2) : ''
+  )
   const [piecesPerCarton, setBoxesPerCarton] = useState(
     initial ? String(initial.piecesPerCarton) : '12'
   )
@@ -49,7 +53,8 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
     }
     setSaving(true)
     try {
-      await onSave({ name: name.trim(), rate: rateCents, piecesPerCarton: boxes })
+      const salesCents = salesPrice.trim() === '' ? null : moneyToCents(salesPrice)
+      await onSave({ name: name.trim(), rate: rateCents, salesPrice: salesCents, piecesPerCarton: boxes })
       onCancel()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save product')
@@ -84,6 +89,17 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               placeholder="0.00"
+            />
+          </label>
+          <label className="field">
+            <span>Sales price (Rs.)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={salesPrice}
+              onChange={(e) => setSalesPrice(e.target.value)}
+              placeholder="Optional — used to auto-fill invoices"
             />
           </label>
           <label className="field">

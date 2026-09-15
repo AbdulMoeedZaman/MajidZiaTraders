@@ -45,7 +45,7 @@ export function ProductList({ onOpen }: Props) {
     return products.filter((p) => p.name.toLowerCase().includes(q))
   }, [products, query])
 
-  const handleSave = async (data: { name: string; rate: number; piecesPerCarton: number }) => {
+  const handleSave = async (data: { name: string; rate: number; salesPrice: number | null; piecesPerCarton: number }) => {
     setFormError(null)
     try {
       if (editing) {
@@ -150,6 +150,7 @@ export function ProductList({ onOpen }: Props) {
               <tr>
                 <th>Product</th>
                 <th className="num">Minimum rate</th>
+                <th className="num">Sales price</th>
                  <th className="num">Pieces / carton</th>
                 <th className="num">Cartons</th>
                 <th className="num">Loose pcs</th>
@@ -164,6 +165,7 @@ export function ProductList({ onOpen }: Props) {
                   <tr key={p.id} className="clickable" onClick={() => onOpen?.(p.id)}>
                     <td>{p.name}</td>
                     <td className="num mono">{formatMoney(p.rate)}</td>
+                    <td className="num mono">{p.salesPrice != null ? formatMoney(p.salesPrice) : '—'}</td>
                     <td className="num">{p.piecesPerCarton}</td>
                     <td className="num">{Math.floor(qty / bpc)}</td>
                     <td className="num">{qty % bpc}</td>

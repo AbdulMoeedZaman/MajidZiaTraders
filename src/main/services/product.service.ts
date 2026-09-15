@@ -5,6 +5,7 @@ import { HistoryService } from './history.service'
 import type { Product, CreateProductDTO, UpdateProductDTO, ProductImportResult } from '@shared/types/product'
 
 const MONEY_LABEL = 'Rate'
+const SALES_PRICE_LABEL = 'Sales price'
 const COUNT_LABEL = 'Pieces per carton'
 
 export class ProductService {
@@ -33,6 +34,9 @@ export class ProductService {
       throw new Error('A product with this name already exists')
     }
     this.assertMoneyField(data.rate, MONEY_LABEL)
+    if (data.salesPrice !== undefined && data.salesPrice !== null) {
+      this.assertMoneyField(data.salesPrice, SALES_PRICE_LABEL)
+    }
     this.assertCountField(data.piecesPerCarton, COUNT_LABEL)
 
     const product = this.productRepo.runInTransaction(() => {
@@ -65,6 +69,9 @@ export class ProductService {
     }
     if (data.rate !== undefined) {
       this.assertMoneyField(data.rate, MONEY_LABEL)
+    }
+    if (data.salesPrice !== undefined && data.salesPrice !== null) {
+      this.assertMoneyField(data.salesPrice, SALES_PRICE_LABEL)
     }
     if (data.piecesPerCarton !== undefined) {
       this.assertCountField(data.piecesPerCarton, COUNT_LABEL)
