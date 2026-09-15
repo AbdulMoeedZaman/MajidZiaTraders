@@ -11,6 +11,8 @@ export interface BulkPrintData {
   description: string
   /** Linked invoices in load-form order. */
   invoices: InvoiceDetails[]
+  /** When false, skip the lead load-form page (invoices-only print). */
+  includeLoadForm?: boolean
 }
 
 interface Props {
@@ -37,9 +39,11 @@ export function LoadFormBulkPrint({ data }: Props) {
 
   return createPortal(
     <div className="bulk-print" aria-hidden="true">
-      <div className="print-page lf-page">
-        <LoadFormSheet summary={data.summary} />
-      </div>
+      {data.includeLoadForm !== false && (
+        <div className="print-page lf-page">
+          <LoadFormSheet summary={data.summary} />
+        </div>
+      )}
 
       {pages.map((page, i) => (
         <div className="print-page two-up" key={i}>

@@ -7,6 +7,7 @@ export type AppView =
   | 'adjust'
   | 'history'
   | 'settings'
+  | 'multiple-invoices'
 
 export interface NavItem {
   key: AppView
@@ -35,4 +36,5 @@ export const VIEW_TITLES: Record<AppView, string> = {
   adjust: 'Adjustments',
   history: 'History',
   settings: 'Settings',
+  'multiple-invoices': 'Multiple Invoices',
 }

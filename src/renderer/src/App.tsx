@@ -6,6 +6,7 @@ import { InvoiceDetailPage } from './features/invoices/components/InvoiceDetailP
 import { InvoiceFormPage } from './features/invoices/components/InvoiceFormPage'
 import { CustomerList } from './features/customers/components/CustomerList'
 import { CustomerDetailPage } from './features/customers/components/CustomerDetailPage'
+import { MultipleInvoicesPage } from './features/invoices/components/MultipleInvoicesPage'
 import { ProductList } from './features/products/components/ProductList'
 import { ProductDetailPage } from './features/products/components/ProductDetailPage'
 import { SettingsPage } from './features/settings/components/SettingsPage'
@@ -24,6 +25,7 @@ export default function App() {
     open: false,
     customerId: null,
   })
+  const [multiInvoice, setMultiInvoice] = useState<{ customerIds: number[]; brokerId: number } | null>(null)
 
   const navigate = (next: AppView) => {
     setView(next)
@@ -31,6 +33,7 @@ export default function App() {
     setCustomerDetailId(null)
     setSelectedProductId(null)
     setInvoiceDraft({ open: false, customerId: null })
+    setMultiInvoice(null)
   }
 
   const openNewInvoice = (customerId: number | null) => {
@@ -41,22 +44,38 @@ export default function App() {
     setInvoiceDraft({ open: true, customerId })
   }
 
+  const openMultipleInvoices = (customerIds: number[], brokerId: number) => {
+    setSelectedInvoiceId(null)
+    setCustomerDetailId(null)
+    setSelectedProductId(null)
+    setInvoiceDraft({ open: false, customerId: null })
+    setMultiInvoice({ customerIds, brokerId })
+    setView('multiple-invoices')
+  }
+
+  const closeMultipleInvoices = () => {
+    setMultiInvoice(null)
+    setView('customers')
+  }
+
   const title =
-    view === 'invoices' && selectedInvoiceId !== null
-      ? 'Invoice'
-      : view === 'invoices' && invoiceDraft.open
-        ? 'New Invoice'
-        : view === 'customers' && customerDetailId !== null
-          ? 'Customer Details'
-          : view === 'products' && selectedProductId !== null
-            ? 'Product Details'
-            : undefined
+    view === 'multiple-invoices'
+      ? 'Multiple Invoices'
+      : view === 'invoices' && selectedInvoiceId !== null
+        ? 'Invoice'
+        : view === 'invoices' && invoiceDraft.open
+          ? 'New Invoice'
+          : view === 'customers' && customerDetailId !== null
+            ? 'Customer Details'
+            : view === 'products' && selectedProductId !== null
+              ? 'Product Details'
+              : undefined
 
   const headers: Array<{ cond: boolean; label: string; back: () => void }> = [
     {
-      cond: view === 'invoices' && selectedInvoiceId !== null,
-      label: 'Back to Invoices',
-      back: () => setSelectedInvoiceId(null),
+      cond: view === 'multiple-invoices',
+      label: 'Back to Customers',
+      back: closeMultipleInvoices,
     },
     {
       cond: view === 'invoices' && invoiceDraft.open,
@@ -84,7 +103,15 @@ export default function App() {
       onBack={header?.back}
       backLabel={header?.label}
     >
-      <ErrorBoundary key={`${view}-${selectedInvoiceId}-${selectedProductId}-${customerDetailId}-${invoiceDraft.open}`}>
+      <ErrorBoundary key={`${view}-${selectedInvoiceId}-${selectedProductId}-${customerDetailId}-${invoiceDraft.open}-${multiInvoice !== null}`}>
+        {view === 'multiple-invoices' && multiInvoice ? (
+          <MultipleInvoicesPage
+            customerIds={multiInvoice.customerIds}
+            brokerId={multiInvoice.brokerId}
+            onClose={closeMultipleInvoices}
+          />
+        ) : (
+        <>
         {view === 'invoices' &&
           (selectedInvoiceId !== null ? (
             <InvoiceDetailPage
@@ -118,6 +145,7 @@ export default function App() {
             <CustomerList
               onSelect={(c) => setCustomerDetailId(c.id)}
               onNewInvoice={(customerId) => openNewInvoice(customerId)}
+              onMultipleInvoice={openMultipleInvoices}
             />
           ))}
 
@@ -135,6 +163,8 @@ export default function App() {
         {view === 'adjust' && <AdjustmentsPage />}
         {view === 'history' && <HistoryPage />}
         {view === 'settings' && <SettingsPage />}
+        </>
+        )}
       </ErrorBoundary>
     </Layout>
   )

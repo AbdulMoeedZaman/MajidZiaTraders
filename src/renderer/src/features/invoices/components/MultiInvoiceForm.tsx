@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Broker } from '@shared/types/broker'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { Product } from '@shared/types/product'
-import type { Customer } from '@shared/types/customer'
-import type { Route } from '@shared/types/route'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
-export interface InvoiceFormValues {
-  customerId: number | null
-  brokerId: number | null
+export interface MultiInvoiceFormValues {
   filerStatus: 'filer' | 'non_filer'
   tax: string
   items: Array<{
@@ -22,28 +17,27 @@ export interface InvoiceFormValues {
   }>
 }
 
+/** Imperative API so the page's "Next" can validate + save the current form. */
+export interface MultiInvoiceFormHandle {
+  submit: () => Promise<boolean>
+}
+
 interface Props {
-  routes: Route[]
-  customers: Customer[]
-  brokers: Broker[]
   products: Product[]
   /** Current stock per product id (used to block negative stock). */
   stockLevels: Record<number, number>
-  preselectCustomerId?: number | null
-  /** Booker to preselect (used when one booker is shared across multiple invoices). */
-  preselectBrokerId?: number | null
-  onSubmit: (values: InvoiceFormValues) => Promise<void>
+  onSubmit: (values: MultiInvoiceFormValues) => Promise<void>
 }
 
 function emptyLine() {
   return { productId: null as number | null, rate: '', cartons: '', pieces: '' }
 }
 
-export function InvoiceForm({ routes, customers, brokers, products, stockLevels, preselectCustomerId, preselectBrokerId, onSubmit }: Props) {
-  const [routeId, setRouteId] = useState<number | null>(null)
-  const [customerId, setCustomerId] = useState<number | null>(null)
-  const [brokerId, setBrokerId] = useState<number | null>(null)
-  const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('filer')
+export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(function MultiInvoiceForm(
+  { products, stockLevels, onSubmit },
+  ref
+) {
+  const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('non_filer')
   const [items, setItems] = useState(() => [emptyLine()])
   const [tax, setTax] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -53,48 +47,6 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([])
   const cartonRefs = useRef<Array<HTMLInputElement | null>>([])
   const [pendingProductFocus, setPendingProductFocus] = useState<number | null>(null)
-
-  // When opened from a customer's "New Invoice" button, preselect both the
-  // customer and its delivery route so the customer list matches it.
-  useEffect(() => {
-    if (preselectCustomerId == null) return
-    const customer = customers.find((c) => c.id === preselectCustomerId)
-    if (!customer) return
-    setCustomerId(customer.id)
-    setRouteId(customer.routeId)
-  }, [preselectCustomerId, customers])
-
-  // When a single booker is applied to all invoice forms (multi-invoice flow),
-  // preselect it so the user does not have to pick it per customer.
-  useEffect(() => {
-    if (preselectBrokerId == null) return
-    setBrokerId(preselectBrokerId)
-  }, [preselectBrokerId])
-
-  const routeName = (routeId: number): string =>
-    routes.find((r) => r.id === routeId)?.name ?? ''
-
-  const routeOptions = useMemo(
-    () => routes.map((r) => ({ value: r.id, label: r.name })),
-    [routes]
-  )
-
-  const customerOptions = useMemo(() => {
-    const onRoute = routeId === null ? customers : customers.filter((c) => c.routeId === routeId)
-    return onRoute.map((c) => ({
-      value: c.id,
-      label: `${c.code} — ${c.shopName || c.ownerName}`,
-      hint: routeName(c.routeId),
-    }))
-  }, [customers, routeId, routeName])
-
-  const handleRouteChange = (id: number | null) => {
-    setRouteId(id)
-    if (id !== null && customerId !== null) {
-      const customer = customers.find((c) => c.id === customerId)
-      if (customer && customer.routeId !== id) setCustomerId(null)
-    }
-  }
 
   const productById = useMemo(() => {
     const map = new Map<number, Product>()
@@ -121,16 +73,11 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     return total
   }, [items, productById])
 
-  // Grand total = subtotal + manually entered tax; remaining = grand total
-  // minus recorded payments (a freshly created invoice has none, so it starts
-  // at the full grand total and shrinks as payments are applied later). The tax
-  // is rounded to the nearest ten paisa exactly as the backend stores it, so the
-  // preview can never disagree with the saved invoice.
   const taxCents = tax.trim() === '' ? null : roundToTen(moneyToCents(tax))
   const grandTotal = subtotal + (taxCents ?? 0)
   const remaining = grandTotal
 
-  const setLine = (index: number, patch: Partial<InvoiceFormValues['items'][number]>) => {
+  const setLine = (index: number, patch: Partial<MultiInvoiceFormValues['items'][number]>) => {
     setItems((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
   }
 
@@ -223,34 +170,24 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     return null
   }
 
-  const submit = async () => {
+  const submit = async (): Promise<boolean> => {
     setError(null)
-    if (customerId === null) {
-      setError('Select a customer')
-      return
-    }
-    if (brokerId === null) {
-      setError('Select a booker')
-      return
-    }
     const validLines = items.filter((l) => l.productId !== null)
     if (validLines.length === 0) {
       setError('Add at least one product line')
-      return
+      return false
     }
     for (let i = 0; i < items.length; i++) {
       if (items[i].productId === null) continue
       const err = lineError(i)
       if (err) {
         setError(`Line ${i + 1}: ${err}`)
-        return
+        return false
       }
     }
     setSaving(true)
     try {
       await onSubmit({
-        customerId,
-        brokerId,
         filerStatus,
         tax,
         items: validLines.map((l) => ({
@@ -260,46 +197,20 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
           pieces: l.pieces,
         })),
       })
+      return true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save invoice')
+      return false
+    } finally {
       setSaving(false)
     }
   }
 
+  useImperativeHandle(ref, () => ({ submit }), [submit])
+
   return (
-    <div className="feature">
+    <div>
       <div className="form-grid form-grid-4">
-        <label className="field">
-          <span>Route</span>
-          <SearchSelect
-            options={routeOptions}
-            value={routeId}
-            onChange={handleRouteChange}
-            placeholder="All routes"
-            allowClear
-          />
-        </label>
-        <label className="field">
-          <span>Customer</span>
-          <SearchSelect
-            options={customerOptions}
-            value={customerId}
-            onChange={setCustomerId}
-            placeholder="Select customer…"
-            emptyText={routeId === null ? 'No customers' : 'No customers on this route'}
-            allowClear
-          />
-        </label>
-        <label className="field">
-          <span>Booker</span>
-          <SearchSelect
-            options={brokers.map((b) => ({ value: b.id, label: b.name }))}
-            value={brokerId}
-            onChange={setBrokerId}
-            placeholder="Select booker…"
-            allowClear
-          />
-        </label>
         <div className="field toggle-field">
           <span>Filer</span>
           <button
@@ -351,9 +262,9 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 step="0.01"
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
-onKeyDown={(e) => {
-                    if (e.key === 'Enter') focusCartons(i)
-                  }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') focusCartons(i)
+                }}
                 placeholder={product ? (product.rate / 100).toFixed(2) : '0.00'}
               />
             </label>
@@ -462,12 +373,7 @@ onKeyDown={(e) => {
       </div>
 
       {error && <div className="form-error">{error}</div>}
-
-      <div className="detail-actions">
-        <button className="btn primary" onClick={() => void submit()} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Invoice'}
-        </button>
-      </div>
+      {saving && <div className="text-ok fine-text">Saving invoice…</div>}
     </div>
   )
-}
+})

@@ -10,9 +10,11 @@ interface Props {
   /** Ordered IDs of the invoices in the load form (used by the bulk print). */
   invoiceIds: number[]
   onClose: () => void
+  /** Label for the onClose button (defaults to "Back to Invoices"). */
+  backLabel?: string
 }
 
-export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
+export function LoadFormReport({ summary, invoiceIds, onClose, backLabel = 'Back to Invoices' }: Props) {
   const [bulk, setBulk] = useState<BulkPrintData | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
@@ -32,9 +34,10 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
 
   /**
    * Prints the load form followed by every linked invoice, two invoices per
-   * landscape A4 page, in the order they were added to the load form.
+   * landscape A4 page, in the order they were added to the load form. When
+   * includeLoadForm is false only the invoices are printed.
    */
-  const printLoadFormWithInvoices = async () => {
+  const printBulk = async (includeLoadForm: boolean) => {
     if (invoiceIds.length === 0) {
       window.print()
       return
@@ -58,7 +61,7 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
       // Commit the print-only tree synchronously so it is in the DOM (with the
       // `bulk-printing` body class applied) before we open the print dialog.
       flushSync(() =>
-        setBulk({ summary, description: description ?? '', invoices: loaded })
+        setBulk({ summary, description: description ?? '', invoices: loaded, includeLoadForm })
       )
 
       let failed = false
@@ -77,6 +80,10 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
     }
   }
 
+  const printLoadFormWithInvoices = () => printBulk(true)
+
+  const printInvoicesOnly = () => printBulk(false)
+
   return (
     <div className="feature load-form-print">
       <div className="toolbar">
@@ -87,7 +94,7 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
           </span>
         )}
         <button className="btn ghost" onClick={onClose}>
-          Back to Invoices
+          {backLabel}
         </button>
         <button
           className="btn ghost"
@@ -95,6 +102,13 @@ export function LoadFormReport({ summary, invoiceIds, onClose }: Props) {
           disabled={preparing || bulk !== null}
         >
           🖨 Print Load Form
+        </button>
+        <button
+          className="btn ghost"
+          onClick={() => void printInvoicesOnly()}
+          disabled={preparing || bulk !== null}
+        >
+          {preparing ? 'Preparing…' : '🖨 Print Invoices'}
         </button>
         <button
           className="btn primary"
