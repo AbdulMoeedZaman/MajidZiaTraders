@@ -38,6 +38,10 @@ export const IPC_CHANNELS = {
   CUSTOMERS_IMPORT_EXCEL: 'customers:import-excel',
   DIALOG_OPEN_EXCEL: 'dialog:open-excel',
 
+  PRODUCT_PREFERENCES_LIST_BY_CUSTOMER: 'product-preferences:list-by-customer',
+  PRODUCT_PREFERENCES_SET: 'product-preferences:set',
+  PRODUCT_PREFERENCES_REMOVE: 'product-preferences:remove',
+
   INVOICES_LIST: 'invoices:list',
   INVOICES_LIST_BY_DATE: 'invoices:list-by-date',
   INVOICES_GET_BY_ID: 'invoices:get-by-id',

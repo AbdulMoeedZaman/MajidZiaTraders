@@ -11,6 +11,7 @@ import type { BackupFileInfo, BackupValidation, BackupRestoreResult, DialogResul
 import type { DashboardSummary } from '@shared/types/dashboard'
 import type { CreateExpenseDTO, Expense, ExpenseDaySummary, ExpenseRangeSummary } from '@shared/types/expense'
 import type { CustomerPayResult, Payment, RecentPayment } from '@shared/types/payment'
+import type { CustomerProductPreference, SetPreferenceDTO } from '@shared/types/product-preference'
 
 declare global {
   interface Window {
@@ -80,6 +81,15 @@ export const api = {
       ipc<CustomerImportResult>('customers:import-excel', filePath, routeId),
     pay: (customerId: number, amount: number) =>
       ipc<CustomerPayResult>('customers:pay', customerId, amount),
+  },
+
+  productPreferences: {
+    listByCustomer: (customerId: number) =>
+      ipc<CustomerProductPreference[]>('product-preferences:list-by-customer', customerId),
+    set: (data: SetPreferenceDTO) =>
+      ipc<CustomerProductPreference>('product-preferences:set', data),
+    remove: (customerId: number, productId: number) =>
+      ipc<{ success: boolean }>('product-preferences:remove', customerId, productId),
   },
 
   payments: {

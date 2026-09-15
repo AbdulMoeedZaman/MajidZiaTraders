@@ -4,6 +4,7 @@ import { formatDate, formatMoney } from '../../../lib/format'
 import { invoiceRemaining } from '@shared/types/invoice'
 import { StatusBadge } from '../../../components/StatusBadge'
 import { PayModal } from './PayModal'
+import { ProductPreferencesModal } from './ProductPreferencesModal'
 import type { CustomerWithRoute } from '@shared/types/customer'
 import type { InvoiceWithCustomer } from '@shared/types/invoice'
 import type { Payment } from '@shared/types/payment'
@@ -22,6 +23,7 @@ export function CustomerDetailPage({ customerId, onBack, onNewInvoice, onOpenInv
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPay, setShowPay] = useState(false)
+  const [showPreferences, setShowPreferences] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -73,6 +75,9 @@ export function CustomerDetailPage({ customerId, onBack, onNewInvoice, onOpenInv
     <div className="feature">
       <div className="toolbar">
         <div className="spacer" />
+        <button className="btn ghost" onClick={() => { setSuccess(null); setShowPreferences(true) }}>
+          Preferences
+        </button>
         <button className="btn primary" onClick={() => { setSuccess(null); setShowPay(true) }}>
           Pay
         </button>
@@ -196,6 +201,15 @@ export function CustomerDetailPage({ customerId, onBack, onNewInvoice, onOpenInv
           openInvoices={openCount}
           onConfirm={handlePay}
           onCancel={() => setShowPay(false)}
+        />
+      )}
+
+      {showPreferences && (
+        <ProductPreferencesModal
+          customerId={customer.id}
+          customerName={customer.shopName || customer.ownerName}
+          onSaved={(message) => setSuccess(message)}
+          onCancel={() => setShowPreferences(false)}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { InvoiceService } from '../../src/main/services/invoice.service'
 import { ProductService } from '../../src/main/services/product.service'
+import { ProductPreferenceService } from '../../src/main/services/product-preference.service'
 import { CustomerService } from '../../src/main/services/customer.service'
 import { BrokerService } from '../../src/main/services/broker.service'
 import { StockService } from '../../src/main/services/stock.service'
@@ -241,5 +242,77 @@ describe('InvoiceService', () => {
 
     const details = new InvoiceService().getWithDetails(created.id)!
     expect(details.invoice.items[0].rate).toBe(580)
+  })
+
+  it('autofills a line rate with the customer preference price ahead of the sales price', () => {
+    const product = new ProductService().create({
+      name: 'Preferred Widget',
+      rate: 500,
+      salesPrice: 620,
+      piecesPerCarton: 12,
+    })
+    new StockService().restock({ productId: product.id, quantity: 12 })
+    const seed = seedBasics()
+    new ProductPreferenceService().set({
+      customerId: seed.customerId,
+      productId: product.id,
+      preferencePrice: 560,
+    })
+
+    const created = new InvoiceService().create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-10',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: product.id, quantity: 12 }],
+    })
+
+    const details = new InvoiceService().getWithDetails(created.id)!
+    expect(details.invoice.items[0].rate).toBe(560)
+    expect(details.invoice.items[0].minRate).toBe(500)
+  })
+
+  it('records a preference on the first purchase and lets a later preference price win without being clobbered', () => {
+    const seed = seedStocked(24)
+    const invoicing = new InvoiceService()
+
+    // First purchase (minimum 500, no sales price) establishes the preference.
+    const first = invoicing.create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-10',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: seed.product.id, quantity: 12 }],
+    })
+    const firstDetails = invoicing.getWithDetails(first.id)!
+    expect(firstDetails.invoice.items[0].rate).toBe(500)
+
+    let prefs = new ProductPreferenceService().listForCustomer(seed.customerId)
+    expect(prefs).toHaveLength(1)
+    expect(prefs[0].productId).toBe(seed.product.id)
+    expect(prefs[0].preferencePrice).toBe(500)
+
+    // Agree a better price; the next invoice autofills to it and the purchase
+    // never overwrites the agreed price.
+    new ProductPreferenceService().set({
+      customerId: seed.customerId,
+      productId: seed.product.id,
+      preferencePrice: 560,
+    })
+    const second = invoicing.create({
+      customerId: seed.customerId,
+      brokerId: seed.brokerId,
+      date: '2026-09-11',
+      filerStatus: 'filer',
+      tax: null,
+      items: [{ productId: seed.product.id, quantity: 12 }],
+    })
+    const secondDetails = invoicing.getWithDetails(second.id)!
+    expect(secondDetails.invoice.items[0].rate).toBe(560)
+
+    prefs = new ProductPreferenceService().listForCustomer(seed.customerId)
+    expect(prefs[0].preferencePrice).toBe(560)
   })
 })

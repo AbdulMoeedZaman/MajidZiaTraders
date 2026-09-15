@@ -9,6 +9,7 @@ import { up as actionLogs } from './007_action_logs'
 import { up as actionLogActions } from './008_action_logger_actions'
 import { up as dualUnitStock } from './009_dual_unit_stock'
 import { up as productSalesPrice } from './010_product_sales_price'
+import { up as customerProductPreferences } from './011_customer_product_preferences'
 
 interface Migration {
   version: number
@@ -44,6 +45,7 @@ const migrations: Migration[] = [
   { version: 8, name: '008_action_logger_actions', up: actionLogActions },
   { version: 9, name: '009_dual_unit_stock', up: dualUnitStock },
   { version: 10, name: '010_product_sales_price', up: productSalesPrice },
+  { version: 11, name: '011_customer_product_preferences', up: customerProductPreferences },
 ]
 
 export const LATEST_MIGRATION_VERSION = migrations[migrations.length - 1].version

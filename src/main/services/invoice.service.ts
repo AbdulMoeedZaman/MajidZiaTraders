@@ -6,12 +6,14 @@ import { PaymentRepository } from '../repositories/payment.repository'
 import { ProjectOwnerRepository } from '../repositories/project-owner.repository'
 import { BrokerRepository } from '../repositories/broker.repository'
 import { ProductRepository } from '../repositories/product.repository'
+import { ProductPreferenceService } from './product-preference.service'
 import { SettingsRepository } from '../repositories/settings.repository'
 import { HistoryService } from './history.service'
 import { assertIsoDate, localDate } from '@shared/date'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
-import { defaultInvoiceRate } from '@shared/types/product'
+import { fallbackInvoiceRate } from '@shared/types/product'
+import type { PreferencePriceMap } from '@shared/types/product-preference'
 import type {
   Invoice,
   InvoiceWithCustomer,
@@ -34,6 +36,7 @@ export class InvoiceService {
   private ownerRepo = new ProjectOwnerRepository()
   private brokerRepo = new BrokerRepository()
   private productRepo = new ProductRepository()
+  private prefService = new ProductPreferenceService()
   private settingsRepo = new SettingsRepository()
   private stockService = new StockService()
   private paymentRepo = new PaymentRepository()
@@ -94,7 +97,10 @@ export class InvoiceService {
 
     this.assertOptionalMoney(data.tax, 'Tax')
 
-    const items = this.buildItems(data.items)
+    // Per-customer agreed rates: a preferred product autofills to its
+    // preference price before falling back to sales price / minimum rate.
+    const preferences = this.prefService.priceMapForCustomer(data.customerId)
+    const items = this.buildItems(data.items, preferences)
     this.assertSufficientStock(items)
     // Totals are system calculated: every amount is rounded to the nearest ten
     // paisa so the figures stay clean, and the grand total is always subtotal +
@@ -117,6 +123,12 @@ export class InvoiceService {
           quantity: item.cartonCount * item.piecesPerCarton + item.boxCount,
           rate: item.rate,
         }))
+      )
+      // First purchase of a product by this customer establishes the preference
+      // entry (price snapshot); later purchases never overwrite it.
+      this.prefService.recordPurchases(
+        data.customerId,
+        items.map((item) => ({ productId: item.productId, rate: item.rate }))
       )
       const customerName = customer.shopName || customer.ownerName
       this.history.append({
@@ -246,7 +258,7 @@ export class InvoiceService {
     return this.invoiceRepo.count()
   }
 
-  private buildItems(items: CreateInvoiceItemDTO[]): InvoiceItemRow[] {
+  private buildItems(items: CreateInvoiceItemDTO[], preferences: PreferencePriceMap): InvoiceItemRow[] {
     return items.map((item) => {
       if (!Number.isInteger(item.productId) || item.productId < 1) {
         throw new Error('Each invoice line requires a valid product')
@@ -256,11 +268,15 @@ export class InvoiceService {
         throw new Error('Invoice references an unknown product')
       }
 
-      // The rate autofills to the product's default (Sales Price when set,
-      // otherwise its minimum rate); the user can still submit an explicit
-      // rate that respects the product floor.
+      // The rate autofills through the customer-aware fallback chain:
+      // preference price -> sales price -> minimum rate. The user can still
+      // submit an explicit rate that respects the product floor.
       const rate = item.rate === undefined || item.rate === null
-        ? defaultInvoiceRate(product)
+        ? fallbackInvoiceRate({
+            preferencePrice: preferences.get(item.productId) ?? null,
+            salePrice: product.salesPrice,
+            minimumPrice: product.rate,
+          })
         : item.rate
 
       if (!Number.isInteger(rate) || rate < 0) {

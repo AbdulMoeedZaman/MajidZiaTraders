@@ -311,6 +311,7 @@ export function MultipleInvoicesPage({ customerIds, brokerId, onClose }: Props) 
           ref={formRef}
           products={products}
           stockLevels={stockLevels}
+          customerId={current.id}
           onSubmit={handleSubmit}
         />
       ) : current && currentInvoice ? (

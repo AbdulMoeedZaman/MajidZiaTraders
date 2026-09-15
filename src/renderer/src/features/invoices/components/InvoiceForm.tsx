@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Broker } from '@shared/types/broker'
 import type { Product } from '@shared/types/product'
+import { fallbackInvoiceRate } from '@shared/types/product'
+import { api } from '../../../lib/api'
 import type { Customer } from '@shared/types/customer'
 import type { Route } from '@shared/types/route'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
-import { defaultInvoiceRate } from '@shared/types/product'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
@@ -54,6 +55,10 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([])
   const cartonRefs = useRef<Array<HTMLInputElement | null>>([])
   const [pendingProductFocus, setPendingProductFocus] = useState<number | null>(null)
+  // Per-customer agreed rates by product id (set once the customer is known).
+  const [preferencePriceByProduct, setPreferencePriceByProduct] = useState<Map<number, number | null>>(
+    () => new Map()
+  )
 
   // When opened from a customer's "New Invoice" button, preselect both the
   // customer and its delivery route so the customer list matches it.
@@ -71,6 +76,23 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     if (preselectBrokerId == null) return
     setBrokerId(preselectBrokerId)
   }, [preselectBrokerId])
+
+  // Load the selected customer's preferred products so the dropdown can rank
+  // them first and lines can autofill to the agreed (preference) rate.
+  useEffect(() => {
+    if (customerId === null) {
+      setPreferencePriceByProduct(new Map())
+      return
+    }
+    let cancelled = false
+    void api.productPreferences.listByCustomer(customerId).then((rows) => {
+      if (cancelled) return
+      setPreferencePriceByProduct(new Map(rows.map((row) => [row.productId, row.preferencePrice])))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [customerId])
 
   const routeName = (routeId: number): string =>
     routes.find((r) => r.id === routeId)?.name ?? ''
@@ -102,6 +124,16 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     for (const p of products) map.set(p.id, p)
     return map
   }, [products])
+
+  const preferredProductIds = useMemo(() => new Set(preferencePriceByProduct.keys()), [preferencePriceByProduct])
+
+  /** Effective starting rate for a product line for the selected customer. */
+  const effectiveRate = (product: Product): number =>
+    fallbackInvoiceRate({
+      preferencePrice: preferencePriceByProduct.get(product.id) ?? null,
+      salePrice: product.salesPrice,
+      minimumPrice: product.rate,
+    })
 
   const subtotal = useMemo(() => {
     let total = 0
@@ -181,10 +213,16 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
     [items]
   )
 
-  const productOptions = (index: number, product: Product | undefined) =>
-    products
-      .filter((p) => p.id === product?.id || !usedProductIds.includes(p.id))
+  const productOptions = (index: number, product: Product | undefined) => {
+    const available = products.filter((p) => p.id === product?.id || !usedProductIds.includes(p.id))
+    const preferred = available
+      .filter((p) => preferredProductIds.has(p.id))
+      .map((p) => ({ value: p.id, label: p.name, hint: 'Previous buyer' }))
+    const rest = available
+      .filter((p) => !preferredProductIds.has(p.id))
       .map((p) => ({ value: p.id, label: p.name }))
+    return [...preferred, ...rest]
+  }
 
   const lineAmount = (index: number): number => {
     const line = items[index]
@@ -333,7 +371,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
-                    rate: p ? (defaultInvoiceRate(p) / 100).toFixed(2) : line.rate,
+                    rate: p ? (effectiveRate(p) / 100).toFixed(2) : line.rate,
                   })
                   if (pid !== null) handleProductSelected(i)
                 }}
@@ -355,7 +393,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
 onKeyDown={(e) => {
                     if (e.key === 'Enter') focusCartons(i)
                   }}
-                placeholder={product ? (defaultInvoiceRate(product) / 100).toFixed(2) : '0.00'}
+                placeholder={product ? (effectiveRate(product) / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">

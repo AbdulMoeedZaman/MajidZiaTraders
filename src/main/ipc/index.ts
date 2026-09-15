@@ -4,6 +4,7 @@ import { registerRouteIpc } from './route.ipc'
 import { registerProductIpc } from './product.ipc'
 import { registerStockIpc } from './stock.ipc'
 import { registerCustomerIpc } from './customer.ipc'
+import { registerProductPreferenceIpc } from './product-preference.ipc'
 import { registerInvoiceIpc } from './invoice.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerBackupIpc } from './backup.ipc'
@@ -19,6 +20,7 @@ export function registerAllIpc(): void {
   registerProductIpc()
   registerStockIpc()
   registerCustomerIpc()
+  registerProductPreferenceIpc()
   registerInvoiceIpc()
   registerSettingsIpc()
   registerBackupIpc()

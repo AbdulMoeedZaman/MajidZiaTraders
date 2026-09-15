@@ -1,9 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { Product } from '@shared/types/product'
+import { fallbackInvoiceRate } from '@shared/types/product'
+import { api } from '../../../lib/api'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
 import { countToInt, moneyToCents } from '../../../lib/money'
-import { defaultInvoiceRate } from '@shared/types/product'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
@@ -27,6 +28,8 @@ interface Props {
   products: Product[]
   /** Current stock per product id (used to block negative stock). */
   stockLevels: Record<number, number>
+  /** The customer these lines are being entered for (drives preference pricing + ranking). */
+  customerId: number
   onSubmit: (values: MultiInvoiceFormValues) => Promise<void>
 }
 
@@ -35,7 +38,7 @@ function emptyLine() {
 }
 
 export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(function MultiInvoiceForm(
-  { products, stockLevels, onSubmit },
+  { products, stockLevels, customerId, onSubmit },
   ref
 ) {
   const [filerStatus, setFilerStatus] = useState<'filer' | 'non_filer'>('non_filer')
@@ -43,6 +46,9 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
   const [tax, setTax] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [preferencePriceByProduct, setPreferencePriceByProduct] = useState<Map<number, number | null>>(
+    () => new Map()
+  )
   const productRefs = useRef<Array<SearchSelectHandle | null>>([])
   const rateRefs = useRef<Array<HTMLInputElement | null>>([])
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([])
@@ -54,6 +60,29 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
     for (const p of products) map.set(p.id, p)
     return map
   }, [products])
+
+  // Load the customer's preferred products so the dropdown ranks them first
+  // and fresh lines autofill to the agreed (preference) rate.
+  useEffect(() => {
+    let cancelled = false
+    void api.productPreferences.listByCustomer(customerId).then((rows) => {
+      if (cancelled) return
+      setPreferencePriceByProduct(new Map(rows.map((row) => [row.productId, row.preferencePrice])))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [customerId])
+
+  const preferredProductIds = useMemo(() => new Set(preferencePriceByProduct.keys()), [preferencePriceByProduct])
+
+  /** Effective starting rate for a product line for the current customer. */
+  const effectiveRate = (product: Product): number =>
+    fallbackInvoiceRate({
+      preferencePrice: preferencePriceByProduct.get(product.id) ?? null,
+      salePrice: product.salesPrice,
+      minimumPrice: product.rate,
+    })
 
   const subtotal = useMemo(() => {
     let total = 0
@@ -135,10 +164,16 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
     [items]
   )
 
-  const productOptions = (index: number, product: Product | undefined) =>
-    products
-      .filter((p) => p.id === product?.id || !usedProductIds.includes(p.id))
+  const productOptions = (index: number, product: Product | undefined) => {
+    const available = products.filter((p) => p.id === product?.id || !usedProductIds.includes(p.id))
+    const preferred = available
+      .filter((p) => preferredProductIds.has(p.id))
+      .map((p) => ({ value: p.id, label: p.name, hint: 'Previous buyer' }))
+    const rest = available
+      .filter((p) => !preferredProductIds.has(p.id))
       .map((p) => ({ value: p.id, label: p.name }))
+    return [...preferred, ...rest]
+  }
 
   const lineAmount = (index: number): number => {
     const line = items[index]
@@ -251,7 +286,7 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
-                    rate: p ? (defaultInvoiceRate(p) / 100).toFixed(2) : line.rate,
+                    rate: p ? (effectiveRate(p) / 100).toFixed(2) : line.rate,
                   })
                   if (pid !== null) handleProductSelected(i)
                 }}
@@ -273,7 +308,7 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') focusCartons(i)
                 }}
-                placeholder={product ? (defaultInvoiceRate(product) / 100).toFixed(2) : '0.00'}
+                placeholder={product ? (effectiveRate(product) / 100).toFixed(2) : '0.00'}
               />
             </label>
             <label className="field line-qty">
