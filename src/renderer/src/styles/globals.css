@@ -402,6 +402,43 @@ body {
   color: var(--ok);
 }
 
+.text-error {
+  color: var(--danger);
+}
+
+.dt-entities {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.dt-entity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  text-align: left;
+  height: auto;
+  white-space: normal;
+}
+
+.dt-entity span {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.dt-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
 .fine-text {
   font-size: 12px;
 }

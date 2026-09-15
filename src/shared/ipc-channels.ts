@@ -17,6 +17,10 @@ export const IPC_CHANNELS = {
   ROUTES_LIST_WITH_COUNTS: 'routes:list-with-counts',
   ROUTES_RENAME: 'routes:rename',
 
+  DATA_TRANSFER_TEMPLATE: 'data-transfer:template',
+  DATA_TRANSFER_EXPORT: 'data-transfer:export',
+  DATA_TRANSFER_IMPORT: 'data-transfer:import',
+
   PRODUCTS_LIST: 'products:list',
   PRODUCTS_SEARCH: 'products:search',
   PRODUCTS_GET_BY_ID: 'products:get-by-id',

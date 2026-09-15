@@ -12,6 +12,7 @@ import type { DashboardSummary } from '@shared/types/dashboard'
 import type { CreateExpenseDTO, Expense, ExpenseDaySummary, ExpenseRangeSummary } from '@shared/types/expense'
 import type { CustomerPayResult, Payment, RecentPayment } from '@shared/types/payment'
 import type { CustomerProductPreference, SetPreferenceDTO } from '@shared/types/product-preference'
+import type { DataTransferEntity, DataTransferFile, DataTransferResult } from '@shared/types/data-transfer'
 
 declare global {
   interface Window {
@@ -90,6 +91,15 @@ export const api = {
       ipc<CustomerProductPreference>('product-preferences:set', data),
     remove: (customerId: number, productId: number) =>
       ipc<{ success: boolean }>('product-preferences:remove', customerId, productId),
+  },
+
+  dataTransfer: {
+    template: (entity: DataTransferEntity) =>
+      ipc<DataTransferFile>('data-transfer:template', entity),
+    export: (entity: DataTransferEntity) =>
+      ipc<DataTransferFile>('data-transfer:export', entity),
+    import: (entity: DataTransferEntity, filePath: string) =>
+      ipc<DataTransferResult>('data-transfer:import', entity, filePath),
   },
 
   payments: {

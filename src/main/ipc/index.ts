@@ -2,6 +2,7 @@ import { registerProjectOwnerIpc } from './project-owner.ipc'
 import { registerBrokerIpc } from './broker.ipc'
 import { registerRouteIpc } from './route.ipc'
 import { registerProductIpc } from './product.ipc'
+import { registerDataTransferIpc } from './data-transfer.ipc'
 import { registerStockIpc } from './stock.ipc'
 import { registerCustomerIpc } from './customer.ipc'
 import { registerProductPreferenceIpc } from './product-preference.ipc'
@@ -18,6 +19,7 @@ export function registerAllIpc(): void {
   registerBrokerIpc()
   registerRouteIpc()
   registerProductIpc()
+  registerDataTransferIpc()
   registerStockIpc()
   registerCustomerIpc()
   registerProductPreferenceIpc()

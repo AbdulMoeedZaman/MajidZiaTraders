@@ -72,4 +72,25 @@ export class SettingsRepository extends BaseRepository {
       .run(key, String(next + 1))
     return next
   }
+
+  /**
+   * Raises an integer counter so its next value is at least `minNext`. Useful
+   * when imported records carry explicit numbers that the running counter has
+   * not reached yet. No-op when the counter is already at or above `minNext`.
+   */
+  ensureCounterAtLeast(key: string, minNext: number): void {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      | { value: string | null }
+      | undefined
+    const current = row ? parseInt(row.value ?? '', 10) || 1 : 1
+    if (current < minNext) {
+      this.db
+        .prepare(
+          `INSERT INTO settings (key, value, type)
+           VALUES (?, ?, 'number')
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = datetime('now')`
+        )
+        .run(key, String(minNext))
+    }
+  }
 }

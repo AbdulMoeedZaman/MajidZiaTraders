@@ -5,6 +5,7 @@ import type { Broker } from '@shared/types/broker'
 import type { BackupValidation } from '@shared/types/backup'
 import { AdjustmentsPage } from '../../adjust/components/AdjustmentsPage'
 import { HistoryPage } from '../../history/components/HistoryPage'
+import { DataTransferModal } from './DataTransferModal'
 
 interface OwnerFormData {
   name: string
@@ -223,6 +224,7 @@ export function SettingsPage() {
     validation: BackupValidation
   } | null>(null)
   const [pageModal, setPageModal] = useState<'adjust' | 'history' | null>(null)
+  const [dataTransferOpen, setDataTransferOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -367,6 +369,19 @@ export function SettingsPage() {
           </button>
           <button className="btn ghost" onClick={() => setPageModal('history')}>
             ⌛ History
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="section-title">Import / Export Data</div>
+        <div className="settings-intro">
+          Download your products, customers or invoices as CSV files, or import them back from a
+          filled-in template (e.g. to merge data on a new machine).
+        </div>
+        <div className="form-actions">
+          <button className="btn ghost" onClick={() => setDataTransferOpen(true)}>
+            ⇅ Import / Export Data
           </button>
         </div>
       </div>
@@ -588,6 +603,8 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+
+      {dataTransferOpen && <DataTransferModal onClose={() => setDataTransferOpen(false)} />}
     </div>
   )
 }

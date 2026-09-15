@@ -57,6 +57,19 @@ export class InvoiceRepository extends BaseRepository {
     return this.db.prepare('SELECT * FROM invoices WHERE id = ?').get(id) as Invoice | null
   }
 
+  findByInvoiceNumber(invoiceNumber: string): Invoice | null {
+    return this.db
+      .prepare('SELECT * FROM invoices WHERE invoiceNumber = ?')
+      .get(invoiceNumber) as Invoice | null
+  }
+
+  /** Renames an invoice number (used by bulk import to preserve source numbers). */
+  renameInvoiceNumber(id: number, invoiceNumber: string): void {
+    this.db
+      .prepare("UPDATE invoices SET invoiceNumber = ?, updatedAt = datetime('now') WHERE id = ?")
+      .run(invoiceNumber, id)
+  }
+
   findByIdWithCustomer(id: number): InvoiceWithCustomer | null {
     return this.db
       .prepare(
