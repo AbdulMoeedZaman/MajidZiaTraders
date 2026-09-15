@@ -1996,6 +1996,11 @@ body {
 }
 
 /* --- Dashboard / product / inventory report print --- */
+@page report-page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
 @media print {
   body.report-printing #root,
   body.report-printing .app-shell {
@@ -2007,7 +2012,7 @@ body {
     left: 0;
     top: 0;
     width: 100%;
-    padding: 12mm;
+    page: report-page;
     font-family: Arial, Helvetica, sans-serif;
     color: #111;
     box-sizing: border-box;
