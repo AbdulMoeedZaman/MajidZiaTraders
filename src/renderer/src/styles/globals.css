@@ -1816,7 +1816,7 @@ body {
   }
 }
 
-/* ============ Bulk print: load form (portrait) + linked invoices (landscape 2-up) ============ */
+/* ============ Bulk print: load form + first invoice, then linked invoices (landscape 2-up) ============ */
 /* The print-only tree is rendered via a portal into <body> (outside #root).
    It is invisible on screen and becomes the whole print job under `@media print`. */
 .bulk-print {
@@ -1850,12 +1850,8 @@ body {
     break-after: auto;
   }
 
-  /* The load form keeps a full-width page. */
-  body.bulk-printing .bulk-print .lf-page .invoice-sheet {
-    max-width: none;
-  }
-
-  /* Invoices: two portrait columns per landscape page, natural reading order. */
+  /* The load form shares page one with the first invoice, so it keeps the
+     same compact two-column sizing as every invoice sheet below. */
   body.bulk-printing .bulk-print .two-up {
     display: grid;
     grid-template-columns: 1fr 1fr;

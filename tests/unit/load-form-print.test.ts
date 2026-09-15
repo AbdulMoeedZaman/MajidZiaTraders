@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   groupIntoTwoUp,
+  planInvoicePages,
   bulkPrintOrder,
   planBulkPrint,
 } from '../../src/renderer/src/lib/load-form-print'
@@ -37,6 +38,41 @@ describe('load form bulk print pagination', () => {
   })
 })
 
+describe('planInvoicePages split', () => {
+  it('reserves the first invoice for the load form page and pairs the rest', () => {
+    const plan = planInvoicePages(['a', 'b', 'c', 'd', 'e'])
+    expect(plan.leading).toBe('a')
+    expect(plan.pages).toEqual([
+      { first: 'b', second: 'c' },
+      { first: 'd', second: 'e' },
+    ])
+  })
+
+  it('keeps only the leading invoice when there is no remainder', () => {
+    expect(planInvoicePages(['a'])).toEqual({ leading: 'a', pages: [] })
+  })
+
+  it('leaves a blank second column for an odd remainder', () => {
+    const plan = planInvoicePages(['a', 'b', 'c', 'd'])
+    expect(plan.leading).toBe('a')
+    expect(plan.pages).toEqual([
+      { first: 'b', second: 'c' },
+      { first: 'd', second: null },
+    ])
+  })
+
+  it('returns no leading invoice and no pages for an empty selection', () => {
+    expect(planInvoicePages([])).toEqual({ leading: null, pages: [] })
+  })
+
+  it('preserves the original invoice order across the split', () => {
+    const items = [1, 2, 3, 4, 5, 6]
+    const plan = planInvoicePages(items)
+    const flattened = [plan.leading, ...plan.pages.flatMap((p) => [p.first, p.second].filter((x): x is number => x !== null))]
+    expect(flattened).toEqual(items)
+  })
+})
+
 describe('load form bulk print ordering', () => {
   it('puts the load form first, then every invoice in order', () => {
     expect(bulkPrintOrder(3)).toEqual(['load-form', 'invoice', 'invoice', 'invoice'])
@@ -48,12 +84,13 @@ describe('load form bulk print ordering', () => {
 })
 
 describe('load form bulk print page count', () => {
-  it('counts one load-form page plus the two-per-page invoice pages', () => {
+  it('counts page one (load form + first invoice) plus two-per-page pages for the rest', () => {
     expect(planBulkPrint(0)).toEqual({ loadFormPageCount: 1, invoicePageCount: 0 })
-    expect(planBulkPrint(1)).toEqual({ loadFormPageCount: 1, invoicePageCount: 1 })
+    expect(planBulkPrint(1)).toEqual({ loadFormPageCount: 1, invoicePageCount: 0 })
     expect(planBulkPrint(2)).toEqual({ loadFormPageCount: 1, invoicePageCount: 1 })
-    expect(planBulkPrint(3)).toEqual({ loadFormPageCount: 1, invoicePageCount: 2 })
+    expect(planBulkPrint(3)).toEqual({ loadFormPageCount: 1, invoicePageCount: 1 })
+    expect(planBulkPrint(4)).toEqual({ loadFormPageCount: 1, invoicePageCount: 2 })
     expect(planBulkPrint(6)).toEqual({ loadFormPageCount: 1, invoicePageCount: 3 })
-    expect(planBulkPrint(7)).toEqual({ loadFormPageCount: 1, invoicePageCount: 4 })
+    expect(planBulkPrint(7)).toEqual({ loadFormPageCount: 1, invoicePageCount: 3 })
   })
 })

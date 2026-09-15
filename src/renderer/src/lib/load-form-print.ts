@@ -1,10 +1,11 @@
 /**
  * Print layout helpers for the load-form bulk print.
  *
- * The bulk print runs the load form first (its own full page) and then every
- * linked invoice, two invoices per landscape A4 page. These helpers express
- * that pagination and ordering as pure data so the UI and the tests share one
- * source of truth.
+ * The bulk print runs the load form and the first invoice together on page
+ * one, then every remaining linked invoice two per landscape A4 page (page
+ * two holds invoices #2 and #3, page three holds #4 and #5, and so on).
+ * These helpers express that pagination and ordering as pure data so the UI
+ * and the tests share one source of truth.
  */
 
 /** One landscape A4 "2-up" page holding up to two portrait invoices. */
@@ -27,12 +28,30 @@ export function groupIntoTwoUp<T>(items: readonly T[]): TwoUpPage<T>[] {
   return pages
 }
 
+/**
+ * Splits the invoices for the bulk print: the first invoice is reserved for
+ * the load form page (page one), and the remaining invoices are grouped into
+ * pairs for the following pages.
+ */
+export interface InvoicePagePlan<T> {
+  /** The first invoice, printed on page one beside the load form (null when none). */
+  leading: T | null
+  /** The remaining invoices, grouped two per page. */
+  pages: TwoUpPage<T>[]
+}
+
+export function planInvoicePages<T>(invoices: readonly T[]): InvoicePagePlan<T> {
+  if (invoices.length === 0) return { leading: null, pages: [] }
+  return { leading: invoices[0], pages: groupIntoTwoUp(invoices.slice(1)) }
+}
+
 /** A print block: the load form, or one linked invoice. */
 export type BulkPrintSection = 'load-form' | 'invoice'
 
 /**
  * The order of print blocks for a bulk print: the load form always comes
  * first, followed by every linked invoice in the order they were selected.
+ * The first invoice shares the load form's page under the print layout.
  */
 export function bulkPrintOrder(invoiceCount: number): BulkPrintSection[] {
   const sections: BulkPrintSection[] = ['load-form']
@@ -43,13 +62,18 @@ export function bulkPrintOrder(invoiceCount: number): BulkPrintSection[] {
 }
 
 export interface BulkPrintPlan {
-  /** The load form always takes its own leading page. */
+  /** Page one always exists: the load form next to the first invoice. */
   loadFormPageCount: 1
-  /** Landscape A4 pages needed for the invoices at two per page. */
+  /** Landscape A4 pages needed for the invoices after the first, at two per page. */
   invoicePageCount: number
 }
 
-/** Total physical pages the bulk print consumes: load form page + invoice pages. */
+/**
+ * Total physical pages the bulk print consumes: the load-form page (which
+ * also carries the first invoice when there is one) plus the pages holding
+ * the remaining invoices two per page.
+ */
 export function planBulkPrint(invoiceCount: number): BulkPrintPlan {
-  return { loadFormPageCount: 1, invoicePageCount: Math.ceil(invoiceCount / 2) }
+  const trailing = Math.max(0, invoiceCount - 1)
+  return { loadFormPageCount: 1, invoicePageCount: Math.ceil(trailing / 2) }
 }

@@ -2,7 +2,7 @@ import { useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { InvoiceSheet } from './InvoiceSheet'
 import { LoadFormSheet } from './LoadFormSheet'
-import { groupIntoTwoUp } from '../../../lib/load-form-print'
+import { groupIntoTwoUp, planInvoicePages } from '../../../lib/load-form-print'
 import type { InvoiceDetails, LoadFormSummary } from '@shared/types/invoice'
 
 export interface BulkPrintData {
@@ -11,7 +11,7 @@ export interface BulkPrintData {
   description: string
   /** Linked invoices in load-form order. */
   invoices: InvoiceDetails[]
-  /** When false, skip the lead load-form page (invoices-only print). */
+  /** When false, skip the lead load-form/invoice page (invoices-only print). */
   includeLoadForm?: boolean
 }
 
@@ -22,9 +22,15 @@ interface Props {
 /**
  * The print-only tree for a load-form bulk print, mounted into <body> (outside
  * the app root) via a portal. On screen it is hidden; under `@media print` it
- * becomes the entire page: the load form first, then every invoice laid out
- * two-per-landscape-page. Odd invoice counts leave the last page's second
- * column blank.
+ * becomes the entire page:
+ *
+ * - Page one holds the load form together with the first invoice.
+ * - The remaining invoices follow two per landscape page (page two holds
+ *   invoices #2 and #3, page three holds #4 and #5, and so on). Odd trailing
+ *   counts leave the last page's second column blank.
+ *
+ * When `includeLoadForm` is false, only the invoices are printed, two per
+ * page from the first.
  *
  * Adds the `bulk-printing` body class while mounted so the print styles can
  * suppress the app and expose only this tree.
@@ -35,13 +41,22 @@ export function LoadFormBulkPrint({ data }: Props) {
     return () => document.body.classList.remove('bulk-printing')
   }, [])
 
-  const pages = groupIntoTwoUp(data.invoices)
+  const { leading, pages } = data.includeLoadForm === false
+    ? { leading: null as null, pages: groupIntoTwoUp(data.invoices) }
+    : planInvoicePages(data.invoices)
 
   return createPortal(
     <div className="bulk-print" aria-hidden="true">
       {data.includeLoadForm !== false && (
-        <div className="print-page lf-page">
-          <LoadFormSheet summary={data.summary} />
+        <div className="print-page two-up">
+          <div className="two-col">
+            <LoadFormSheet summary={data.summary} />
+          </div>
+          <div className="two-col">
+            {leading ? (
+              <InvoiceSheet details={leading} description={data.description} />
+            ) : null}
+          </div>
         </div>
       )}
 
