@@ -35,7 +35,7 @@ describe('DataTransferService', () => {
     const rows = parseCsv(file.csv.replace(/^\uFEFF/, ''))
 
     expect(rows[0]).toEqual(['Name', 'Minimum rate (Rs.)', 'Sales price (Rs.)', 'Pieces per carton'])
-    expect(rows[1]).toEqual(['Axle Bearing', '650.00', '700.00', '10'])
+    expect(rows[1]).toEqual(['Axle Bearing', '650', '700', '10'])
   })
 
   describe('products import', () => {
@@ -66,7 +66,7 @@ describe('DataTransferService', () => {
 
       const part = productService.list().find((p) => p.name === 'New Part')!
       expect(part.rate).toBe(15000)
-      expect(part.salesPrice).toBe(18050)
+      expect(part.salesPrice).toBe(18000) // 180.50 → Rs. 180, decimals trimmed
       expect(part.piecesPerCarton).toBe(24)
     })
   })
@@ -154,10 +154,11 @@ describe('DataTransferService', () => {
 
       const first = invoiceService.getWithDetails(invoices.find((inv) => inv.invoiceNumber === 'INV-000010')!.id)!
       expect(first.invoice.items).toHaveLength(2)
-      expect(first.invoice.subtotal).toBe(1500) // (2 + 1) cartons × Rs. 5.00
+      // Two 2-carton lines (Rs. 10 each) + one Rs. 5 line held at the Rs. 10 minimum.
+      expect(first.invoice.subtotal).toBe(1000 + 1000)
       const second = invoiceService.getWithDetails(invoices.find((inv) => inv.invoiceNumber === 'INV-000011')!.id)!
       expect(second.invoice.subtotal).toBe(1000)
-      expect(second.invoice.tax).toBe(200)
+      expect(second.invoice.tax).toBe(0) // Rs. 2 tax rounds down to zero
       expect(second.invoice.filerStatus).toBe('non_filer')
 
       // Next number is pushed past the largest imported invoice number.
@@ -206,9 +207,9 @@ describe('DataTransferService', () => {
       expect(rows[1][2]).toBe('Bashir')
       expect(rows[1][3]).toBe('2026-09-01')
       expect(rows[1][6]).toBe('Widget 1')
-      expect(rows[1][7]).toBe('5.00')
+      expect(rows[1][7]).toBe('5')
       expect(rows[1][8]).toBe('48')
-      expect(rows[2][7]).toBe('5.00')
+      expect(rows[2][7]).toBe('5')
       expect(rows[2][8]).toBe('6')
     })
 

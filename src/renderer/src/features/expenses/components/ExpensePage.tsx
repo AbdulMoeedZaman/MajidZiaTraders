@@ -122,10 +122,10 @@ export function ExpensePage() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="0.00"
+                placeholder="0"
               />
             </label>
             <button className="btn primary" type="submit">

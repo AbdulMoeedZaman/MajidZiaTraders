@@ -9,8 +9,8 @@ const RUPEE_SYMBOLS: Record<string, string> = {
 }
 
 export function formatMoney(cents: number | null | undefined): string {
-  const value = (cents ?? 0) / 100
-  const number = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const value = Math.round((cents ?? 0) / 100)
+  const number = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
   return `${RUPEE_SYMBOLS[CURRENCY] ?? CURRENCY} ${number}`
 }
 

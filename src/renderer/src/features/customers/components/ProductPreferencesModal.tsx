@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../../lib/api'
 import { SearchSelect } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
-import { moneyToCents } from '../../../lib/money'
+import { centsToRupees, moneyToCents } from '../../../lib/money'
 import type { CustomerProductPreference } from '@shared/types/product-preference'
 import type { Product } from '@shared/types/product'
 
@@ -109,7 +109,7 @@ export function ProductPreferencesModal({ customerId, customerName, onSaved, onC
 
   const startEditing = (pref: CustomerProductPreference) => {
     setEditing(pref)
-    setPrice(pref.preferencePrice === null ? '' : (pref.preferencePrice / 100).toFixed(2))
+    setPrice(pref.preferencePrice === null ? '' : centsToRupees(pref.preferencePrice))
     setAdding(false)
   }
 
@@ -147,11 +147,11 @@ export function ProductPreferencesModal({ customerId, customerName, onSaved, onC
                 <input
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1"
                   value={price}
                   autoFocus={!adding}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </label>
               <div className="field pref-form-actions">

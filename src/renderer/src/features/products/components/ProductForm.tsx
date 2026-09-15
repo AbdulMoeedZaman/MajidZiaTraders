@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Product } from '@shared/types/product'
-import { countToInt, moneyToCents } from '../../../lib/money'
+import { countToInt, centsToRupees, moneyToCents } from '../../../lib/money'
 
 export interface ProductFormData {
   name: string
@@ -17,9 +17,9 @@ interface Props {
 
 export function ProductForm({ initial, onSave, onCancel }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [rate, setRate] = useState(initial ? (initial.rate / 100).toFixed(2) : '')
+  const [rate, setRate] = useState(initial ? centsToRupees(initial.rate) : '')
   const [salesPrice, setSalesPrice] = useState(
-    initial?.salesPrice != null ? (initial.salesPrice / 100).toFixed(2) : ''
+    initial?.salesPrice != null ? centsToRupees(initial.salesPrice) : ''
   )
   const [piecesPerCarton, setBoxesPerCarton] = useState(
     initial ? String(initial.piecesPerCarton) : '12'
@@ -85,10 +85,10 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
-              placeholder="0.00"
+              placeholder="0"
             />
           </label>
           <label className="field">
@@ -96,7 +96,7 @@ export function ProductForm({ initial, onSave, onCancel }: Props) {
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               value={salesPrice}
               onChange={(e) => setSalesPrice(e.target.value)}
               placeholder="Optional — used to auto-fill invoices"

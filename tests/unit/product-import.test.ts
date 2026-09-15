@@ -33,11 +33,15 @@ describe('ProductService.importFromCsv', () => {
     expect(result.skippedInvalid).toBe(2)
 
     const byName = Object.fromEntries(result.products.map((p) => [p.name, p]))
-    expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].rate).toBe(457627)
+    // Rate decimals are trimmed (4576.27 → Rs. 4576), never rounded.
+    expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].rate).toBe(457600)
     expect(byName['Wheatable High Fiber SP 64.8g 6x18 Rs.50'].piecesPerCarton).toBe(18)
     expect(byName['Bakeri Butter SP 33g 6x24 Rs.50'].piecesPerCarton).toBe(24)
+    expect(byName['Bakeri Butter SP 33g 6x24 Rs.50'].rate).toBe(610100) // 6101.69 → 6101
     expect(byName['TUC FP 80.96g 1x96 Rs.100'].piecesPerCarton).toBe(96)
+    expect(byName['TUC FP 80.96g 1x96 Rs.100'].rate).toBe(813500) // 8135.59 → 8135
     expect(byName['Gala Egg FP 94g 96x1 Rs 90'].piecesPerCarton).toBe(1)
+    expect(byName['Gala Egg FP 94g 96x1 Rs 90'].rate).toBe(732200) // 7322.03 → 7322
     expect(byName['NoPattern Product'].piecesPerCarton).toBe(1)
     expect(byName['NoPattern Product'].rate).toBe(500000)
     expect(byName['Foo X, something 6x18 Rs.10'].rate).toBe(100000)

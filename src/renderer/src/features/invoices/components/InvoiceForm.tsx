@@ -7,7 +7,7 @@ import type { Customer } from '@shared/types/customer'
 import type { Route } from '@shared/types/route'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
-import { countToInt, moneyToCents } from '../../../lib/money'
+import { countToInt, centsToRupees, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
@@ -157,7 +157,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
   // Grand total = subtotal + manually entered tax; remaining = grand total
   // minus recorded payments (a freshly created invoice has none, so it starts
   // at the full grand total and shrinks as payments are applied later). The tax
-  // is rounded to the nearest ten paisa exactly as the backend stores it, so the
+  // is rounded to the nearest ten rupees exactly as the backend stores it, so the
   // preview can never disagree with the saved invoice.
   const taxCents = tax.trim() === '' ? null : roundToTen(moneyToCents(tax))
   const grandTotal = subtotal + (taxCents ?? 0)
@@ -371,7 +371,7 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
-                    rate: p ? (effectiveRate(p) / 100).toFixed(2) : line.rate,
+                    rate: p ? centsToRupees(effectiveRate(p)) : line.rate,
                   })
                   if (pid !== null) handleProductSelected(i)
                 }}
@@ -387,13 +387,13 @@ export function InvoiceForm({ routes, customers, brokers, products, stockLevels,
                 }}
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
 onKeyDown={(e) => {
                     if (e.key === 'Enter') focusCartons(i)
                   }}
-                placeholder={product ? (effectiveRate(product) / 100).toFixed(2) : '0.00'}
+                placeholder={product ? centsToRupees(effectiveRate(product)) : '0'}
               />
             </label>
             <label className="field line-qty">
@@ -484,10 +484,10 @@ onKeyDown={(e) => {
           <input
             type="number"
             min="0"
-            step="0.01"
+            step="1"
             value={tax}
             onChange={(e) => setTax(e.target.value)}
-            placeholder="0.00"
+            placeholder="0"
           />
         </div>
         <div className="totals-row">

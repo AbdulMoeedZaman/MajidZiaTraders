@@ -6,18 +6,19 @@ import {
 } from '../../src/shared/calc/invoice-totals'
 
 describe('roundToTen', () => {
-  it('keeps anything at five or below rounded down to zero and above five up to ten', () => {
+  it('rounds to the nearest ten rupees: under Rs. 5 down to zero, Rs. 5 or more up', () => {
     expect(roundToTen(0)).toBe(0)
-    expect(roundToTen(4)).toBe(0)
-    expect(roundToTen(5)).toBe(0)
-    expect(roundToTen(6)).toBe(10)
-    expect(roundToTen(9)).toBe(10)
-    expect(roundToTen(10)).toBe(10)
-    expect(roundToTen(15)).toBe(10)
-    expect(roundToTen(16)).toBe(20)
-    expect(roundToTen(14167)).toBe(14170)
-    expect(roundToTen(14165)).toBe(14160)
-    expect(roundToTen(14160)).toBe(14160)
+    expect(roundToTen(400)).toBe(0) // Rs. 4
+    expect(roundToTen(499)).toBe(0)
+    expect(roundToTen(500)).toBe(1000) // Rs. 5
+    expect(roundToTen(900)).toBe(1000)
+    expect(roundToTen(1000)).toBe(1000) // Rs. 10
+    expect(roundToTen(1499)).toBe(1000) // Rs. 14.99
+    expect(roundToTen(1500)).toBe(2000) // Rs. 15
+    expect(roundToTen(1600)).toBe(2000)
+    expect(roundToTen(14167)).toBe(14000) // Rs. 141.67
+    expect(roundToTen(141500)).toBe(142000) // Rs. 1415
+    expect(roundToTen(141000)).toBe(141000)
   })
 })
 
@@ -28,11 +29,19 @@ describe('calculateLineAmount', () => {
     expect(amount).toBe(30000 + Math.round((10000 * 6) / 12)) // 30000 + 5000
   })
 
-  it('rounds the box portion, then the whole line, to the nearest ten paisa', () => {
-    // 17 boxes at Rs. 100/carton with 12/carton → 170000/12 ≈ 14167 → 14170
-    expect(calculateLineAmount({ rate: 10000, piecesPerCarton: 12, cartonCount: 0, boxCount: 17 })).toBe(14170)
-    // 5 boxes * 10000 / 12 ≈ 4167 → 4170
-    expect(calculateLineAmount({ rate: 10000, piecesPerCarton: 12, cartonCount: 0, boxCount: 5 })).toBe(4170)
+  it('rounds the box portion, then the whole line, to the nearest ten rupees', () => {
+    // 17 boxes at Rs. 100/carton with 12/carton → 170000/12 ≈ 14167 → Rs. 140
+    expect(calculateLineAmount({ rate: 10000, piecesPerCarton: 12, cartonCount: 0, boxCount: 17 })).toBe(14000)
+    // 5 boxes * 10000 / 12 ≈ 4167 → Rs. 40
+    expect(calculateLineAmount({ rate: 10000, piecesPerCarton: 12, cartonCount: 0, boxCount: 5 })).toBe(4000)
+  })
+
+  it('holds any non-zero line at the Rs. 10 minimum instead of rounding it down to zero', () => {
+    // 1 loose box at Rs. 5/carton of 12 ≈ Rs. 0.42 → below Rs. 5, but a real
+    // sale can never drop to Rs. 0, so the line is billed at Rs. 10.
+    expect(calculateLineAmount({ rate: 500, piecesPerCarton: 12, cartonCount: 0, boxCount: 1 })).toBe(1000)
+    // 1 carton at Rs. 5 is exactly Rs. 5 → rounds up to Rs. 10.
+    expect(calculateLineAmount({ rate: 500, piecesPerCarton: 12, cartonCount: 1, boxCount: 0 })).toBe(1000)
   })
 
   it('guards against a zero or negative boxes-per-carton divisor', () => {
@@ -51,7 +60,8 @@ describe('calculateInvoiceSubtotal', () => {
       { rate: 10000, piecesPerCarton: 12, cartonCount: 1, boxCount: 0 },
       { rate: 5000, piecesPerCarton: 10, cartonCount: 0, boxCount: 5 },
     ])
-    expect(subtotal).toBe(10000 + 2500)
+    // 1 carton → Rs. 100; 5 loose boxes → Rs. 25 rounds up to Rs. 30.
+    expect(subtotal).toBe(10000 + 3000)
   })
 
   it('returns zero for an empty or all-null invoice', () => {

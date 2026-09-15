@@ -202,5 +202,5 @@ function paymentToEntry(payment: Payment): PaymentEntry {
 }
 
 function formatPaisa(cents: number): string {
-  return `Rs. ${(cents / 100).toFixed(2)}`
+  return `Rs. ${Math.trunc(cents / 100)}`
 }

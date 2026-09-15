@@ -34,16 +34,17 @@ describe('DashboardService', () => {
     const invoices = new InvoiceService()
     const seed = seedStocked(8)
 
-    // amount = 1000*2 + round(1000*6/12) = 2500; cost = 500*2 + round(500*6/12) = 1250 → profit 1250
+    // amount = 1000*2 + round(1000*6/12) = 2500 → rounded to Rs. 30 (3000);
+    // cost = 500*2 + round(500*6/12) = 1250 → profit 1750
     invoices.create(
       invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000, quantity: 30 })
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
-    expect(s.profit.total).toBe(1250)
+    expect(s.profit.total).toBe(1750)
     expect(s.profit.perCustomer).toHaveLength(1)
     expect(s.profit.perCustomer[0].customerName).toBe('Bilal Auto Shop')
-    expect(s.profit.perCustomer[0].profit).toBe(1250)
+    expect(s.profit.perCustomer[0].profit).toBe(1750)
     expect(s.profit.perCustomer[0].invoices).toBe(1)
     expect(s.range).toEqual({ start: '2026-09-01', end: '2026-09-30' })
   })
@@ -53,7 +54,11 @@ describe('DashboardService', () => {
     const invoices = new InvoiceService()
     const seed = seedStocked(8)
 
-    invoices.create(invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 500 }))
+    // Two whole cartons at the product's own Rs. 5 rate: amount rounds to
+    // Rs. 10 (1000), exactly matching the Rs. 10 / carton cost.
+    invoices.create(
+      invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 500, quantity: 24 })
+    )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
     expect(s.profit.total).toBe(0)
@@ -85,7 +90,7 @@ describe('DashboardService', () => {
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
-    expect(s.profit.perCustomer[0].sales).toBe(2500)
+    expect(s.profit.perCustomer[0].sales).toBe(3000)
   })
 
   it('reports what every customer owes across open invoices', () => {
@@ -99,16 +104,16 @@ describe('DashboardService', () => {
     )
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
-    expect(s.owed.total).toBe(2500)
+    expect(s.owed.total).toBe(3000)
     expect(s.owed.perCustomer).toHaveLength(1)
     expect(s.owed.perCustomer[0].customerName).toBe('Bilal Auto Shop')
     expect(s.owed.perCustomer[0].openInvoices).toBe(1)
-    expect(s.owed.perCustomer[0].owed).toBe(2500)
+    expect(s.owed.perCustomer[0].owed).toBe(3000)
 
     payments.payInvoice(invoice.id, 1000)
 
     const after = dashboard.summary('2026-09-01', '2026-09-30')
-    expect(after.owed.total).toBe(1500)
+    expect(after.owed.total).toBe(2000)
     expect(after.owed.perCustomer[0].openInvoices).toBe(1)
   })
 
@@ -122,22 +127,22 @@ describe('DashboardService', () => {
     const invoice = invoices.create(
       invoiceInput(seed, { customerId: seed.customerId, date: '2026-09-10', rate: 1000 })
     )
-    payments.payInvoice(invoice.id, 2500)
+    payments.payInvoice(invoice.id, 3000)
     expenses.save({ date: '2026-09-11', name: 'Travelling', price: 1200 })
 
     const s = dashboard.summary('2026-09-01', '2026-09-30')
 
-    expect(s.cashFlow.inward.total).toBe(2500)
+    expect(s.cashFlow.inward.total).toBe(3000)
     expect(s.cashFlow.inward.payments).toHaveLength(1)
     expect(s.cashFlow.inward.payments[0]).toMatchObject({
       customerName: 'Bilal Auto Shop',
       invoiceNumber: 'INV-000001',
-      amount: 2500,
+      amount: 3000,
     })
     expect(s.cashFlow.outward.total).toBe(1200)
     expect(s.cashFlow.outward.expenses[0].name).toBe('Travelling')
     const net = s.cashFlow.inward.total - s.cashFlow.outward.total
-    expect(net).toBe(1300)
+    expect(net).toBe(1800)
   })
 
   it('lists the units dispatched by today from the sale ledger', () => {
@@ -155,7 +160,7 @@ describe('DashboardService', () => {
     expect(s.invoices.dispatchedToday[0]).toMatchObject({
       productName: seed.product.name,
       quantity: 30,
-      amount: 2500,
+      amount: 3000,
     })
   })
 

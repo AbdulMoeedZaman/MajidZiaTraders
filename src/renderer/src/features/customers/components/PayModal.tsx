@@ -73,11 +73,11 @@ export function PayModal({ customerName, outstanding, openInvoices, onConfirm, o
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               value={amount}
               autoFocus
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
+              placeholder="0"
             />
           </label>
         </div>

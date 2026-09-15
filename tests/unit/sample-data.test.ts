@@ -131,7 +131,7 @@ it('seeds a realistic MZTraders sample dataset and (optionally) writes the porta
   expect(invA.invoiceNumber).toBe('INV-000001')
   expect(invA.subtotal).toBe(185000)
   expect(invB.subtotal).toBe(480000)
-  expect(invC.subtotal).toBe(22500)
+  expect(invC.subtotal).toBe(23000) // 45000 × 3 / 6 = 22500 (Rs. 225) → Rs. 230
   expect(invD.subtotal).toBe(60000)
 
   const detailsB = invoiceService.getWithDetails(invB.id)!

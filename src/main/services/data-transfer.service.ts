@@ -482,13 +482,14 @@ export class DataTransferService {
   }
 
   private money(paisa: number): string {
-    return (paisa / 100).toFixed(2)
+    return String(Math.trunc(paisa / 100))
   }
 }
 
-/** Parses a rupee amount into integer minor units (paisa/cents). */
+/** Parses a rupee amount into integer minor units (paisa/cents), trimming any
+ * decimal part so "6.75" is imported as 6 rupees (600 paisa). */
 function parseMoney(value: string): number | null {
   const number = Number(value.trim().replace(/,/g, ''))
   if (!Number.isFinite(number) || number < 0) return null
-  return Math.round(number * 100)
+  return Math.trunc(number) * 100
 }

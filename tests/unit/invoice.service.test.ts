@@ -32,7 +32,7 @@ describe('InvoiceService', () => {
     expect(second.invoiceNumber).toBe('INV-000002')
   })
 
-  it('computes the box-portion of each line, rounding it and the tax to the nearest ten, and auto-calculates grand total and remaining', () => {
+  it('bills a small line at the Rs. 10 minimum, rounds the tax to the nearest ten rupees, and auto-calculates grand total and remaining', () => {
     const service = new InvoiceService()
     const seed = seedStocked(5)
     const created = service.create({
@@ -43,14 +43,15 @@ describe('InvoiceService', () => {
       tax: 200,
       items: [{ productId: seed.product.id, rate: 500, quantity: 5 }],
     })
-    // 500 * 5 / 12 = 208.33 → 208, rounded to the nearest ten → 210
-    expect(created.subtotal).toBe(210)
+    // 500 * 5 / 12 = 208.33 → 208 → below Rs. 5, so the line is rounded up to
+    // the Rs. 10 minimum; the Rs. 2 tax itself rounds down to zero.
+    expect(created.subtotal).toBe(1000)
     const details = service.getWithDetails(created.id)!
-    expect(details.invoice.items[0].amount).toBe(210)
-    expect(details.invoice.tax).toBe(200)
+    expect(details.invoice.items[0].amount).toBe(1000)
+    expect(details.invoice.tax).toBe(0)
     // grand total = subtotal + tax; remaining = grand total (no payments yet)
-    expect(details.invoice.grandTotal).toBe(410)
-    expect(details.invoice.remaining).toBe(410)
+    expect(details.invoice.grandTotal).toBe(1000)
+    expect(details.invoice.remaining).toBe(1000)
     expect(details.customer!.code).toBe('C-001')
   })
 
@@ -151,11 +152,11 @@ describe('InvoiceService', () => {
       items: [{ productId: seed.product.id, rate: 500, quantity: 5 }],
     })
 
-    // Raw tax 1292 rounds down to 1290 (stored); subtotal 210 rounds up from 208,
-    // so the grand total ends up the same clean 1500 either way.
-    expect(second.subtotal).toBe(210)
-    expect(second.tax).toBe(1290)
-    expect(second.grandTotal).toBe(1500)
+    // 5 loose boxes ≈ Rs. 2.08 → held at the Rs. 10 minimum; raw tax 1292
+    // (Rs. 12.92) rounds down to Rs. 10, so the grand total is a fresh Rs. 20.
+    expect(second.subtotal).toBe(1000)
+    expect(second.tax).toBe(1000)
+    expect(second.grandTotal).toBe(2000)
 
     const report = service.buildLoadReport([first.id, second.id])
 
@@ -170,8 +171,8 @@ describe('InvoiceService', () => {
     const c1 = report.customers.find((c) => c.customerName === 'Bilal Auto Shop')
     const c2 = report.customers.find((c) => c.customerName === 'Emerald Parts')
     expect(c1?.amount).toBe(1000)
-    expect(c2?.amount).toBe(1500)
-    expect(report.grandTotal).toBe(2500)
+    expect(c2?.amount).toBe(2000)
+    expect(report.grandTotal).toBe(3000)
   })
 
   it('rejects an empty invoice selection for a load form', () => {

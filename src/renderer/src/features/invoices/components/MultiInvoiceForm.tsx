@@ -4,7 +4,7 @@ import { fallbackInvoiceRate } from '@shared/types/product'
 import { api } from '../../../lib/api'
 import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import { formatMoney } from '../../../lib/format'
-import { countToInt, moneyToCents } from '../../../lib/money'
+import { countToInt, centsToRupees, moneyToCents } from '../../../lib/money'
 import { calculateLineAmount, roundToTen } from '@shared/calc/invoice-totals'
 import { canonicalComposition } from '@shared/stock/stock-breakdown'
 
@@ -286,7 +286,7 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                   const p = pid !== null ? productById.get(pid) : undefined
                   setLine(i, {
                     productId: pid,
-                    rate: p ? (effectiveRate(p) / 100).toFixed(2) : line.rate,
+                    rate: p ? centsToRupees(effectiveRate(p)) : line.rate,
                   })
                   if (pid !== null) handleProductSelected(i)
                 }}
@@ -302,13 +302,13 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
                 }}
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={line.rate}
                 onChange={(e) => setLine(i, { rate: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') focusCartons(i)
                 }}
-                placeholder={product ? (effectiveRate(product) / 100).toFixed(2) : '0.00'}
+                placeholder={product ? centsToRupees(effectiveRate(product)) : '0'}
               />
             </label>
             <label className="field line-qty">
@@ -399,10 +399,10 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
           <input
             type="number"
             min="0"
-            step="0.01"
+            step="1"
             value={tax}
             onChange={(e) => setTax(e.target.value)}
-            placeholder="0.00"
+            placeholder="0"
           />
         </div>
         <div className="totals-row">

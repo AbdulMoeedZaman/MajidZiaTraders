@@ -4,13 +4,12 @@ export function printDate(iso: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : iso
 }
 
-/** Money printed on invoice sheets as "Rs.<value>" with two decimals. */
+/** Money printed on invoice sheets as "Rs.<value>" with no decimal part. */
 export function printMoney(cents: number | null | undefined): string {
   return (
     'Rs.' +
-    ((cents ?? 0) / 100).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+    Math.trunc((cents ?? 0) / 100).toLocaleString(undefined, {
+      maximumFractionDigits: 0,
     })
   )
 }

@@ -153,7 +153,8 @@ describe('PaymentService', () => {
   it('a cancelled invoice no longer contributes profit to the dashboard', () => {
     const base = seed()
     const invoices = new InvoiceService()
-    // rate 1000 on the 500-paisa product: amount 2500, cost 1250 -> profit 1250
+    // rate 1000 on the 500-paisa product: raw amount 2500 → Rs. 30 (3000),
+    // cost 1250 -> profit 1750
     const created = invoices.create(
       invoiceInput(base, {
         items: [{ productId: base.product.id, rate: 1000, quantity: 30 }],
@@ -161,7 +162,7 @@ describe('PaymentService', () => {
     )
 
     const dashboard = new DashboardService()
-    expect(dashboard.summary('2026-09-01', '2026-09-30').profit.total).toBe(1250)
+    expect(dashboard.summary('2026-09-01', '2026-09-30').profit.total).toBe(1750)
 
     invoices.cancel(created.id)
     expect(dashboard.summary('2026-09-01', '2026-09-30').profit.total).toBe(0)

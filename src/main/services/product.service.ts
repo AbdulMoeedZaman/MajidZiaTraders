@@ -140,7 +140,7 @@ export class ProductService {
         continue
       }
       const rawPrice = row[priceIdx]?.trim() ?? ''
-      const rate = Math.round(parseFloat(rawPrice) * 100)
+      const rate = Math.trunc(parseFloat(rawPrice)) * 100
       if (!Number.isFinite(rate) || rate < 0) {
         result.skippedInvalid++
         continue

@@ -72,22 +72,26 @@ const clickRowWith = (text) => ev(`(()=>{const r=[...document.querySelectorAll('
 // Select a value from a SearchSelect (searchable dropdown) by its label text.
 // Finds the control inside the <label> whose caption starts with `name`,
 // opens it, then clicks the option whose label includes `label` (typing the
-// first word first to narrow the list if needed).
+// first word first to narrow the list if needed). The option list is portaled
+// onto document.body (SearchSelect), so options are queried on the visible menu.
 const ss = (name) => `[...document.querySelectorAll('.search-select')].find((n)=>n.closest('label')?.innerText?.trim().startsWith(${JSON.stringify(name)}))`
 const pick = async (name, label) => {
   const opened = await ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const t=ctrl.querySelector('.search-select-trigger'); if(!t) return false; t.click(); return true})()`)
   if (!opened) return false
-  await wait(150)
-  const clickMatch = (outer) => ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const el=[...ctrl.querySelectorAll('.search-select-option')].find((o)=>(o.dataset.label||'').includes(${JSON.stringify(label)})); if(!el) return false; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true})); return true})()`)
+  await wait(180)
+  const menu = `(()=>{const m=[...document.querySelectorAll('.search-select-menu')].find((el)=>el.getClientRects().length>0); return m ? m : null})()`
+  const clickMatch = () => ev(`(()=>{const m=${menu}; if(!m) return false; const el=[...m.querySelectorAll('.search-select-option')].find((o)=>(o.dataset.label||'').includes(${JSON.stringify(label)})); if(!el) return false; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true})); return true})()`)
   if (await clickMatch()) return true
-  const typed = await ev(`(()=>{const ctrl=${ss(name)}; if(!ctrl) return false; const inp=ctrl.querySelector('.search-select-input'); if(!inp) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,${JSON.stringify(label)}.split(' ')[0]); inp.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
+  const typed = await ev(`(()=>{const m=${menu}; if(!m) return false; const inp=m.querySelector('.search-select-input'); if(!inp) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(inp,${JSON.stringify(label)}.split(' ')[0]); inp.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
   if (!typed) return false
-  await wait(150)
+  await wait(200)
   return clickMatch()
 }
 
 try {
   // =============== UI-0: fresh install layout ===============
+  const navReady = Date.now() + 15000
+  while (!(await ev(`document.querySelectorAll('.nav-item').length > 0`)) && Date.now() < navReady) await wait(300)
   const defaultNav = await ev(`[...document.querySelectorAll('.nav-item.active')].map(b=>b.textContent.trim()).join(',')`)
   const newInvoiceBtn = await ev(`document.body.innerText.includes('+ New Invoice')`)
   check('UI-0', 'Fresh install lands on Invoices with the main navigation visible', defaultNav.includes('Invoices') && newInvoiceBtn, { activeNav: defaultNav })
@@ -144,8 +148,8 @@ try {
     tax: null,
     items: [item(P1.id, 65000, 25)],
   }), 'I1')
-  // 65000*2 + 65000*5/10 = 130000 + 32500
-  check('I-1', `Invoice #1 subtotal = rate×cartons + rounded rate×boxes/bpc (${I1.subtotal})`, I1.invoiceNumber === 'INV-000001' && I1.subtotal === 162500, { number: I1.invoiceNumber, subtotal: I1.subtotal })
+  // 65000*2 + 65000*5/10 = 130000 + 32500 = 162500 → Rs. 1,625 rounds to Rs. 1,630
+  check('I-1', `Invoice #1 subtotal = rate×cartons + rounded rate×boxes/bpc, rounded to the nearest ten rupees (${I1.subtotal})`, I1.invoiceNumber === 'INV-000001' && I1.subtotal === 163000, { number: I1.invoiceNumber, subtotal: I1.subtotal })
 
   const I2 = must(await inv('invoices:create', {
     customerId: C2.id, brokerId: B1.id, date: TODAY, filerStatus: 'non_filer',
@@ -208,7 +212,7 @@ try {
   await clickBtn('Save'); await wait(1200)
   const gaugeRow = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('GAUGE 2026'))`)
   const gauge = must(await inv('products:list'), 'products').find((p) => p.name === 'GAUGE 2026')
-  check('UI-3', 'Creating a product through the UI form stores it (rate 150 cents), 12/carton', gaugeRow && gauge?.rate === 150 && gauge.piecesPerCarton === 12, { id: gauge?.id, rate: gauge?.rate, piecesPerCarton: gauge?.piecesPerCarton })
+  check('UI-3', 'Creating a product through the UI form stores a whole-rupee rate (1.50 trimmed to Rs. 1 = 100 cents), 12/carton', gaugeRow && gauge?.rate === 100 && gauge.piecesPerCarton === 12, { id: gauge?.id, rate: gauge?.rate, piecesPerCarton: gauge?.piecesPerCarton })
 
   // =============== UI-3b: CSV product import (no stock changes) ===============
   const importBtn = await ev(`[...document.querySelectorAll('button')].some((b)=>b.textContent.trim()==='Import CSV…')`)
@@ -226,9 +230,9 @@ try {
   const stockAfterImport = must(await inv('stock:list'), 'stock after import')
   const impProduct = imp.products.find((p) => p.name === 'Irn Bru New 6x18 Rs.50')
   const impTouchedStock = stockAfterImport.some((m) => ['Irn Bru New 6x18 Rs.50', 'Prince New 1x48 Rs.100'].includes(m.productName))
-  check('UI-3b', 'Import CSV creates products (rate in cents, boxes from NxM, duplicates/invalid skipped) without stock movements',
+  check('UI-3b', 'Import CSV creates products (rate in cents truncated to whole rupees, boxes from NxM, duplicates/invalid skipped) without stock movements',
     importBtn && imp.created === 2 && imp.skippedDuplicate === 1 && imp.skippedInvalid === 2 &&
-    impProduct?.rate === 100050 && impProduct.piecesPerCarton === 18 &&
+    impProduct?.rate === 100000 && impProduct.piecesPerCarton === 18 &&
     stockBeforeImport.length === stockAfterImport.length && !impTouchedStock,
     { importBtn, imp: { created: imp.created, skippedDuplicate: imp.skippedDuplicate, skippedInvalid: imp.skippedInvalid } })
 
@@ -304,7 +308,7 @@ try {
   await wait(200)
   await ev(`(()=>{
     const num=(name,val)=>{const i=[...document.querySelectorAll('.invoice-line input')].find((n)=>n.closest('label')?.innerText.trim().startsWith(name)); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,val); i.dispatchEvent(new Event('input',{bubbles:true})); return true};
-    num('Rate (Rs.)','2.00'); num('Quantity (pcs)','36'); return true
+    num('Rate (Rs.)','2.00'); num('Pieces','36'); return true
   })()`)
   await wait(400)
   const lineAmountShown = await ev(`[...document.querySelectorAll('.invoice-line .line-total strong')].map((n)=>n.textContent.trim()).join('|')`)
@@ -366,15 +370,15 @@ try {
   await clickBtn('Create Load Form'); await wait(1200)
   const lfText = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
   const lfHasProducts = lfText.includes('Products') && lfText.includes('Axle Bearing 6204')
-  const lfHasCustomers = lfText.includes('Customers')
-  const lfGrandTotal = await ev(`document.querySelector('.invoice-sheet tfoot')?.innerText.trim() ?? ''`)
+  const lfHasCustomers = lfText.includes('Shops:') && lfText.includes('Bilal Auto Shop')
+  const lfGrandTotal = await ev(`document.querySelector('.invoice-sheet .ip-finance .ip-net')?.innerText.replace(/\\s+/g,' ') ?? ''`)
   const lfCoversInvoices = lfText.includes('INV-000001') && lfText.includes('INV-000002')
   check('UI-7', 'Load form: checkboxes select invoices and the printable report aggregates products + customers + grand total',
-    loadBtnShown && checkboxesShown >= 2 && boxesAfterCancel === 0 && !enabledBefore && enabledAfter && lfHasProducts && lfHasCustomers && /Grand total.*Rs\./.test(lfGrandTotal) && lfCoversInvoices,
+    loadBtnShown && checkboxesShown >= 2 && boxesAfterCancel === 0 && !enabledBefore && enabledAfter && lfHasProducts && lfHasCustomers && /Grand Total\s*Rs\./.test(lfGrandTotal) && lfCoversInvoices,
     { loadButton: loadBtnShown, checkboxCount: checkboxesShown, afterCancel: boxesAfterCancel, disabledBeforeSelection: !enabledBefore, enabledAfterSelection: enabledAfter, products: lfHasProducts, customers: lfHasCustomers, grandTotal: lfGrandTotal, invoiceNumbers: lfCoversInvoices })
   const lfData = must(await inv('invoices:build-load-form', [I1.id, I2.id]), 'load form data')
   check('UI-7b', 'Load form IPC aggregates quantities and rupee customer totals for the same invoices',
-    lfData.products.length === 2 && lfData.grandTotal === 227500 &&
+    lfData.products.length === 2 && lfData.grandTotal === 228000 &&
     lfData.products.find((p) => p.productName === 'Axle Bearing 6204').cartonCount === 2 &&
     lfData.products.find((p) => p.productName === 'Axle Bearing 6204').boxCount === 5,
     { products: lfData.products, customers: lfData.customers, grandTotal: lfData.grandTotal })
@@ -407,7 +411,7 @@ try {
   await clickBtn('Inventory'); await wait(1000)
   const invText = await ev(`document.body.innerText`)
   const invHasRestock = invText.includes('+600 pcs')
-  const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650.00') && invText.includes('-25')
+  const invHasSale = invText.includes('Axle Bearing 6204') && invText.includes('Bilal Auto Shop') && invText.includes('Rs. 650') && invText.includes('-25')
   const invHasSpring = await ev(`[...document.querySelectorAll('tbody tr')].some((r)=>r.textContent.includes('Valve Spring') && r.textContent.includes('-80'))`)
   const invToolbarBtns = await ev(`[...document.querySelectorAll('.toolbar .btn')].map((b)=>b.textContent.trim())`)
   const invPrintExport = invToolbarBtns.includes('Print') && invToolbarBtns.includes('Export CSV')
@@ -437,7 +441,7 @@ try {
   const metricValues = await ev(`[...document.querySelectorAll('.metric-card .metric-value')].map((n)=>n.textContent.trim()).join('|')`)
   const hasRange = await ev(`document.querySelectorAll('.dashboard-toolbar input[type="date"]').length === 2`)
   check('UI-11', 'Dashboard shows the six metric matrices with a date range picker',
-    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Invoices,Expenses,Owed amount,Cash flow' && hasRange && metricValues.includes('Rs.'),
+    dashActive.includes('Dashboard') && metricLabels === 'Profit,Remaining stock,Stock worth,Invoices,Expenses,Owed amount,Cash flow' && hasRange && metricValues.includes('Rs.'),
     { activeNav: dashActive, metricLabels, metricValues, hasRange })
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Profit')?.click()`)
@@ -457,17 +461,19 @@ try {
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Remaining stock')?.click()`)
   await wait(700)
   const stockRows = await ev(`[...document.querySelectorAll('.detail-modal tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const stockRowCells = await ev(`[...document.querySelectorAll('.detail-modal tbody tr')].map((r)=>[...r.children].map((c)=>c.textContent.trim()).join(' ')).join('|')`)
+  const stockHeaders = await ev(`[...document.querySelectorAll('.detail-modal thead th')].map((th)=>th.textContent.trim()).join(',')`)
   const stockSections = await ev(`[...document.querySelectorAll('.modal-section h4')].map((h)=>h.textContent.trim()).join(',')`)
-  const stockRowText = stockRows.replace(/,/g, '')
+  const stockRowText = stockRowCells.replace(/,/g, '')
   // Remaining inventory now prices each row: cartons + loose + total price
-  // (600 pcs → 50 ctn + 0 loose, worth Rs. 75.00; axle 45 pcs → 4+5, Rs. 2925; valve restocked and fully sold → 0).
-  const stockHasGauge = stockRowText.includes('GAUGE 2026 50 0 Rs. 75.00')
-  const stockHasOthers = stockRowText.includes('Axle Bearing 6204 4 5 Rs. 2925.00') && stockRowText.includes('Valve Spring 0 0 Rs. 0.00')
-  const stockHeaderHasPrice = stockRows.includes('Total price')
+  // (600 pcs → 50 ctn + 0 loose, worth Rs. 50; axle 45 pcs → 4+5, Rs. 2925; valve restocked and fully sold → 0).
+  const stockHasGauge = stockRowText.includes('GAUGE 2026 50 0 Rs. 50')
+  const stockHasOthers = stockRowText.includes('Axle Bearing 6204 4 5 Rs. 2925') && stockRowText.includes('Valve Spring 0 0 Rs. 0')
+  const stockHeaderHasPrice = stockHeaders.includes('Total price')
   const stockActions = await ev(`[...document.querySelectorAll('.detail-modal .modal-actions button')].map((b)=>b.textContent.trim()).join(',')`)
   check('UI-11c', 'Clicking the Remaining stock matrix opens a modal with cartons+loose priced inventory and today dispatches',
     stockSections.includes('Remaining inventory') && stockSections.includes('Dispatched today') && stockHasGauge && stockHasOthers && stockHeaderHasPrice && stockActions === 'Print,Export CSV,Close',
-    { stockRows, stockSections, stockHasGauge, stockHasOthers, stockHeaderHasPrice, actions: stockActions })
+    { stockRows, stockHeaders, stockSections, stockHasGauge, stockHasOthers, stockHeaderHasPrice, actions: stockActions })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Invoices')?.click()`)
@@ -509,9 +515,9 @@ try {
   const expSummaryTotal = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
   const expDay = must(await inv('expenses:day-summary', TODAY), 'expense day summary')
   check('UI-12', 'Expenses page adds entries via the form, upserts the same name and totals the day',
-    expenseDateValue === TODAY && expenseEmptyTotal === 'Rs. 0.00' &&
+    expenseDateValue === TODAY && expenseEmptyTotal === 'Rs. 0' &&
     expRows.includes('Travelling') && expRows.includes('Tea') && (expRows.match(/Travelling/g) ?? []).length === 1 &&
-    expTotalRow.toUpperCase().includes('TOTAL') && expTotalRow.toUpperCase().includes('RS. 100.00') && expSummaryTotal === 'Rs. 100.00' &&
+    expTotalRow.toUpperCase().includes('TOTAL') && expTotalRow.toUpperCase().includes('RS. 100') && expSummaryTotal === 'Rs. 100' &&
     expDay.total === 10000 && expDay.items.length === 2 &&
     expDay.items.find((e) => e.name === 'Travelling').price === 7500,
     { dateDefault: expenseDateValue, emptyTotal: expenseEmptyTotal, rows: expRows, totalRow: expTotalRow, summaryTotal: expSummaryTotal, day: { total: expDay.total, items: expDay.items.length, travelling: expDay.items.find((e) => e.name === 'Travelling')?.price } })
@@ -522,7 +528,7 @@ try {
   const expTotalAfterDelete = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
   const expAfterDelete = must(await inv('expenses:list-by-date', TODAY), 'expenses after delete')
   check('UI-12b', 'Deleting an expense from the page removes it and recalculates the day total',
-    expTotalAfterDelete === 'Rs. 75.00' && expAfterDelete.length === 1 && !expAfterDelete.some((e) => e.name === 'Tea'),
+    expTotalAfterDelete === 'Rs. 75' && expAfterDelete.length === 1 && !expAfterDelete.some((e) => e.name === 'Tea'),
     { total: expTotalAfterDelete, remaining: expAfterDelete.map((e) => e.name) })
 
   // =============== UI-12c: dashboard expenses adapt to the range + grouped-by-day modal ===============
@@ -536,8 +542,8 @@ try {
   await wait(700)
   const expModalText = await ev(`document.querySelector('.expense-modal')?.innerText ?? ''`)
   check('UI-12c', 'Dashboard Expenses adapts to the range and opens a modal grouped by day',
-    expMetricValue === 'Rs. 95.00' && expMetricHint.includes('Today: Rs. 75.00') && expMetricHint.includes('2 days in range') &&
-    expModalText.includes('Old Tea') && expModalText.includes('Travelling') && expModalText.includes('Rs. 95.00'),
+    expMetricValue === 'Rs. 95' && expMetricHint.includes('Today: Rs. 75') && expMetricHint.includes('2 days in range') &&
+    expModalText.includes('Old Tea') && expModalText.includes('Travelling') && expModalText.includes('Rs. 95'),
     { metricValue: expMetricValue, metricHint: expMetricHint, modal: expModalText })
   await clickBtn('Close'); await wait(400)
 
@@ -552,31 +558,48 @@ try {
   const sheetTextPaid = await ev(`document.querySelector('.invoice-sheet')?.innerText ?? ''`)
   const inv1AfterPay = must(await inv('invoices:get-by-id', I1.id), 'I1 after pay')
   check('UI-13', 'Invoice Pay button settles the exact remaining amount through a confirmation and marks the invoice Paid',
-    hasPayBtn && inv1BeforePay.status === 'unpaid' && confirmPayShown && inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 162500,
-    { payButton: hasPayBtn, confirmation: confirmPayShown, sheet: sheetTextPaid.includes('Net Amount / Grand Total') && sheetTextPaid.includes('Rs.1,625.00'), invoice: { before: inv1BeforePay.status, after: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
+    hasPayBtn && inv1BeforePay.status === 'unpaid' && confirmPayShown && inv1AfterPay.status === 'paid' && inv1AfterPay.paidAmount === 163000,
+    { payButton: hasPayBtn, confirmation: confirmPayShown, sheet: sheetTextPaid.includes('Net Amount / Grand Total') && sheetTextPaid.includes('Rs.1,630'), invoice: { before: inv1BeforePay.status, after: inv1AfterPay.status, paid: inv1AfterPay.paidAmount } })
 
   await clickBtn('Back to Invoices'); await wait(500)
 
   // =============== UI-13b: customer Pay modal applies amount oldest-invoice-first ===============
-  await nav('Customers'); await wait(900)
-  await clickRowWith('Bilal Auto Shop'); await wait(900)
-  const outstandingText = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
+await nav('Customers'); await wait(400)
+  await ev(`(()=>{const b=[...document.querySelectorAll('.route-tabs button')].find(b=>b.innerText.includes('Monday')); if(!b) return false; b.click(); return true})()`)
+  await wait(400)
+  let rowClicked = false
+  const custRowDeadline = Date.now() + 8000
+  while (!rowClicked && Date.now() < custRowDeadline) {
+    rowClicked = await ev(`(()=>{const r=[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes('Bilal Auto Shop')); if(!r) return false; r.click(); return true})()`)
+    if (!rowClicked) await wait(300)
+  }
+  let outstandingText = ''
+  const payPrepDeadline = Date.now() + 8000
+  while (!outstandingText && Date.now() < payPrepDeadline) {
+    outstandingText = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim() ?? ''`)
+    if (!outstandingText) await wait(300)
+  }
   const openText = await ev(`document.querySelector('.expense-summary-copy .fine-text')?.textContent ?? ''`)
   const rowBadge3 = await ev(`[...document.querySelectorAll('.data-table tbody tr')].find((r)=>r.textContent.includes('INV-000003'))?.textContent.trim().replace(/\\s+/g,' ') ?? ''`)
   await clickBtn('Pay'); await wait(400)
   const payModalText = await ev(`document.querySelector('.pay-modal-info')?.innerText ?? ''`)
-  await ev(`(()=>{const i=document.querySelector('.modal input[type="number"]'); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,'6.00'); i.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
-  await clickBtn('Confirm Payment'); await wait(1100)
+  await ev(`(()=>{const i=document.querySelector('.modal input[type="number"]'); if(!i) return false; Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(i,'10'); i.dispatchEvent(new Event('input',{bubbles:true})); return true})()`)
+  await clickBtn('Confirm Payment')
+  let outstandingAfter = ''
+  const payAfterDeadline = Date.now() + 8000
+  while (!outstandingAfter && Date.now() < payAfterDeadline) {
+    outstandingAfter = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim() ?? ''`)
+    if (!outstandingAfter) await wait(300)
+  }
   const paySuccess = await ev(`document.querySelector('.text-ok')?.textContent.trim() ?? ''`)
-  const outstandingAfter = await ev(`document.querySelector('.expense-summary-total')?.textContent.trim()`)
   const openAfter = await ev(`document.querySelector('.expense-summary-copy .fine-text')?.textContent ?? ''`)
   const inv3Row = must(await inv('invoices:list'), 'invoice list after pay').find((i) => i.invoiceNumber === 'INV-000003')
   const inv1Row = must(await inv('invoices:list'), 'invoice list after customer pay').find((i) => i.invoiceNumber === 'INV-000001')
   check('UI-13b', 'Customer Pay modal shows the outstanding balance, applies the amount oldest-first and clears the invoice',
-    outstandingText === 'Rs. 6.00' && openText.includes('open invoice') && rowBadge3.includes('Unpaid') &&
-    payModalText.includes('Bilal Auto Shop') && payModalText.includes('Rs. 6.00') && /Open invoices\s*1/.test(payModalText) &&
-    paySuccess.includes('Received Rs. 6.00') && outstandingAfter === 'Rs. 0.00' && openAfter.includes('0 open invoices') &&
-    inv3Row.status === 'paid' && inv3Row.paidAmount === 600 && inv1Row.status === 'paid',
+    outstandingText === 'Rs. 10' && openText.includes('open invoice') && rowBadge3.includes('Unpaid') &&
+    payModalText.includes('Bilal Auto Shop') && payModalText.includes('Rs. 10') && /Open invoices\s*1/.test(payModalText) &&
+    paySuccess.includes('Received Rs. 10') && outstandingAfter === 'Rs. 0' && openAfter.includes('0 open invoices') &&
+    inv3Row.status === 'paid' && inv3Row.paidAmount === 1000 && inv1Row.status === 'paid',
     { outstandingBefore: outstandingText, openBefore: openText, inv3Row: rowBadge3, modal: payModalText, success: paySuccess, outstandingAfter, openAfter, inv3: { status: inv3Row.status, paid: inv3Row.paidAmount } })
 
   // =============== UI-13c: customer Pay modal surfaces backend validation errors ===============
@@ -598,10 +621,10 @@ try {
   await nav('Dashboard'); await wait(1200)
   const activityHeader = await ev(`[...document.querySelectorAll('.short-list-header h3')].map((h)=>h.textContent.trim()).join(',')`)
   const activityText = await ev(`[...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.innerText ?? ''`)
-  const activityBtnTexts = await ev(`[...(document.querySelectorAll('.short-list').find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.querySelectorAll('button') ?? [])].map((b)=>b.textContent.trim()).join(',')`)
-  const activityHasUndo = activityBtnTexts.split(',').includes('Undo')
+  const activityBtnTexts = await ev(`[...([...document.querySelectorAll('.short-list')].find((s)=>s.querySelector('h3')?.textContent==='Recent activity')?.querySelectorAll('button') ?? [])].map((b)=>b.textContent.trim()).join(',')`)
+  const activityHasUndo = (activityBtnTexts ?? '').split(',').includes('Undo')
   check('H-1', 'Dashboard shows a "Recent activity" feed with no Undo/Redo buttons',
-    activityHeader.includes('Recent activity') && !activityHasUndo && activityText.includes('Received Rs. 6.00'),
+    activityHeader.includes('Recent activity') && !activityHasUndo && activityText.includes('Received Rs. 10'),
     { headers: activityHeader, buttons: activityBtnTexts, hasUndo: activityHasUndo, activity: activityText.replace(/\s+/g, ' ').slice(0, 220) })
 
   await nav('Settings'); await wait(1200)
@@ -611,15 +634,15 @@ try {
   const histRows = await ev(`[...document.querySelectorAll('.modal-page .data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
   const histButtons = await ev(`[...document.querySelectorAll('.modal-page .toolbar button')].map((b)=>b.textContent.trim()).join(',')`)
   check('H-2', 'History modal (opened from Settings) lists the action log (time/action/details) with no Undo/Redo buttons',
-    histHeaders === 'Time,Action,Details' && !histButtons.split(',').some((b) => b === 'Undo' || b === 'Redo') && histButtons.includes('Refresh') && histRows.split('|').length >= 8,
-    { headers: histHeaders, buttons: histButtons, rows: histRows.split('|').length })
+    histHeaders === 'Time,Action,Details' && !(histButtons ?? '').split(',').some((b) => b === 'Undo' || b === 'Redo') && histButtons.includes('Refresh') && (histRows ?? '').split('|').length >= 8,
+    { headers: histHeaders, buttons: histButtons, rows: (histRows ?? '').split('|').length })
 
   await ev(`[...document.querySelectorAll('.modal-page .modal-header .btn')].find((b)=>b.textContent.trim()==='Close')?.click()`)
   await wait(300)
   const auditLatest = must(await inv('history:list'), 'history after actions')[0]
   check('H-3', 'The action log is a pure record: every row stays applied and payments are untouched',
     auditLatest.action === 'payment_recorded' && auditLatest.status === 'applied' &&
-    must(await inv('invoices:list'), 'invoices').find((i) => i.invoiceNumber === 'INV-000003')?.paidAmount === 600,
+    must(await inv('invoices:list'), 'invoices').find((i) => i.invoiceNumber === 'INV-000003')?.paidAmount === 1000,
     { latest: { action: auditLatest.action, status: auditLatest.status } })
 
   // =============== H-5: dashboard Owed + Cash flow modal breakdowns ===============
@@ -635,8 +658,8 @@ try {
   const owedModalUpper = owedModal.toUpperCase()
   check('H-5a', 'Owed amount modal lists the per-customer outstanding balances',
     owedModalUpper.includes('AMOUNT OWED') && owedModalUpper.includes('EMERALD PARTS') &&
-    owedModal.includes('Rs. 650.00') && owedModalUpper.includes('OPEN INVOICES'),
-    { modal: owedModal.replace(/\s+/g, ' ').slice(0, 300) })
+    owedModal.includes('Rs. 650') && owedModalUpper.includes('OPEN INVOICES'),
+    { modal: (owedModal ?? '').replace(/\s+/g, ' ').slice(0, 300) })
   await clickBtn('Close'); await wait(400)
 
   await ev(`[...document.querySelectorAll('.metric-card')].find((b)=>b.querySelector('.metric-label')?.textContent==='Cash flow')?.click()`)
@@ -644,11 +667,11 @@ try {
   const cashModal = await ev(`document.querySelector('.detail-modal')?.innerText ?? ''`)
   const cashNet = await ev(`document.querySelector('.modal-net')?.innerText.replace(/\\s+/g,' ') ?? ''`)
   check('H-5b', 'Cash flow modal splits inward payments from outward expenses and nets them',
-    cashModal.includes('Rs. 1,631.00') && cashModal.includes('INV-000001') && cashModal.includes('INV-000003') &&
+    cashModal.includes('Rs. 1,640') && cashModal.includes('INV-000001') && cashModal.includes('INV-000003') &&
     cashModal.includes('Travelling') &&
     cashModal.toUpperCase().includes('INWARD') && cashModal.toUpperCase().includes('OUTWARD') &&
-    cashNet.includes('Rs. 1,556.00'),
-    { net: cashNet, modal: cashModal.replace(/\s+/g, ' ').slice(0, 300) })
+    cashNet.includes('Rs. 1,565'),
+    { net: cashNet, modal: (cashModal ?? '').replace(/\s+/g, ' ').slice(0, 300) })
   await clickBtn('Close'); await wait(400)
 
   const i3 = must(await inv('invoices:get-with-details', I2.id), 'i3') // sanity: previous invoice intact
