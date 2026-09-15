@@ -12,6 +12,7 @@ import { ProductDetailPage } from './features/products/components/ProductDetailP
 import { SettingsPage } from './features/settings/components/SettingsPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
 import { ExpensePage } from './features/expenses/components/ExpensePage'
+import { RouteShortcuts } from './components/RouteShortcuts'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 export default function App() {
@@ -94,6 +95,7 @@ export default function App() {
   const header = headers.find((h) => h.cond)
 
   return (
+    <>
     <Layout
       view={view}
       onNavigate={navigate}
@@ -163,5 +165,10 @@ export default function App() {
         )}
       </ErrorBoundary>
     </Layout>
+      <RouteShortcuts
+        enabled={view !== 'multiple-invoices'}
+        onOpenMultipleInvoices={openMultipleInvoices}
+      />
+    </>
   )
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../../lib/api'
+import { getSelectedRoute, setSelectedRoute } from '../../../lib/selected-route'
 import type { RouteWithCount } from '@shared/types/route'
 import type { CustomerWithRoute, CreateCustomerDTO, UpdateCustomerDTO } from '@shared/types/customer'
 
@@ -14,13 +15,19 @@ export function useCustomers() {
   const refreshRoutes = useCallback(async () => {
     const r = await api.routes.listWithCounts()
     setRoutes(r)
-    const current = activeRouteIdRef.current
-    const stillThere = r.some((x) => x.id === current)
-    if (r.length && (!current || !stillThere)) {
-      const next = current !== null && !stillThere ? r[0].id : current ?? r[0].id
-      activeRouteIdRef.current = next
-      setActiveRouteId(next)
+    if (!r.length) {
+      activeRouteIdRef.current = null
+      setActiveRouteId(null)
+      return r
     }
+    // The route the user last had selected survives view changes and remounts,
+    // so the route-level shortcuts (Alt+Q / Alt+W) target the same route.
+    const remembered = activeRouteIdRef.current ?? getSelectedRoute()
+    const stillThere = remembered !== null && r.some((x) => x.id === remembered)
+    const next = remembered !== null && stillThere ? remembered : r[0].id
+    activeRouteIdRef.current = next
+    setSelectedRoute(next)
+    setActiveRouteId(next)
     return r
   }, [])
 
@@ -36,19 +43,11 @@ export function useCustomers() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    void api.routes
-      .listWithCounts()
+    void refreshRoutes()
       .then(async (r) => {
         if (cancelled) return
-        setRoutes(r)
-        if (!r.length) {
-          setActiveRouteId(null)
-          return
-        }
-        const first = r[0].id
-        activeRouteIdRef.current = first
-        setActiveRouteId(first)
-        await loadRoute(first)
+        if (!r.length) return
+        await loadRoute(activeRouteIdRef.current!)
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load routes')
@@ -59,11 +58,12 @@ export function useCustomers() {
     return () => {
       cancelled = true
     }
-  }, [loadRoute])
+  }, [refreshRoutes, loadRoute])
 
   const setRoute = useCallback(
     async (routeId: number) => {
       activeRouteIdRef.current = routeId
+      setSelectedRoute(routeId)
       setActiveRouteId(routeId)
       setCustomers([])
       await loadRoute(routeId)

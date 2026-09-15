@@ -1,8 +1,8 @@
 import { flushSync } from 'react-dom'
 import { useState } from 'react'
-import { api } from '../../../lib/api'
 import { LoadFormSheet } from './LoadFormSheet'
 import { LoadFormBulkPrint, type BulkPrintData } from './LoadFormBulkPrint'
+import { prepareBulkPrintData } from '../../../lib/bulk-print'
 import type { LoadFormSummary } from '@shared/types/invoice'
 
 interface Props {
@@ -45,24 +45,11 @@ export function LoadFormReport({ summary, invoiceIds, onClose, backLabel = 'Back
     setPrintError(null)
     setPreparing(true)
     try {
-      const [description, loaded] = await Promise.all([
-        api.settings.getValue('invoice_description').catch(() => ''),
-        Promise.all(
-          invoiceIds.map(async (id) => {
-            const details = await api.invoices.getWithDetails(id)
-            if (!details) {
-              throw new Error('Could not load every invoice for printing')
-            }
-            return details
-          })
-        ),
-      ])
+      const data = await prepareBulkPrintData(summary, invoiceIds, includeLoadForm)
 
       // Commit the print-only tree synchronously so it is in the DOM (with the
       // `bulk-printing` body class applied) before we open the print dialog.
-      flushSync(() =>
-        setBulk({ summary, description: description ?? '', invoices: loaded, includeLoadForm })
-      )
+      flushSync(() => setBulk(data))
 
       let failed = false
       try {
