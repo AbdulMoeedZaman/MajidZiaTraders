@@ -60,12 +60,28 @@ export function exportReportCsv(title: string, sections: ReportSection[]): void 
 }
 
 /**
- * Opens a standalone, print-ready window with the report's tables and hands it
- * to the system print dialog. Works for dashboard modals, which sit outside the
- * normal print-on-feature CSS.
+ * Prints a report in-place without opening a popup window (the Electron main
+ * process denies `window.open`). Renders a hidden `.report-print` node into
+ * `document.body`, marks <body> with `report-printing`, hands the page to
+ * `window.print()`, then tears the node down. The matching `@media print` rules
+ * in globals.css suppress the app and expose only that node.
  */
 export function printReport(title: string, meta: string, sections: ReportSection[]): void {
-  const body = sections
+  const node = document.createElement('div')
+  node.className = 'report-print'
+  node.innerHTML = buildReportMarkup(title, meta, sections)
+  document.body.appendChild(node)
+  document.body.classList.add('report-printing')
+  try {
+    window.print()
+  } finally {
+    document.body.classList.remove('report-printing')
+    node.remove()
+  }
+}
+
+function buildReportMarkup(title: string, meta: string, sections: ReportSection[]): string {
+  const blocks = sections
     .map((section) => {
       const head = section.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('')
       const rows = section.rows
@@ -93,41 +109,10 @@ export function printReport(title: string, meta: string, sections: ReportSection
     })
     .join('')
 
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(title)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
-    h1 { font-size: 20px; margin: 0 0 4px; }
-    .meta { color: #555; margin: 0 0 20px; font-size: 13px; }
-    h2 { font-size: 15px; margin: 18px 0 8px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-    th, td { border: 1px solid #999; padding: 6px 8px; font-size: 12px; text-align: left; }
-    th { background: #eee; font-weight: 600; }
-    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    tbody tr.foot td { font-weight: 700; border-top-width: 2px; background: #fafafa; }
-    @media print { body { margin: 12mm; } }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <p class="meta">${escapeHtml(meta)}</p>
-  ${body}
-  <script>
-    window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 120); });
-  <\/script>
-</body>
-</html>`
-
-  const win = window.open('', '_blank', 'width=940,height=680')
-  if (!win) return
-  win.document.open()
-  win.document.write(html)
-  win.document.close()
-  win.focus()
+  return `
+    <h1>${escapeHtml(title)}</h1>
+    <p class="report-meta">${escapeHtml(meta)}</p>
+    ${blocks}`
 }
 
 function escapeHtml(value: string): string {

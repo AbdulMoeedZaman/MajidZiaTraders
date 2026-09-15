@@ -1884,7 +1884,8 @@ body {
 /* ============ Bulk print: load form + first invoice, then linked invoices (landscape 2-up) ============ */
 /* The print-only tree is rendered via a portal into <body> (outside #root).
    It is invisible on screen and becomes the whole print job under `@media print`. */
-.bulk-print {
+.bulk-print,
+.report-print {
   display: none;
 }
 
@@ -1991,6 +1992,68 @@ body {
   body.bulk-printing .bulk-print .two-col .invoice-sheet .ip-description {
     margin-top: 10px;
     font-size: 9.5px;
+  }
+}
+
+/* --- Dashboard / product / inventory report print --- */
+@media print {
+  body.report-printing #root,
+  body.report-printing .app-shell {
+    display: none !important;
+  }
+  body.report-printing .report-print {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 12mm;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #111;
+    box-sizing: border-box;
+  }
+  body.report-printing .report-print,
+  body.report-printing .report-print * {
+    visibility: visible !important;
+  }
+  body.report-printing .report-print h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+  body.report-printing .report-print .report-meta {
+    color: #555;
+    margin: 0 0 18px;
+    font-size: 13px;
+  }
+  body.report-printing .report-print h2 {
+    font-size: 15px;
+    margin: 18px 0 8px;
+  }
+  body.report-printing .report-print table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  body.report-printing .report-print th,
+  body.report-printing .report-print td {
+    border: 1px solid #999;
+    padding: 6px 8px;
+    font-size: 12px;
+    text-align: left;
+  }
+  body.report-printing .report-print th {
+    background: #eee;
+    font-weight: 600;
+  }
+  body.report-printing .report-print td.num,
+  body.report-printing .report-print th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  body.report-printing .report-print tbody tr.foot td {
+    font-weight: 700;
+    border-top-width: 2px;
+    background: #fafafa;
   }
 }
 
