@@ -555,6 +555,15 @@ body {
   margin: 0;
 }
 
+.modal-page {
+  max-width: 1100px;
+  width: 100%;
+}
+
+.modal-page .feature {
+  gap: 12px;
+}
+
 .modal-actions {
   display: flex;
   align-items: center;

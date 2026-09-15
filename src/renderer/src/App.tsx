@@ -12,9 +12,7 @@ import { ProductDetailPage } from './features/products/components/ProductDetailP
 import { SettingsPage } from './features/settings/components/SettingsPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
 import { ExpensePage } from './features/expenses/components/ExpensePage'
-import { AdjustmentsPage } from './features/adjust/components/AdjustmentsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { HistoryPage } from './features/history/components/HistoryPage'
 
 export default function App() {
   const [view, setView] = useState<AppView>('invoices')
@@ -160,8 +158,6 @@ export default function App() {
           ))}
         {view === 'dashboard' && <DashboardPage onNavigate={setView} />}
         {view === 'expenses' && <ExpensePage />}
-        {view === 'adjust' && <AdjustmentsPage />}
-        {view === 'history' && <HistoryPage />}
         {view === 'settings' && <SettingsPage />}
         </>
         )}

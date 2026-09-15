@@ -254,7 +254,7 @@ export function DashboardPage({ onNavigate }: Props) {
                 </li>
               ))}
             </ShortList>
-            <ActivityList logs={activity} onMore={() => onNavigate('history')} />
+            <ActivityList logs={activity} onMore={() => onNavigate('settings')} />
           </div>
         </>
       )}

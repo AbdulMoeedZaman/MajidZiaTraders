@@ -600,14 +600,18 @@ try {
     activityHeader.includes('Recent activity') && !activityHasUndo && activityText.includes('Received Rs. 6.00'),
     { headers: activityHeader, buttons: activityBtnTexts, hasUndo: activityHasUndo, activity: activityText.replace(/\s+/g, ' ').slice(0, 220) })
 
-  await nav('History'); await wait(1200)
-  const histHeaders = await ev(`[...document.querySelectorAll('.data-table th')].map((th)=>th.textContent.trim()).join(',')`)
-  const histRows = await ev(`[...document.querySelectorAll('.data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
-  const histButtons = await ev(`[...document.querySelectorAll('.feature .toolbar button')].map((b)=>b.textContent.trim()).join(',')`)
-  check('H-2', 'History page lists the action log (time/action/details) with no Undo/Redo buttons',
+  await nav('Settings'); await wait(1200)
+  await ev(`[...document.querySelectorAll('.settings-section .btn')].find((b)=>b.textContent.trim()==='⌛ History')?.click()`)
+  await wait(1200)
+  const histHeaders = await ev(`[...document.querySelectorAll('.modal-page .data-table th')].map((th)=>th.textContent.trim()).join(',')`)
+  const histRows = await ev(`[...document.querySelectorAll('.modal-page .data-table tbody tr')].map((r)=>r.textContent.trim().replace(/\\s+/g,' ')).join('|')`)
+  const histButtons = await ev(`[...document.querySelectorAll('.modal-page .toolbar button')].map((b)=>b.textContent.trim()).join(',')`)
+  check('H-2', 'History modal (opened from Settings) lists the action log (time/action/details) with no Undo/Redo buttons',
     histHeaders === 'Time,Action,Details' && !histButtons.split(',').some((b) => b === 'Undo' || b === 'Redo') && histButtons.includes('Refresh') && histRows.split('|').length >= 8,
     { headers: histHeaders, buttons: histButtons, rows: histRows.split('|').length })
 
+  await ev(`[...document.querySelectorAll('.modal-page .modal-header .btn')].find((b)=>b.textContent.trim()==='Close')?.click()`)
+  await wait(300)
   const auditLatest = must(await inv('history:list'), 'history after actions')[0]
   check('H-3', 'The action log is a pure record: every row stays applied and payments are untouched',
     auditLatest.action === 'payment_recorded' && auditLatest.status === 'applied' &&

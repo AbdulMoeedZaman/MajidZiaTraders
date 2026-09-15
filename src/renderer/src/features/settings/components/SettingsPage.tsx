@@ -3,6 +3,8 @@ import { api } from '../../../lib/api'
 import type { ProjectOwner } from '@shared/types/project-owner'
 import type { Broker } from '@shared/types/broker'
 import type { BackupValidation } from '@shared/types/backup'
+import { AdjustmentsPage } from '../../adjust/components/AdjustmentsPage'
+import { HistoryPage } from '../../history/components/HistoryPage'
 
 interface OwnerFormData {
   name: string
@@ -220,6 +222,7 @@ export function SettingsPage() {
     name: string
     validation: BackupValidation
   } | null>(null)
+  const [pageModal, setPageModal] = useState<'adjust' | 'history' | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -353,6 +356,21 @@ export function SettingsPage() {
 
   return (
     <div className="feature">
+      <div className="settings-section">
+        <div className="section-title">Adjustments &amp; History</div>
+        <div className="settings-intro">
+          Correct a stock entry or a recorded payment, or review the action log.
+        </div>
+        <div className="form-actions">
+          <button className="btn primary" onClick={() => setPageModal('adjust')}>
+            ✎ Adjustments
+          </button>
+          <button className="btn ghost" onClick={() => setPageModal('history')}>
+            ⌛ History
+          </button>
+        </div>
+      </div>
+
       <div className="settings-section">
         <div className="section-title">Project Owner</div>
         <div className="settings-intro">
@@ -551,6 +569,22 @@ export function SettingsPage() {
                 {backupBusy ? 'Working…' : 'Restore now'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {pageModal && (
+        <div className="overlay">
+          <div className="modal modal-page">
+            <div className="modal-header">
+              <h3>{pageModal === 'adjust' ? 'Adjustments' : 'History'}</h3>
+              <div className="modal-actions">
+                <button className="btn ghost small" onClick={() => setPageModal(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+            {pageModal === 'adjust' ? <AdjustmentsPage /> : <HistoryPage />}
           </div>
         </div>
       )}
