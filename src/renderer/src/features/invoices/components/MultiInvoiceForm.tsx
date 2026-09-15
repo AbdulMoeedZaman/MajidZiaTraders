@@ -81,6 +81,13 @@ export const MultiInvoiceForm = forwardRef<MultiInvoiceFormHandle, Props>(functi
     setItems((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)))
   }
 
+  // Auto-focus the first product picker when this form mounts (arriving from the
+  // booker modal), so the user can start typing the first line immediately.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => productRefs.current[0]?.open())
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
   // After a new line renders, move focus into its product search so the user can
   // immediately start typing the next product.
   useEffect(() => {

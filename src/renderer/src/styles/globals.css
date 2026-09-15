@@ -2391,11 +2391,8 @@ tr.is-cancelled td {
 }
 
 .search-select-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 60;
+  position: fixed; /* rendered via portal on <body>, above any overlay */
+  z-index: 1000;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);

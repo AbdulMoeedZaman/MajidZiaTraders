@@ -158,7 +158,10 @@ export function MultipleInvoicesPage({ customerIds, brokerId, onClose }: Props) 
   useEffect(() => {
     if (stage !== 'entry') return
     const onKey = (e: KeyboardEvent) => {
-      const inSelect = !!((e.target as HTMLElement | null)?.closest?.('.search-select'))
+      const target = e.target as HTMLElement | null
+      // Combobox keystrokes (SearchSelect) keep their own behaviour — the menu
+      // is portaled, so match both the trigger wrapper and the menu itself.
+      const inSelect = !!target?.closest?.('.search-select, .search-select-menu')
       if (inSelect) return
       if (e.key === 'ArrowRight') {
         e.preventDefault()

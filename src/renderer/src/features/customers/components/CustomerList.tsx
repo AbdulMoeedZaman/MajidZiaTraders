@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../lib/api'
 import { useCustomers } from '../hooks/useCustomers'
 import { CustomerForm } from './CustomerForm'
 import { RouteNamesModal } from './RouteNamesModal'
-import { SearchSelect } from '../../../components/SearchSelect'
+import { SearchSelect, type SearchSelectHandle } from '../../../components/SearchSelect'
 import type { CustomerFormData } from './CustomerForm'
 import type { CustomerWithRoute } from '@shared/types/customer'
 import type { Broker } from '@shared/types/broker'
@@ -28,6 +28,20 @@ export function CustomerList({ onSelect, onNewInvoice, onMultipleInvoice }: Prop
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bookerPrompt, setBookerPrompt] = useState<{ ids: number[]; brokerId: number | null; loading: boolean } | null>(null)
   const [bookers, setBookers] = useState<Broker[]>([])
+  const bookerSelectRef = useRef<SearchSelectHandle | null>(null)
+  const bookerPromptOpenedRef = useRef(false)
+
+  // Auto-open (and focus) the booker search once the modal appears.
+  useEffect(() => {
+    if (!bookerPrompt) {
+      bookerPromptOpenedRef.current = false
+      return
+    }
+    if (bookerPromptOpenedRef.current) return
+    bookerPromptOpenedRef.current = true
+    const raf = requestAnimationFrame(() => bookerSelectRef.current?.open())
+    return () => cancelAnimationFrame(raf)
+  }, [bookerPrompt])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -138,12 +152,11 @@ export function CustomerList({ onSelect, onNewInvoice, onMultipleInvoice }: Prop
     setBookerPrompt({ ids: [...selected], brokerId: null, loading: false })
   }
 
-  const confirmBookerPrompt = () => {
-    if (!bookerPrompt || bookerPrompt.brokerId === null || bookerPrompt.loading) return
-    setBookerPrompt({ ...bookerPrompt, loading: true })
+  const confirmBookerPrompt = (ids: number[], brokerId: number) => {
+    setBookerPrompt({ ids, brokerId, loading: true })
     setMultiSelect(false)
     setSelected(new Set())
-    onMultipleInvoice(bookerPrompt.ids, bookerPrompt.brokerId)
+    onMultipleInvoice(ids, brokerId)
   }
 
   if (loading && routes.length === 0)
@@ -331,11 +344,17 @@ export function CustomerList({ onSelect, onNewInvoice, onMultipleInvoice }: Prop
             <div className="field">
               <span>Booker</span>
               <SearchSelect
+                ref={bookerSelectRef}
                 options={bookers.map((b) => ({ value: b.id, label: b.name }))}
                 value={bookerPrompt.brokerId}
-                onChange={(brokerId) =>
+                onChange={(brokerId) => {
                   setBookerPrompt((prev) => (prev ? { ...prev, brokerId } : prev))
-                }
+                  // Selecting a booker (arrow keys + Enter) starts the flow
+                  // right away — no extra click needed.
+                  if (brokerId !== null) {
+                    confirmBookerPrompt(bookerPrompt.ids, brokerId)
+                  }
+                }}
                 placeholder="Select booker…"
               />
             </div>
@@ -350,7 +369,7 @@ export function CustomerList({ onSelect, onNewInvoice, onMultipleInvoice }: Prop
               <button
                 className="btn primary"
                 disabled={bookerPrompt.brokerId === null || bookerPrompt.loading}
-                onClick={confirmBookerPrompt}
+                onClick={() => confirmBookerPrompt(bookerPrompt.ids, bookerPrompt.brokerId as number)}
               >
                 {bookerPrompt.loading ? 'Starting…' : 'Start'}
               </button>
